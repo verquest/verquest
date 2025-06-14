@@ -1,0 +1,14 @@
+inherit_gem:
+  standard: config/base.yml
+  standard-performance: config/base.yml
+  standard-custom: config/base.yml
+
+plugins:
+  - standard-custom
+  - standard-performance
+  - rubocop-minitest
+  - rubocop-rake
+
+AllCops:
+  TargetRubyVersion: 3.1
+  NewCops: enable # Enables new cops from plugins, as the main cops are managed by standard (the inherit_gem above)
