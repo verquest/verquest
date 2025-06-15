@@ -1,0 +1,8 @@
+--private
+--title "Verquest Documentation"
+--exclude lib/verquest/gem_version.rb
+lib/**/*.rb
+-
+LICENSE.txt
+CHANGELOG.md
+CODE_OF_CONDUCT.md

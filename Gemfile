@@ -9,10 +9,13 @@ gem "irb"
 gem "rake", "~> 13.0"
 
 gem "minitest", "~> 5.16"
-
-gem "rubocop", "~> 1.21"
+gem "minitest-difftastic", "~> 0.2"
+gem "mocha", "~> 2.7"
 
 gem "standard"
 gem "standard-performance"
 gem "rubocop-minitest"
 gem "rubocop-rake"
+
+gem "yard", "~> 0.9"
+gem "redcarpet", "~> 3.6"

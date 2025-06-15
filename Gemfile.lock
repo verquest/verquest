@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    verquest (0.1.0)
+    verquest (0.2.0)
       json-schema (~> 5.0)
       zeitwerk (~> 2.7)
 
@@ -13,6 +13,10 @@ GEM
     ast (2.4.3)
     bigdecimal (3.2.2)
     date (3.4.1)
+    difftastic (0.7.0-arm64-darwin)
+      pretty_please
+    dispersion (0.2.0)
+      prism
     erb (5.0.1)
     io-console (0.8.0)
     irb (1.15.2)
@@ -26,12 +30,18 @@ GEM
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     minitest (5.25.5)
+    minitest-difftastic (0.2.1)
+      difftastic (~> 0.6)
+    mocha (2.7.1)
+      ruby2_keywords (>= 0.0.5)
     parallel (1.27.0)
     parser (3.3.8.0)
       ast (~> 2.4.1)
       racc
     pp (0.6.2)
       prettyprint
+    pretty_please (0.2.0)
+      dispersion (~> 0.2)
     prettyprint (0.2.0)
     prism (1.4.0)
     psych (5.2.6)
@@ -44,6 +54,7 @@ GEM
     rdoc (6.14.0)
       erb
       psych (>= 4.0.0)
+    redcarpet (3.6.1)
     regexp_parser (2.10.0)
     reline (0.6.1)
       io-console (~> 0.5)
@@ -73,6 +84,7 @@ GEM
       lint_roller (~> 1.1)
       rubocop (>= 1.72.1)
     ruby-progressbar (1.13.0)
+    ruby2_keywords (0.0.5)
     standard (1.50.0)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.0)
@@ -89,22 +101,25 @@ GEM
     unicode-display_width (3.1.4)
       unicode-emoji (~> 4.0, >= 4.0.4)
     unicode-emoji (4.0.4)
+    yard (0.9.37)
     zeitwerk (2.7.3)
 
 PLATFORMS
   arm64-darwin-24
-  ruby
 
 DEPENDENCIES
   irb
   minitest (~> 5.16)
+  minitest-difftastic (~> 0.2)
+  mocha (~> 2.7)
   rake (~> 13.0)
-  rubocop (~> 1.21)
+  redcarpet (~> 3.6)
   rubocop-minitest
   rubocop-rake
   standard
   standard-performance
   verquest!
+  yard (~> 0.9)
 
 BUNDLED WITH
    2.6.9

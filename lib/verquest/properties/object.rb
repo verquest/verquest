@@ -1,0 +1,83 @@
+# frozen_string_literal: true
+
+module Verquest
+  module Properties
+    # Object property type for structured data
+    #
+    # Represents a complex object with nested properties in the schema.
+    # Used for defining structured data objects with multiple fields.
+    #
+    # @example Define an address object with nested properties
+    #   address = Verquest::Properties::Object.new(name: :address)
+    #   address.add(Verquest::Properties::Field.new(name: :street, type: :string))
+    #   address.add(Verquest::Properties::Field.new(name: :city, type: :string, required: true))
+    class Object < Base
+      # Initialize a new Object property
+      #
+      # @param name [String] The name of the property
+      # @param required [Boolean] Whether this property is required
+      # @param map [String, nil] The mapping path for this property
+      # @param schema_options [Hash] Additional JSON schema options for this property
+      def initialize(name:, required: false, map: nil, **schema_options)
+        @properties = {}
+
+        @name = name
+        @required = required
+        @map = map
+        @schema_options = schema_options
+      end
+
+      # Add a child property to this object
+      #
+      # @param property [Verquest::Properties::Base] The property to add to this object
+      # @return [Verquest::Properties::Base] The added property
+      def add(property)
+        properties[property.name] = property
+      end
+
+      # Generate JSON schema definition for this object property
+      #
+      # @return [Hash] The schema definition for this object property
+      def to_schema
+        {
+          name => {
+            type: :object,
+            required: properties.values.select(&:required).map(&:name),
+            properties: properties.transform_values { |property| property.to_schema[property.name] }
+          }.merge(schema_options)
+        }
+      end
+
+      # Generate validation schema for this object property
+      #
+      # @param version [String, nil] The version to generate validation schema for
+      # @return [Hash] The validation schema for this object property
+      def to_validation_schema(version: nil)
+        {
+          name => {
+            type: :object,
+            required: properties.values.select(&:required).map(&:name),
+            properties: properties.transform_values { |property| property.to_validation_schema(version:)[property.name] }
+          }.merge(schema_options)
+        }
+      end
+
+      # Create mapping for this object property and all its children
+      #
+      # @param key_prefix [Array<Symbol>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
+      # @param mapping [Hash] The mapping hash to be updated
+      # @param version [String, nil] The version to create mapping for
+      # @return [Hash] The updated mapping hash
+      def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
+        properties.values.each do |property|
+          property.mapping(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:)
+        end
+      end
+
+      private
+
+      attr_reader :type, :schema_options, :properties
+    end
+  end
+end
