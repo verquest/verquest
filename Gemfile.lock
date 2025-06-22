@@ -13,7 +13,11 @@ GEM
     ast (2.4.3)
     bigdecimal (3.2.2)
     date (3.4.1)
+    difftastic (0.7.0)
+      pretty_please
     difftastic (0.7.0-arm64-darwin)
+      pretty_please
+    difftastic (0.7.0-x86_64-linux)
       pretty_please
     dispersion (0.2.0)
       prism
@@ -106,6 +110,8 @@ GEM
 
 PLATFORMS
   arm64-darwin-24
+  ruby
+  x86_64-linux
 
 DEPENDENCIES
   irb
