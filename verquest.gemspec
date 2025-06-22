@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Verquest helps you version API requests, simplifying the management of changes, handling the mapping for internal versus external names and structures, validating parameters, and exporting your requests to JSON Schema components for OpenAPI."
   spec.homepage = "https://github.com/CiTroNaK/verquest"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.1.0"
+  spec.required_ruby_version = ">= 3.2"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage

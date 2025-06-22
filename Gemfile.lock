@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    verquest (0.2.0)
+    verquest (0.2.1)
       json-schema (~> 5.0)
       zeitwerk (~> 2.7)
 
