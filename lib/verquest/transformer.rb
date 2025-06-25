@@ -113,12 +113,11 @@ module Verquest
 
       case data
       when Hash
-        # Check if the key exists (as string or symbol)
-        return nil unless data.key?(key.to_s) || data.key?(key.to_sym)
+        # Only check for string keys
+        return nil unless data.key?(key.to_s)
 
-        # Determine the actual key type used in the hash
-        actual_key = data.key?(key.to_s) ? key.to_s : key.to_sym
-        value = data[actual_key]
+        # Always use string keys
+        value = data[key.to_s]
 
         if current_part[:array] && value.is_a?(Array)
           # Process array elements and filter out nil values
@@ -153,7 +152,7 @@ module Verquest
 
       current_part = path_parts.first
       remaining_path = path_parts[1..]
-      key = current_part[:key].to_sym # Convert key to symbol for consistent symbol keys
+      key = current_part[:key].to_s # Ensure key is a string for consistency
 
       if remaining_path.empty?
         # End of path, set the value directly

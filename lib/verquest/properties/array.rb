@@ -16,8 +16,8 @@ module Verquest
     class Array < Base
       # Initialize a new Array property
       #
-      # @param name [Symbol] The name of the property
-      # @param type [Symbol] The type of items in the array
+      # @param name [String, Symbol] The name of the property
+      # @param type [String, Symbol] The type of items in the array
       # @param map [String, nil] The mapping path for this property (nil for no explicit mapping)
       # @param required [Boolean] Whether this property is required
       # @param schema_options [Hash] Additional JSON schema options for this property
@@ -25,11 +25,11 @@ module Verquest
       def initialize(name:, type:, map: nil, required: false, **schema_options)
         raise ArgumentError, "You can not map array to the root" if map == "/"
 
-        @name = name
-        @type = type
+        @name = name.to_s
+        @type = type.to_s
         @map = map
         @required = required
-        @schema_options = schema_options
+        @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
       # Generate JSON schema definition for this array property
@@ -38,16 +38,16 @@ module Verquest
       def to_schema
         {
           name => {
-            type: :array,
-            items: {type: type}
+            "type" => "array",
+            "items" => {"type" => type}
           }.merge(schema_options)
         }
       end
 
       # Create mapping for this array property
       #
-      # @param key_prefix [Array<Symbol>] Prefix for the source key
-      # @param value_prefix [Array<Symbol>] Prefix for the target value
+      # @param key_prefix [Array<String>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for, defaults to configuration setting
       # @return [Hash] The updated mapping hash

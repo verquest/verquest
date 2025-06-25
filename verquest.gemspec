@@ -33,7 +33,7 @@ Gem::Specification.new do |spec|
 
   # Uncomment to register a new dependency of your gem
   spec.add_dependency "zeitwerk", "~> 2.7"
-  spec.add_dependency "json-schema", "~> 5.0"
+  spec.add_dependency "json_schemer", "~> 2.4"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

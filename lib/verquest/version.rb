@@ -50,7 +50,7 @@ module Verquest
     # @param name [String] The name/identifier of the version
     # @return [Version] A new Version instance
     def initialize(name:)
-      @name = name
+      @name = name.to_s
       @schema_options = {}
       @properties = {}
     end
@@ -69,7 +69,7 @@ module Verquest
     # @return [Verquest::Properties::Base] The removed property
     # @raise [PropertyNotFoundError] If the property doesn't exist
     def remove(property_name)
-      properties.delete(property_name) || raise(PropertyNotFoundError.new("Property '#{property_name}' is not defined on '#{name}"))
+      properties.delete(property_name.to_s) || raise(PropertyNotFoundError.new("Property '#{property_name}' is not defined on '#{name}'"))
     end
 
     # Check if this version has a property with the given name
@@ -77,7 +77,7 @@ module Verquest
     # @param property_name [Symbol, String] The name of the property to check
     # @return [Boolean] true if the property exists, false otherwise
     def has?(property_name)
-      properties.key?(property_name)
+      properties.key?(property_name.to_s)
     end
 
     # Copy properties from another version
@@ -90,7 +90,7 @@ module Verquest
       raise ArgumentError, "Expected a Verquest::Version instance" unless version.is_a?(Version)
 
       version.properties.values.each do |property|
-        next if exclude_properties.include?(property.name)
+        next if exclude_properties.include?(property.name.to_sym)
 
         add(property)
       end
@@ -114,27 +114,30 @@ module Verquest
     #
     # @return [Boolean] true if the schema is valid, false otherwise
     def validate_schema
-      schema_name = Verquest.configuration.json_schema_version
-
-      metaschema = JSON::Validator.validator_for_name(schema_name).metaschema
-      JSON::Validator.validate(metaschema, validation_schema)
+      JSONSchemer.validate_schema(
+        validation_schema,
+        meta_schema: Verquest.configuration.json_schema_uri
+      )
     end
 
     # Validate request parameters against the version's validation schema
     #
     # @param params [Hash] The request parameters to validate
-    # @param component_reference [String] A reference string for components in the schema
-    # @param remove_extra_root_keys [Boolean] Whether to remove extra keys not in the schema
     # @return [Array<Hash>] An array of validation error details, or empty if valid
-    def validate_params(params:, component_reference:, remove_extra_root_keys:)
-      schema_name = Verquest.configuration.json_schema_version
+    def validate_params(params:)
+      schemer = JSONSchemer.schema(
+        validation_schema,
+        meta_schema: Verquest.configuration.json_schema_uri,
+        insert_property_defaults: Verquest.configuration.insert_property_defaults
+      )
 
-      result = JSON::Validator.fully_validate(validation_schema, params, version: schema_name, errors_as_objects: true)
-      return result if result.empty?
-
-      result.map do |error|
-        schema = error.delete(:schema)
-        error[:message].gsub!(schema.to_s, component_reference)
+      schemer.validate(params).map do |error|
+        {
+          pointer: error["data_pointer"],
+          type: error["type"],
+          message: error["error"],
+          details: error["details"]
+        }
       end
     end
 
@@ -147,7 +150,7 @@ module Verquest
       raise PropertyNotFoundError.new("Property '#{property}' is not defined on '#{name}'") unless has?(property)
 
       {}.tap do |mapping|
-        properties[property].mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
+        properties[property.to_s].mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
       end
     end
 
@@ -170,10 +173,10 @@ module Verquest
     # @return [Hash] The frozen schema hash
     def prepare_schema
       @schema = {
-        type: :object,
-        description: description,
-        required: properties.values.select(&:required).map(&:name),
-        properties: properties.transform_values { |property| property.to_schema[property.name] }
+        "type" => "object",
+        "description" => description,
+        "required" => properties.values.select(&:required).map(&:name),
+        "properties" => properties.transform_values { |property| property.to_schema[property.name] }
       }.merge(schema_options).freeze
     end
 
@@ -185,10 +188,10 @@ module Verquest
     # @return [Hash] The frozen validation schema hash
     def prepare_validation_schema
       @validation_schema = {
-        type: :object,
-        description: description,
-        required: properties.values.select(&:required).map(&:name),
-        properties: properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
+        "type" => "object",
+        "description" => description,
+        "required" => properties.values.select(&:required).map(&:name),
+        "properties" => properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
       }.merge(schema_options).freeze
     end
 

@@ -40,24 +40,24 @@ module Verquest
         object.add(sub_collection)
 
         expected_schema = {
-          test_field: {
-            type: :object,
-            required: %i[sub_field reference_field],
-            properties: {
-              sub_field: {
-                type: :integer
+          "test_field" => {
+            "type" => "object",
+            "required" => ["sub_field", "reference_field"],
+            "properties" => {
+              "sub_field" => {
+                "type" => "integer"
               },
-              reference_field: {
-                "$ref": "#/components/schemas/ObjectTestReferenceClass/properties/reference_field"
+              "reference_field" => {
+                "$ref" => "#/components/schemas/ObjectTestReferenceClass/properties/reference_field"
               },
-              sub_collection: {
-                type: :array,
-                items: {
-                  "$ref": "#/components/schemas/ObjectTestReferenceClass"
+              "sub_collection" => {
+                "type" => "array",
+                "items" => {
+                  "$ref" => "#/components/schemas/ObjectTestReferenceClass"
                 }
               }
             },
-            description: "A test field"
+            "description" => "A test field"
           }
         }
 
@@ -93,27 +93,27 @@ module Verquest
         object.add(sub_collection)
 
         expected_schema = {
-          test_field: {
-            type: :object,
-            required: %i[sub_field reference_field],
-            properties: {
-              sub_field: {
-                type: :integer
+          "test_field" => {
+            "type" => "object",
+            "required" => ["sub_field", "reference_field"],
+            "properties" => {
+              "sub_field" => {
+                "type" => "integer"
               },
-              reference_field: {type: :string, description: "A test field"},
-              sub_collection: {
-                type: :array,
-                items: {
-                  type: :object,
-                  description: nil,
-                  required: [:reference_field],
-                  properties: {
-                    reference_field: {type: :string, description: "A test field"}
+              "reference_field" => {"type" => "string", "description" => "A test field"},
+              "sub_collection" => {
+                "type" => "array",
+                "items" => {
+                  "type" => "object",
+                  "description" => nil,
+                  "required" => ["reference_field"],
+                  "properties" => {
+                    "reference_field" => {"type" => "string", "description" => "A test field"}
                   }
                 }
               }
             },
-            description: "A test field"
+            "description" => "A test field"
           }
         }
 

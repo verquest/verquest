@@ -20,7 +20,7 @@ module Verquest
     class Collection < Base
       # Initialize a new Collection property
       #
-      # @param name [Symbol] The name of the property
+      # @param name [String, Symbol] The name of the property
       # @param item [Verquest::Base, nil] Optional reference to an external schema class
       # @param required [Boolean] Whether this property is required
       # @param map [String, nil] The mapping path for this property
@@ -31,11 +31,11 @@ module Verquest
 
         @properties = {}
 
-        @name = name
+        @name = name.to_s
         @item = item
         @required = required
         @map = map
-        @schema_options = schema_options
+        @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
       # Add a child property to this collection's item definition
@@ -60,20 +60,20 @@ module Verquest
         if has_item?
           {
             name => {
-              type: :array,
-              items: {
-                "$ref": item.to_ref
+              "type" => "array",
+              "items" => {
+                "$ref" => item.to_ref
               }
             }.merge(schema_options)
           }
         else
           {
             name => {
-              type: :array,
-              items: {
-                type: :object,
-                required: properties.values.select(&:required).map(&:name),
-                properties: properties.transform_values { |property| property.to_schema[property.name] }
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "required" => properties.values.select(&:required).map(&:name),
+                "properties" => properties.transform_values { |property| property.to_schema[property.name] }
               }
             }.merge(schema_options)
           }
@@ -88,18 +88,18 @@ module Verquest
         if has_item?
           {
             name => {
-              type: :array,
-              items: item.to_validation_schema(version: version)
+              "type" => "array",
+              "items" => item.to_validation_schema(version: version)
             }.merge(schema_options)
           }
         else
           {
             name => {
-              type: :array,
-              items: {
-                type: :object,
-                required: properties.values.select(&:required).map(&:name),
-                properties: properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
+              "type" => "array",
+              "items" => {
+                "type" => "object",
+                "required" => properties.values.select(&:required).map(&:name),
+                "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
               }
             }.merge(schema_options)
           }
@@ -118,7 +118,7 @@ module Verquest
       #    - Creates mappings for each property in the collection items
       #    - Each property gets mapped with array notation and appropriate prefixes
       #
-      # @param key_prefix [Array<Symbol>] Prefix for the source key
+      # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for

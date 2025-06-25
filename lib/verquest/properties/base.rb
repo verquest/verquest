@@ -11,7 +11,7 @@ module Verquest
     # @abstract Subclass and override {#to_schema}, {#mapping} to implement
     class Base
       # @!attribute [rw] name
-      #   @return [Symbol] The name of the property
+      #   @return [String] The name of the property
       # @!attribute [rw] required
       #   @return [Boolean] Whether this property is required
       # @!attribute [rw] map
@@ -43,7 +43,7 @@ module Verquest
 
       # Creates mapping for this property
       # @abstract
-      # @param key_prefix [Array<Symbol>] Prefix for the source key
+      # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for

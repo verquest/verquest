@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "zeitwerk"
-require "json-schema"
+require "json_schemer"
 
 loader = Zeitwerk::Loader.new
 loader.tag = File.basename(__FILE__, ".rb")

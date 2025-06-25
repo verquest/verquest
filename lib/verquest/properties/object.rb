@@ -14,17 +14,17 @@ module Verquest
     class Object < Base
       # Initialize a new Object property
       #
-      # @param name [String] The name of the property
+      # @param name [String, Symbol] The name of the property
       # @param required [Boolean] Whether this property is required
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property
       def initialize(name:, required: false, map: nil, **schema_options)
         @properties = {}
 
-        @name = name
+        @name = name.to_s
         @required = required
         @map = map
-        @schema_options = schema_options
+        @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
       # Add a child property to this object
@@ -32,7 +32,7 @@ module Verquest
       # @param property [Verquest::Properties::Base] The property to add to this object
       # @return [Verquest::Properties::Base] The added property
       def add(property)
-        properties[property.name] = property
+        properties[property.name.to_s] = property
       end
 
       # Generate JSON schema definition for this object property
@@ -41,9 +41,9 @@ module Verquest
       def to_schema
         {
           name => {
-            type: :object,
-            required: properties.values.select(&:required).map(&:name),
-            properties: properties.transform_values { |property| property.to_schema[property.name] }
+            "type" => "object",
+            "required" => properties.values.select(&:required).map(&:name),
+            "properties" => properties.transform_values { |property| property.to_schema[property.name] }
           }.merge(schema_options)
         }
       end
@@ -55,16 +55,16 @@ module Verquest
       def to_validation_schema(version: nil)
         {
           name => {
-            type: :object,
-            required: properties.values.select(&:required).map(&:name),
-            properties: properties.transform_values { |property| property.to_validation_schema(version:)[property.name] }
+            "type" => "object",
+            "required" => properties.values.select(&:required).map(&:name),
+            "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
           }.merge(schema_options)
         }
       end
 
       # Create mapping for this object property and all its children
       #
-      # @param key_prefix [Array<Symbol>] Prefix for the source key
+      # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for

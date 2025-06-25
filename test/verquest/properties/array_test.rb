@@ -13,10 +13,10 @@ module Verquest
         )
 
         expected_schema = {
-          test_array: {
-            type: :array,
-            items: {type: :string},
-            description: "A test array"
+          "test_array" => {
+            "type" => "array",
+            "items" => {"type" => "string"},
+            "description" => "A test array"
           }
         }
 
@@ -31,10 +31,10 @@ module Verquest
         )
 
         expected_schema = {
-          test_array: {
-            type: :array,
-            items: {type: :string},
-            description: "A test array"
+          "test_array" => {
+            "type" => "array",
+            "items" => {"type" => "string"},
+            "description" => "A test array"
           }
         }
 

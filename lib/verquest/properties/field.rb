@@ -17,33 +17,33 @@ module Verquest
     class Field < Base
       # List of allowed field types
       # @return [Array<Symbol>]
-      ALLOWED_TYPES = %i[string number integer boolean].freeze
+      ALLOWED_TYPES = %w[string number integer boolean].freeze
 
       # Initialize a new Field property
       #
-      # @param name [Symbol] The name of the property
-      # @param type [Symbol] The data type for this field, must be one of ALLOWED_TYPES
+      # @param name [String, Symbol] The name of the property
+      # @param type [String, Symbol] The data type for this field, must be one of ALLOWED_TYPES
       # @param required [Boolean] Whether this property is required
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property
       # @raise [ArgumentError] If type is not one of the allowed types
       # @raise [ArgumentError] If attempting to map a field to root without a name
       def initialize(name:, type:, required: false, map: nil, **schema_options)
-        raise ArgumentError, "Type must be one of #{ALLOWED_TYPES.join(", ")}" unless ALLOWED_TYPES.include?(type)
+        raise ArgumentError, "Type must be one of #{ALLOWED_TYPES.join(", ")}" unless ALLOWED_TYPES.include?(type.to_s)
         raise ArgumentError, "You can not map fields to the root without a name" if map == "/"
 
-        @name = name
-        @type = type
+        @name = name.to_s
+        @type = type.to_s
         @required = required
         @map = map
-        @schema_options = schema_options
+        @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
       # Generate JSON schema definition for this field
       #
       # @return [Hash] The schema definition for this field
       def to_schema
-        {name => {type: type}.merge(schema_options)}
+        {name => {"type" => type}.merge(schema_options)}
       end
 
       # Create mapping for this field property

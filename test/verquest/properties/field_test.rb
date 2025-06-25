@@ -20,9 +20,9 @@ module Verquest
         )
 
         expected_schema = {
-          test_field: {
-            type: :string,
-            description: "A test field"
+          "test_field" => {
+            "type" => "string",
+            "description" => "A test field"
           }
         }
 
@@ -38,9 +38,9 @@ module Verquest
         )
 
         expected_schema = {
-          test_field: {
-            type: :string,
-            description: "A test field"
+          "test_field" => {
+            "type" => "string",
+            "description" => "A test field"
           }
         }
 

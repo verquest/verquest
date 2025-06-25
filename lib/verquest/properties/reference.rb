@@ -23,13 +23,13 @@ module Verquest
     class Reference < Base
       # Initialize a new Reference property
       #
-      # @param name [String] The name of the property
+      # @param name [String, Symbol] The name of the property
       # @param from [Class] The schema class to reference
       # @param property [Symbol, nil] Optional specific property to reference
       # @param map [String, nil] The mapping path for this property
       # @param required [Boolean] Whether this property is required
       def initialize(name:, from:, property: nil, map: nil, required: false)
-        @name = name
+        @name = name.to_s
         @from = from
         @property = property
         @map = map
@@ -41,7 +41,7 @@ module Verquest
       # @return [Hash] The schema definition with a $ref pointer
       def to_schema
         {
-          name => {"$ref": from.to_ref(property:)}
+          name => {"$ref" => from.to_ref(property: property)}
         }
       end
 
@@ -58,7 +58,7 @@ module Verquest
       # Create mapping for this reference property
       # This delegates to the referenced schema's mapping with appropriate key prefixing
       #
-      # @param key_prefix [Array<Symbol>] Prefix for the source key
+      # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for

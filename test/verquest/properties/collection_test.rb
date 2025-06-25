@@ -36,10 +36,10 @@ module Verquest
         )
 
         expected_schema = {
-          test_collection: {
-            type: :array,
-            items: {"$ref": "#/components/schemas/CollectionTestReferenceClass"},
-            description: "A test array of items as references"
+          "test_collection" => {
+            "type" => "array",
+            "items" => {"$ref" => "#/components/schemas/CollectionTestReferenceClass"},
+            "description" => "A test array of items as references"
           }
         }
 
@@ -60,16 +60,16 @@ module Verquest
         collection.add(sub_field)
 
         expected_schema = {
-          test_collection: {
-            type: :array,
-            items: {
-              type: :object,
-              required: [:sub_field],
-              properties: {
-                sub_field: {type: :integer}
+          "test_collection" => {
+            "type" => "array",
+            "items" => {
+              "type" => "object",
+              "required" => ["sub_field"],
+              "properties" => {
+                "sub_field" => {"type" => "integer"}
               }
             },
-            description: "A test array of items defined as an object"
+            "description" => "A test array of items defined as an object"
           }
         }
 
@@ -90,16 +90,16 @@ module Verquest
         collection.add(sub_field)
 
         expected_schema = {
-          test_collection: {
-            type: :array,
-            items: {
-              type: :object,
-              required: [:sub_field],
-              properties: {
-                sub_field: {type: :integer}
+          "test_collection" => {
+            "type" => "array",
+            "items" => {
+              "type" => "object",
+              "required" => ["sub_field"],
+              "properties" => {
+                "sub_field" => {"type" => "integer"}
               }
             },
-            description: "A test array of items defined as an object"
+            "description" => "A test array of items defined as an object"
           }
         }
 
@@ -113,16 +113,16 @@ module Verquest
         )
 
         expected_schema = {
-          test_collection: {
-            type: :array,
-            items: {
-              type: :object,
-              description: nil,
-              required: [:reference_field],
-              properties: {
-                reference_field: {
-                  type: :string,
-                  description: "A test field"
+          "test_collection" => {
+            "type" => "array",
+            "items" => {
+              "type" => "object",
+              "description" => nil,
+              "required" => ["reference_field"],
+              "properties" => {
+                "reference_field" => {
+                  "type" => "string",
+                  "description" => "A test field"
                 }
               }
             }

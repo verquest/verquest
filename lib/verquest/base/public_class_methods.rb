@@ -12,7 +12,8 @@ module Verquest
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @param validate [Boolean, nil] Whether to validate the params, defaults to configuration setting
     # @param remove_extra_root_keys [Boolean, nil] Whether to remove extra keys at the root level, defaults to configuration setting
-    # @return [Verquest::Result] Success result with mapped params or failure result with validation errors
+    # @return [Verquest::Result, Hash, Exception] When validation_error_handling is :result, returns a Success result with mapped params or Failure result with validation errors.
+    #   When validation_error_handling is :raise, returns mapped params directly or raises InvalidParamsError with validation errors.
     def process(params, version: nil, validate: nil, remove_extra_root_keys: nil)
       validate = Verquest.configuration.validate_params if validate.nil?
       remove_extra_root_keys = Verquest.configuration.remove_extra_root_keys if remove_extra_root_keys.nil?
@@ -23,7 +24,7 @@ module Verquest
       params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
       params = params.slice(*version_class.properties.keys) if remove_extra_root_keys
 
-      if validate && (validation_result = version_class.validate_params(params: params, component_reference: to_ref, remove_extra_root_keys: remove_extra_root_keys)) && validation_result.any?
+      if validate && (validation_result = version_class.validate_params(params: params)) && validation_result.any?
         case Verquest.configuration.validation_error_handling
         when :raise
           raise InvalidParamsError.new("Validation failed", errors: validation_result)
@@ -59,7 +60,7 @@ module Verquest
       version = resolve(version)
 
       if property
-        version.validation_schema[:properties][property]
+        version.validation_schema["properties"][property.to_s]
       else
         version.validation_schema
       end
@@ -76,7 +77,7 @@ module Verquest
     # Returns the mapping for a specific version or property
     #
     # @param version [String, nil] Specific version to use, defaults to configuration setting
-    # @param property [Symbol, nil] Specific property to retrieve mapping for
+    # @param property [String, Symbol, nil] Specific property to retrieve mapping for
     # @return [Hash] The mapping configuration
     def mapping(version: nil, property: nil)
       version = resolve(version)
@@ -90,7 +91,7 @@ module Verquest
 
     # Returns the JSON reference for the request or a specific property
     #
-    # @param property [Symbol, nil] Specific property to retrieve reference for
+    # @param property [String, Symbol, nil] Specific property to retrieve reference for
     # @return [String] The JSON reference for the request or property
     def to_ref(property: nil)
       base = "#/components/schemas/#{component_name}"

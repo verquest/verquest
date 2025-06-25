@@ -11,13 +11,23 @@ module Verquest
   #     config.current_version = -> { Current.api_version }
   #   end
   class Configuration
+    SCHEMAS = {
+      draft4: JSONSchemer::Draft4,
+      draft6: JSONSchemer::Draft6,
+      draft7: JSONSchemer::Draft7,
+      draft2019_09: JSONSchemer::Draft201909,
+      draft2020_12: JSONSchemer::Draft202012,
+      openapi30: JSONSchemer::OpenAPI30,
+      openapi31: JSONSchemer::OpenAPI31
+    }.freeze
+
     # @!attribute [rw] validate_params
     #   Controls whether parameters are automatically validated against the schema
     #   @return [Boolean] true if validation is enabled, false otherwise
     #
     # @!attribute [rw] json_schema_version
-    #   The JSON Schema draft version to use for validation and schema generation (see the json-schema gem)
-    #   @return [Symbol] The JSON Schema version (e.g., :draft4, :draft5)
+    #   The JSON Schema draft version to use for validation and schema generation (see Configuration::SCHEMAS)
+    #   @return [Symbol] The JSON Schema version (e.g., :draft2020_12, :draft2019_09, :draft7)
     #
     # @!attribute [rw] validation_error_handling
     #   Controls how errors during parameter processing are handled
@@ -26,7 +36,11 @@ module Verquest
     # @!attribute [rw] remove_extra_root_keys
     #   Controls if extra root keys not defined in the schema should be removed from the parameters
     #   @return [Boolean] true if extra keys should be removed, false otherwise
-    attr_accessor :validate_params, :json_schema_version, :validation_error_handling, :remove_extra_root_keys
+    #
+    # @!attribute [rw] insert_property_defaults
+    #   Controls whether default values defined in property schemas should be inserted when not provided during validation
+    #   @return [Boolean] true if default values should be inserted, false otherwise
+    attr_accessor :validate_params, :json_schema_version, :validation_error_handling, :remove_extra_root_keys, :insert_property_defaults
 
     # @!attribute [r] current_version
     #   A callable object that returns the current API version to use when not explicitly specified
@@ -42,10 +56,11 @@ module Verquest
     # @return [Configuration] A new configuration instance with default settings
     def initialize
       @validate_params = true
-      @json_schema_version = :draft6
+      @json_schema_version = :draft2020_12
       @validation_error_handling = :raise # or :result
       @remove_extra_root_keys = true
       @version_resolver = VersionResolver
+      @insert_property_defaults = true
     end
 
     # Sets the current version strategy using a callable object
@@ -68,6 +83,21 @@ module Verquest
       raise ArgumentError, "The version_resolver must respond to a call method" unless version_resolver.respond_to?(:call)
 
       @version_resolver = version_resolver
+    end
+
+    # Gets the JSON Schema class based on the configured version
+    #
+    # @return [Class] The JSON Schema class matching the configured version
+    # @raise [ArgumentError] If the configured json_schema_version is not supported
+    def json_schema
+      SCHEMAS[json_schema_version] || raise(ArgumentError, "Unsupported JSON Schema version: #{json_schema_version}")
+    end
+
+    # Gets the JSON Schema URI for the configured schema version
+    #
+    # @return [String] The base URI for the configured JSON Schema version
+    def json_schema_uri
+      json_schema::BASE_URI.to_s
     end
   end
 end

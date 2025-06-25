@@ -64,7 +64,7 @@ module Verquest
       instance_exec(&block)
     ensure
       version.description ||= versions.description
-      version.schema_options = versions.schema_options.merge(version.schema_options)
+      version.schema_options = versions.schema_options.merge(version.schema_options).transform_keys(&:to_s)
       version.prepare
     end
 

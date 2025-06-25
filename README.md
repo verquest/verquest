@@ -128,49 +128,53 @@ UserCreateRequest.to_schema(version: "2025-06")
 Output:
 ```ruby
 {
-  type: :object,
-  description: "User Create Request",
-  required: [:first_name, :last_name, :email, :address],
-  properties: {
-    first_name: {type: :string, description: "The first name of the user", maxLength: 50},
-    last_name: {type: :string, description: "The last name of the user", maxLength: 50},
-    email: {type: :string, format: "email", description: "The email address of the user"},
-    birth_date: {type: :string, format: "date", description: "The birth date of the user"},
-    address: {"$ref": "#/components/schemas/AddressCreateRequest"},
-    permissions: {
-      type: :array, 
-      items: {
-        type: :object, 
-        required: [:name], 
-        properties: {
-          name: {type: :string, description: "Name of the permission"}, 
-          read: {type: :boolean, description: "Permission to read"}, 
-          write: {type: :boolean, description: "Permission to write"}
+  "type" => "object",
+  "description" => "User Create Request",
+  "required" => ["first_name", "last_name", "email", "address"],
+  "properties" => {
+    "first_name" => {"type" => "string", "description" => "The first name of the user", "maxLength" => 50},
+    "last_name" => {"type" => "string", "description" => "The last name of the user", "maxLength" => 50},
+    "email" => {"type" => "string", "format" => "email", "description" => "The email address of the user"},
+    "birth_date" => {"type" => "string", "format" => "date", "description" => "The birth date of the user"},
+    "address" => {"$ref" => "#/components/schemas/AddressCreateRequest"},
+    "permissions" => {
+      "type" => "array",
+      "items" => {
+        "type" => "object", 
+        "required" => ["name"], 
+        "properties" => {
+          "name" => {"type" => "string", "description" => "Name of the permission"}, 
+          "read" => {"type" => "boolean", "description" => "Permission to read"}, 
+          "write" => {"type" => "boolean", "description" => "Permission to write"}
         }
-      }, 
-      description: "Permissions associated with the user"
+      },
+      "description" => "Permissions associated with the user"
     },
-    role: {type: :string, description: "Role of the user", enum: ["member", "manager"], default: "member"},
-    profile_details: {
-      type: :object,
-      required: [],
-      properties: {
-        bio: {type: :string, description: "Short biography of the user"},
-        hobbies: {type: :array, items: {type: :string}, description: "Tags associated with the user"},
-        social_links: {
-          type: :object, 
-          required: [], 
-          properties: {
-            github: {type: :string, format: "uri", description: "GitHub profile URL"}, 
-            mastodon: {type: :string, format: "uri", description: "Mastodon profile URL"}
-          }, 
-          description: "Some social networks"
+    "role" => {
+      "type" => "string",
+      "description" => "Role of the user",
+      "enum" => ["member", "manager"],
+      "default" => "member"
+    },
+    "profile_details" => {
+      "type" => "object",
+      "required" => [],
+      "properties" => {
+        "bio" => {"type" => "string", "description" => "Short biography of the user"},
+        "hobbies" => {"type" => "array", "items" => {"type" => "string"}, "description" => "Tags associated with the user"},
+        "social_links" => {
+          "type" => "object",
+          "required" => [],
+          "properties" => {
+            "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"},
+            "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
+          },
+          "description" => "Some social networks"
         }
       }
     }
   },
-  additionalProperties: false
-}
+  "additionalProperties" => false}
 ```
 
 ### JSON schema for validation
@@ -184,59 +188,61 @@ UserCreateRequest.to_validation_schema(version: "2025-06")
 Output:
 ```ruby
 {
-  type: :object,
-  description: "User Create Request",
-  required: [:first_name, :last_name, :email, :address],
-  properties: {
-    first_name: {type: :string, description: "The first name of the user", maxLength: 50},
-    last_name: {type: :string, description: "The last name of the user", maxLength: 50},
-    email: {type: :string, format: "email", description: "The email address of the user"},
-    birth_date: {type: :string, format: "date", description: "The birth date of the user"},
-    address: { # from the AddressCreateRequest
-      type: :object,
-      description: "Address Create Request",
-      required: [:street, :city, :postal_code, :country],
-      properties: {
-        street: {type: :string, description: "Street address"}, 
-        city: {type: :string, description: "City of residence"}, 
-        postal_code: {type: :string, description: "Postal code"}, 
-        country: {type: :string, description: "Country of residence"}
+  "type" => "object",
+  "description" => "User Create Request",
+  "required" => ["first_name", "last_name", "email", "address"],
+  "properties" => {
+    "first_name" => {"type" => "string", "description" => "The first name of the user", "maxLength" => 50},
+    "last_name" => {"type" => "string", "description" => "The last name of the user", "maxLength" => 50},
+    "email" => {"type" => "string", "format" => "email", "description" => "The email address of the user"},
+    "birth_date" => {"type" => "string", "format" => "date", "description" => "The birth date of the user"},
+    "address" => { # from the AddressCreateRequest
+      "type" => "object",
+      "description" => "Address Create Request",
+      "required" => ["street", "city", "postal_code", "country"],
+      "properties" => {
+        "street" => {"type" => "string", "description" => "Street address"},
+        "city" => {"type" => "string", "description" => "City of residence"},
+        "postal_code" => {"type" => "string", "description" => "Postal code"},
+        "country" => {"type" => "string", "description" => "Country of residence"}
       },
-      additionalProperties: false
+      "additionalProperties" => false
     },
-    permissions: {
-      type: :array,
-      items: {
-        type: :object,
-        required: [:name],
-        properties: {
-          name: {type: :string, description: "Name of the permission"},
-          read: {type: :boolean, description: "Permission to read"},
-          write: {type: :boolean, description: "Permission to write"}
+    "permissions" => {
+      "type" => "array",
+      "items" => {
+        "type" => "object", "required" => ["name"],
+        "properties" => {
+          "name" => {"type" => "string", "description" => "Name of the permission"},
+          "read" => {"type" => "boolean", "description" => "Permission to read"},
+          "write" => {"type" => "boolean", "description" => "Permission to write"}
         }
       },
-      description: "Permissions associated with the user"
+      "description" => "Permissions associated with the user"
     },
-    role: {type: :string, description: "Role of the user", enum: ["member", "manager"], default: "member"},
-    profile_details: {
-      type: :object,
-      required: [],
-      properties: {
-        bio: {type: :string, description: "Short biography of the user"},
-        hobbies: {type: :array, items: {type: :string}, description: "Tags associated with the user"},
-        social_links: {
-          type: :object,
-          required: [],
-          properties: {
-            github: {type: :string, format: "uri", description: "GitHub profile URL"},
-            mastodon: {type: :string, format: "uri", description: "Mastodon profile URL"}
-          },
-          description: "Some social networks"
-        }
+    "role" => {
+      "type" => "string",
+      "description" => "Role of the user",
+      "enum" => ["member", "manager"],
+      "default" => "member"
+    },
+    "profile_details" => {"type" => "object",
+      "required" => [],
+      "properties" => {
+        "bio" => {"type" => "string", "description" => "Short biography of the user"},
+        "hobbies" => {"type" => "array", "items" => {"type" => "string"}, "description" => "Tags associated with the user"},
+        "social_links" => {
+          "type" => "object", 
+          "required" => [], 
+          "properties" => {
+            "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"}, 
+            "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
+          }, 
+          "description" => "Some social networks"}
       }
     }
   },
-  additionalProperties: false
+  "additionalProperties" => false
 }
 ```
 

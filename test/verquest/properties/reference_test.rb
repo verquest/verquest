@@ -18,8 +18,8 @@ module Verquest
         )
 
         expected_schema = {
-          test_field: {
-            "$ref": "#/components/schemas/ReferenceClass"
+          "test_field" => {
+            "$ref" => "#/components/schemas/ReferenceClass"
           }
         }
 
@@ -34,8 +34,8 @@ module Verquest
         )
 
         expected_schema = {
-          test_field: {
-            "$ref": "#/components/schemas/ReferenceClass/properties/reference_field"
+          "test_field" => {
+            "$ref" => "#/components/schemas/ReferenceClass/properties/reference_field"
           }
         }
 
@@ -49,14 +49,14 @@ module Verquest
         )
 
         expected_schema = {
-          test_field: {
-            type: :object,
-            description: nil,
-            required: [:reference_field],
-            properties: {
-              reference_field: {
-                type: :string,
-                description: "A test field"
+          "test_field" => {
+            "type" => "object",
+            "description" => nil,
+            "required" => ["reference_field"],
+            "properties" => {
+              "reference_field" => {
+                "type" => "string",
+                "description" => "A test field"
               }
             }
           }
@@ -73,9 +73,9 @@ module Verquest
         )
 
         expected_schema = {
-          test_field: {
-            type: :string,
-            description: "A test field"
+          "test_field" => {
+            "type" => "string",
+            "description" => "A test field"
           }
         }
 
@@ -115,7 +115,7 @@ module Verquest
         assert_equal expected_mapping, mapping
       end
 
-      def test_mapping_with_property_that_is_field
+      def test_mapping_with_property
         reference = Reference.new(
           name: :test_field,
           from: ReferenceClass,
@@ -132,7 +132,7 @@ module Verquest
         assert_equal expected_mapping, mapping
       end
 
-      def test_mapping_with_property_that_is_field_with_map
+      def test_mapping_with_property_with_map
         reference = Reference.new(
           name: :test_field,
           from: ReferenceClass,
