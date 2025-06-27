@@ -174,7 +174,8 @@ Output:
       }
     }
   },
-  "additionalProperties" => false}
+  "additionalProperties" => false
+}
 ```
 
 ### JSON schema for validation
@@ -416,7 +417,7 @@ Verquest.configure do |config|
   config.current_version = -> { Current.api_version }
   
   # Set the JSON Schema version
-  config.json_schema_version = :draft6 # default
+  config.json_schema_version = :draft2020_12 # default
   
   # Set the error handling strategy for processing params
   config.validation_error_handling = :raise # default, can be set also to :result
