@@ -1,10 +1,15 @@
 ## [Unreleased]
 
+### Breaking Changes
+- **BREAKING:** Renaming validation method from `validate_schema` to `valid_schema?` to better reflect its purpose.
+- **BREAKING:** The `validate_schema` now returns an array of errors instead of a boolean value, allowing for more detailed error reporting.
+
 ### New Features
 - Add support for custom field types.
 
 ### Fixed
 - Loading the gem in another project with `zeitwerk` now works correctly.
+- Fix schema validation after `json_schemer` refactoring.
 
 ## [0.3.0] - 2025-06-25
 

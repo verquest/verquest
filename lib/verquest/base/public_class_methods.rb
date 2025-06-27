@@ -70,6 +70,19 @@ module Verquest
     #
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @return [Boolean] True if schema is valid
+    def valid_schema?(version: nil)
+      resolve(version).valid_schema?
+    end
+
+    # Validates the schema against the metaschema and returns detailed validation errors
+    #
+    # This method validates the schema against the configured JSON Schema metaschema
+    # and returns detailed validation errors if any are found. It's useful for debugging
+    # schema issues during development and testing.
+    #
+    # @param version [String, nil] Specific version to use, defaults to configuration setting
+    # @return [Array<Hash>] An array of validation error details, empty if schema is valid
+    # @see #valid_schema?
     def validate_schema(version: nil)
       resolve(version).validate_schema
     end

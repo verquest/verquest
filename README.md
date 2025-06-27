@@ -250,7 +250,8 @@ Output:
 You can also validate it to ensure it meets the JSON Schema standards:
 
 ```ruby
-UserCreateRequest.validate_schema(version: "2025-06") # => true/false
+UserCreateRequest.valid_schema?(version: "2025-06") # => true/false
+UserCreateRequest.validate_schema(version: "2025-06") # => Array of errors or empty array if valid
 ```
 
 ## Core Features

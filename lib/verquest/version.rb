@@ -113,11 +113,33 @@ module Verquest
     # Validate the schema against the metaschema
     #
     # @return [Boolean] true if the schema is valid, false otherwise
+    def valid_schema?
+      JSONSchemer.valid_schema?(
+        validation_schema,
+        meta_schema: Verquest.configuration.json_schema_uri
+      )
+    end
+
+    # Validate the schema against the metaschema and return detailed errors
+    #
+    # This method validates the schema against the configured JSON Schema metaschema
+    # and returns detailed validation errors if any are found. It uses the JSONSchemer
+    # library with the schema version specified in the configuration.
+    #
+    # @return [Array<Hash>] An array of validation error details, empty if schema is valid
+    # @see #valid_schema?
     def validate_schema
       JSONSchemer.validate_schema(
         validation_schema,
         meta_schema: Verquest.configuration.json_schema_uri
-      )
+      ).map do |error|
+        {
+          pointer: error["data_pointer"],
+          type: error["type"],
+          message: error["error"],
+          details: error["details"]
+        }
+      end
     end
 
     # Validate request parameters against the version's validation schema
