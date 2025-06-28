@@ -488,7 +488,7 @@ end
 
 ## Documentation
 
-For detailed documentation, please visit the [YARD documentation](https://www.rubydoc.info/gems/verquest/0.3.0/).
+For detailed documentation, please visit the [YARD documentation](https://www.rubydoc.info/gems/verquest/0.4.0/).
 
 ## Development
 

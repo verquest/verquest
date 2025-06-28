@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    verquest (0.3.0)
+    verquest (0.4.0)
       json_schemer (~> 2.4)
       zeitwerk (~> 2.7)
 

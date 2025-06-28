@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.4.0] - 2025-06-28
+
 ### Breaking Changes
 - **BREAKING:** Renaming validation method from `validate_schema` to `valid_schema?` to better reflect its purpose.
 - **BREAKING:** The `validate_schema` now returns an array of errors instead of a boolean value, allowing for more detailed error reporting.
