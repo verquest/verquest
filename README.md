@@ -275,6 +275,61 @@ The JSON schema can be used for both validation of incoming parameters and for g
 - `schema_options`: Allows you to set additional options for the JSON Schema, such as `additional_properties` for request or per version. All fields (except `reference`) can be defined with options like `required`, `format`, `min_lenght`, `max_length`, etc. all in snake case.
 - `with_options`: Allows you to define multiple fields with the same options, reducing repetition.
 
+#### Custom Field Types
+
+You can define custom field types that can be used in `field` and `array` in the configuration.
+
+```ruby
+Verquest.configure do |config|
+  config.custom_field_types = {
+    email: {
+      type: "string",
+      schema_options: {format: "email"}
+    },
+    uuid: {
+      type: "string",
+      schema_options: {format: "uuid"}
+    }
+  }
+end
+```
+
+Then you can use it in your request:
+```ruby
+class EmailRequest < Verquest::Base
+  description "User Create Request"
+  schema_options additional_properties: false
+
+  version "2025-06" do
+    field :email, type: :email
+    array :uuids, type: :uuid
+  end
+end
+```
+
+`EmailRequest.to_schema(version: "2025-06")` will then generate the following JSON Schema:
+```ruby
+{
+  "type" => "object",
+  "description" => "User Create Request",
+  "required" => ["email"],
+  "properties" => {
+    "email" => {
+      "type" => "string", 
+      "format" => "email"
+    },
+    "uuids" => {
+      "type" => "array", 
+      "items" => {
+        "type" => "string",
+        "format" => "uuid"
+      }
+    }
+  },
+  "additionalProperties" => false
+}
+```
+
 ### Versioning
 
 Verquest allows you to define multiple versions of your API requests, making it easy to evolve your API over time:

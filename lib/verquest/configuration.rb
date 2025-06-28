@@ -11,6 +11,18 @@ module Verquest
   #     config.current_version = -> { Current.api_version }
   #   end
   class Configuration
+    include Base::HelperClassMethods
+
+    # Mapping of supported JSON Schema versions to their implementation classes
+    #
+    # This constant maps the symbolic names of JSON Schema versions to their
+    # corresponding JSONSchemer implementation classes. These are used for schema
+    # validation and generation based on the configured schema version.
+    #
+    # @example Accessing a schema implementation
+    #   schema_class = Verquest::Configuration::SCHEMAS[:draft2020_12]
+    #
+    # @return [Hash<Symbol, Class>] A frozen hash mapping schema version names to implementation classes
     SCHEMAS = {
       draft4: JSONSchemer::Draft4,
       draft6: JSONSchemer::Draft6,
@@ -49,7 +61,11 @@ module Verquest
     # @!attribute [r] version_resolver
     #   The resolver used to map version strings/identifiers to version objects
     #   @return [#call] An object that responds to `call` for resolving versions
-    attr_reader :current_version, :version_resolver
+    #
+    # @!attribute [r] custom_field_types
+    #   Custom field types to extend the standard set of field types
+    #   @return [Hash<Symbol, Hash>] Hash mapping field type names to their configuration
+    attr_reader :current_version, :version_resolver, :custom_field_types
 
     # Initialize a new Configuration with default values
     #
@@ -61,6 +77,7 @@ module Verquest
       @remove_extra_root_keys = true
       @version_resolver = VersionResolver
       @insert_property_defaults = true
+      @custom_field_types = {}
     end
 
     # Sets the current version strategy using a callable object
@@ -83,6 +100,39 @@ module Verquest
       raise ArgumentError, "The version_resolver must respond to a call method" unless version_resolver.respond_to?(:call)
 
       @version_resolver = version_resolver
+    end
+
+    # Sets the custom field types
+    #
+    # This method allows defining custom field types beyond the default ones.
+    # Custom field types can be used to extend validation with specific formats
+    # or patterns. Each custom field type should include a base type and optional
+    # schema validation options.
+    #
+    # @example Adding a phone number field type
+    #   config.custom_field_types = {
+    #     email: {
+    #       type: "string",
+    #       schema_options: {format: "email", pattern: /\A[^@\s]+@[^@.\s]+(\.[^@.\s]+)+\z/}
+    #     },
+    #     uuid: {
+    #       type: "string",
+    #       schema_options: {format: "uuid", pattern: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/}
+    #     }
+    #   }
+    #
+    # @param custom_field_types [Hash] A hash mapping field type names to their configuration
+    # @raise [ArgumentError] If the provided value isn't a Hash
+    # @return [Hash<Symbol, Hash>] The processed custom field types hash with symbolized keys
+    def custom_field_types=(custom_field_types)
+      raise ArgumentError, "Custom field types must be a Hash" unless custom_field_types.is_a?(Hash)
+
+      custom_field_types.delete_if { |k, _| Properties::Field::DEFAULT_TYPES.include?(k.to_s) }
+      custom_field_types.each do |_, value|
+        value[:schema_options] = camelize(value[:schema_options]) if value[:schema_options]
+      end
+
+      @custom_field_types = custom_field_types.transform_keys(&:to_sym)
     end
 
     # Gets the JSON Schema class based on the configured version

@@ -111,6 +111,39 @@ module Verquest
 
         assert_equal expected_mapping, mapping
       end
+
+      def test_custom_field_type
+        Verquest.configuration.custom_field_types = {
+          custom_type: {
+            type: "string",
+            schema_options: {format: "custom", pattern: /\Acustom_\w+\z/, min_length: 5, max_length: 20}
+          }
+        }
+
+        array = Array.new(
+          name: :test_array,
+          type: :custom_type,
+          description: "A test array",
+          item_schema_options: {description: "The item"}
+        )
+
+        expected_schema = {
+          "test_array" => {
+            "type" => "array",
+            "items" => {
+              "type" => "string",
+              "format" => "custom",
+              "pattern" => /\Acustom_\w+\z/,
+              "minLength" => 5,
+              "maxLength" => 20,
+              "description" => "The item"
+            },
+            "description" => "A test array"
+          }
+        }
+
+        assert_equal expected_schema, array.to_schema
+      end
     end
   end
 end

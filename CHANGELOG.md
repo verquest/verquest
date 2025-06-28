@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### New Features
+- Add support for custom field types.
+
 ## [0.3.0] - 2025-06-25
 
 ### Breaking Changes
