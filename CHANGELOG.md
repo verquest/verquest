@@ -3,6 +3,9 @@
 ### New Features
 - Add support for custom field types.
 
+### Fixed
+- Loading the gem in another project with `zeitwerk` now works correctly.
+
 ## [0.3.0] - 2025-06-25
 
 ### Breaking Changes

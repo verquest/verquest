@@ -3,8 +3,11 @@
 require "zeitwerk"
 require "json_schemer"
 
+require_relative "verquest/gem_version"
+
 loader = Zeitwerk::Loader.new
 loader.tag = File.basename(__FILE__, ".rb")
+loader.ignore("#{File.dirname(__FILE__)}/verquest/gem_version.rb")
 loader.push_dir(File.dirname(__FILE__))
 loader.setup
 
