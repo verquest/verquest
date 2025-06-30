@@ -20,7 +20,7 @@ module Verquest
       # @param name [String, Symbol] The name of the property
       # @param type [String, Symbol] The type of items in the array, can be a default type or a custom field type
       # @param map [String, nil] The mapping path for this property (nil for no explicit mapping)
-      # @param required [Boolean] Whether this property is required
+      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
       # @param item_schema_options [Hash] Additional JSON schema options for the array items (merged with custom type options)
       # @param schema_options [Hash] Additional JSON schema options for the array property itself

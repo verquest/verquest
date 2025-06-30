@@ -15,7 +15,7 @@ module Verquest
       # Initialize a new Object property
       #
       # @param name [String, Symbol] The name of the property
-      # @param required [Boolean] Whether this property is required
+      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property
@@ -54,9 +54,11 @@ module Verquest
         {
           name => {
             "type" => type,
-            "required" => properties.values.select(&:required).map(&:name),
+            "required" => required_properties,
             "properties" => properties.transform_values { |property| property.to_schema[property.name] }
-          }.merge(schema_options)
+          }.merge(schema_options).tap do |schema|
+            schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+          end
         }
       end
 
@@ -68,9 +70,11 @@ module Verquest
         {
           name => {
             "type" => type,
-            "required" => properties.values.select(&:required).map(&:name),
+            "required" => required_properties,
             "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
-          }.merge(schema_options)
+          }.merge(schema_options).tap do |schema|
+            schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+          end
         }
       end
 

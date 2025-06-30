@@ -22,7 +22,7 @@ module Verquest
       #
       # @param name [String, Symbol] The name of the property
       # @param item [Verquest::Base, nil] Optional reference to an external schema class
-      # @param required [Boolean] Whether this property is required
+      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property
@@ -80,10 +80,12 @@ module Verquest
               "type" => type,
               "items" => {
                 "type" => "object",
-                "required" => properties.values.select(&:required).map(&:name),
+                "required" => required_properties,
                 "properties" => properties.transform_values { |property| property.to_schema[property.name] },
                 "additionalProperties" => Verquest.configuration.default_additional_properties
-              }
+              }.tap do |schema|
+                schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+              end
             }.merge(schema_options)
           }
         end
@@ -107,10 +109,12 @@ module Verquest
               "type" => type,
               "items" => {
                 "type" => "object",
-                "required" => properties.values.select(&:required).map(&:name),
+                "required" => required_properties,
                 "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] },
                 "additionalProperties" => Verquest.configuration.default_additional_properties
-              }
+              }.tap do |schema|
+                schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+              end
             }.merge(schema_options)
           }
         end

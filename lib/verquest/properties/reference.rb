@@ -28,7 +28,7 @@ module Verquest
       # @param property [Symbol, nil] Optional specific property to reference
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
-      # @param required [Boolean] Whether this property is required
+      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       def initialize(name:, from:, property: nil, nullable: false, map: nil, required: false)
         @name = name.to_s
         @from = from

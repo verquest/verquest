@@ -24,7 +24,7 @@ module Verquest
       #
       # @param name [String, Symbol] The name of the property
       # @param type [String, Symbol] The data type for this field, can be a default type or a custom field type
-      # @param required [Boolean] Whether this property is required (overridden by custom type if it defines required)
+      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names (can be overridden by custom type)
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property (merged with custom type options)

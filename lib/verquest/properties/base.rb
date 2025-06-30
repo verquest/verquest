@@ -10,6 +10,8 @@ module Verquest
     #
     # @abstract Subclass and override {#to_schema}, {#mapping} to implement
     class Base
+      include HelperMethods::RequiredProperties
+
       # @!attribute [rw] name
       #   @return [String] The name of the property
       # @!attribute [rw] required

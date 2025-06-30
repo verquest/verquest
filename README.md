@@ -276,6 +276,39 @@ The JSON schema can be used for both validation of incoming parameters and for g
 - `schema_options`: Allows you to set additional options for the JSON Schema, such as `additional_properties` for request or per version. All fields (except `reference`) can be defined with options like `required`, `format`, `min_lenght`, `max_length`, etc. all in snake case.
 - `with_options`: Allows you to define multiple fields with the same options, reducing repetition.
 
+### Required properties
+
+You can define required properties in your request schema by setting the `required` option to `true`, or provide a list of dependent required properties. This feature is based on the latest [JSON Schema specification](https://json-schema.org/understanding-json-schema/reference/conditionals#dependentRequired), which is also used in OpenAPI 3.1.
+
+```ruby
+class DependentRequiredRequest < Verquest::Base
+  description "This is a simple request with nullable properties for testing purposes."
+
+  version "2025-06" do
+    field :name, type: :string, required: true
+    field :credit_card, type: :number, required: %i[billing_address]
+    field :billing_address, type: :string
+  end
+end
+```
+
+Will produce this validation schema:
+
+```ruby
+{
+  "type" => "object",
+  "description" => "This is a simple request with nullable properties for testing purposes.",
+  "required" => ["name"],
+  "dependentRequired" => {"credit_card" => ["billing_address"]},
+  "properties" => {
+    "name" => {"type" => "string"},
+    "credit_card" => {"type" => "number"},
+    "billing_address" => {"type" => "string"}
+  },
+  "additionalProperties" => false
+}
+```
+
 #### Nullable properties
 
 You can define nullable properties in your request schema by setting the `nullable` option to `true`. This feature is based on the latest JSON Schema specification, which is also used in OpenAPI 3.1.

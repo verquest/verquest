@@ -19,6 +19,8 @@ module Verquest
   #   # Get mapping
   #   mapping = version.mapping
   class Version
+    include HelperMethods::RequiredProperties
+
     # @!attribute [r] name
     #   @return [String] The name/identifier of the version (e.g., "2023-01")
     #
@@ -203,9 +205,11 @@ module Verquest
       @schema = {
         "type" => "object",
         "description" => description,
-        "required" => properties.values.select(&:required).map(&:name),
+        "required" => required_properties,
         "properties" => properties.transform_values { |property| property.to_schema[property.name] }
-      }.merge(schema_options).freeze
+      }.merge(schema_options).tap do |schema|
+        schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+      end.freeze
     end
 
     # Generates the validation schema for this version
@@ -218,9 +222,11 @@ module Verquest
       @validation_schema = {
         "type" => "object",
         "description" => description,
-        "required" => properties.values.select(&:required).map(&:name),
+        "required" => required_properties,
         "properties" => properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
-      }.merge(schema_options).freeze
+      }.merge(schema_options).tap do |schema|
+        schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+      end.freeze
     end
 
     # Prepares the parameter mapping for this version

@@ -122,7 +122,7 @@ module Verquest
     # @param name [Symbol] The name of the field
     # @param type [Symbol] The data type of the field
     # @param map [String, nil] An optional mapping to another field
-    # @param required [Boolean] Whether the field is required
+    # @param required [Boolean, Array<Symbol>] Whether the field is required
     # @param nullable [Boolean] Whether the field can be null
     # @param schema_options [Hash] Additional schema options for the field
     # @return [void]
@@ -142,7 +142,7 @@ module Verquest
     #
     # @param name [Symbol] The name of the object
     # @param map [String, nil] An optional mapping to another object
-    # @param required [Boolean] Whether the object is required
+    # @param required [Boolean, Array<Symbol>] Whether the object is required
     # @param nullable [Boolean] Whether the object can be null
     # @param schema_options [Hash] Additional schema options for the object
     # @yield Block executed in the context of the new object definition
@@ -174,7 +174,7 @@ module Verquest
     #
     # @param name [Symbol] The name of the collection
     # @param item [Class, nil] The item type in the collection
-    # @param required [Boolean] Whether the collection is required
+    # @param required [Boolean, Array<Symbol>] Whether the collection is required
     # @param nullable [Boolean] Whether the collection can be null
     # @param map [String, nil] An optional mapping to another collection
     # @param schema_options [Hash] Additional schema options for the collection
@@ -211,7 +211,7 @@ module Verquest
     # @param from [Verquest::Base] The source of the reference
     # @param property [Symbol, nil] An optional specific property to reference
     # @param map [String, nil] An optional mapping to another reference
-    # @param required [Boolean] Whether the reference is required
+    # @param required [Boolean, Array<Symbol>] Whether the reference is required
     # @param nullable [Boolean] Whether this reference can be null
     # @return [void]
     def reference(name, from:, property: nil, map: nil, required: nil, nullable: nil)
@@ -226,7 +226,7 @@ module Verquest
     #
     # @param name [Symbol] The name of the array property
     # @param type [Symbol] The data type of the array elements
-    # @param required [Boolean] Whether the array property is required
+    # @param required [Boolean, Array<Symbol>] Whether the array property is required
     # @param nullable [Boolean] Whether this array can be null
     # @param map [String, nil] An optional mapping to another array property
     # @param schema_options [Hash] Additional schema options for the array property
