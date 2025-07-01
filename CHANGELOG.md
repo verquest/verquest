@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.5.0] - 2025-07-01
+
 ### Fixed
 - Handling `with_options` defaults like required and nullable.
 
