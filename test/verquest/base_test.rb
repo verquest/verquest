@@ -37,9 +37,11 @@ module Verquest
                   "item_mapped_to_root" => {"type" => "string"},
                   "item_mapped_outside_nested" => {"type" => "string"},
                   "item_mapped_to_root_object" => {"type" => "string"}
-                }
+                },
+                "additionalProperties" => false
               }
-            }
+            },
+            "additionalProperties" => false
           },
           "root_object_mapped" => {
             "type" => "object",
@@ -55,10 +57,12 @@ module Verquest
                   "item_mapped" => {"type" => "string"},
                   "item_mapped_nested" => {"type" => "string"},
                   "item_unmapped" => {"type" => "string"}
-                }
+                },
+                "additionalProperties" => false
               },
               "reference_mapped_to_root" => {"$ref" => "#/components/schemas/ReferencedRequest"}
-            }
+            },
+            "additionalProperties" => false
           },
           "root_object_mapped_to_root" => {
             "type" => "object",
@@ -71,7 +75,8 @@ module Verquest
                 "type" => "array",
                 "items" => {"$ref" => "#/components/schemas/ReferencedRequest"}
               }
-            }
+            },
+            "additionalProperties" => false
           },
           "collection_unmapped" => {
             "type" => "array",
@@ -90,7 +95,8 @@ module Verquest
                 "item_mapped" => {"type" => "string"},
                 "item_mapped_nested" => {"type" => "string"},
                 "item_unmapped" => {"type" => "string"}
-              }
+              },
+              "additionalProperties" => false
             }
           },
           "collection_in_object" => {
@@ -101,7 +107,8 @@ module Verquest
                 "type" => "array",
                 "items" => {"$ref" => "#/components/schemas/ReferencedRequest"}
               }
-            }
+            },
+            "additionalProperties" => false
           },
           "array_unmapped" => {"type" => "array", "items" => {"type" => "string"}},
           "array_mapped" => {"type" => "array", "items" => {"type" => "number"}},
@@ -126,11 +133,13 @@ module Verquest
         "properties" => {
           "simple_field" => {"type" => "string", "description" => "The simple field"},
           "nested" => {
-            "type" => "object", "required" => ["nested_field_1", "nested_field_2"],
+            "type" => "object",
+            "required" => ["nested_field_1", "nested_field_2"],
             "properties" => {
               "nested_field_1" => {"type" => "string", "description" => "This is a nested field"},
               "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}
-            }
+            },
+            "additionalProperties" => false
           }
         },
         "additionalProperties" => false
@@ -164,9 +173,11 @@ module Verquest
                   "item_mapped_to_root" => {"type" => "string"},
                   "item_mapped_outside_nested" => {"type" => "string"},
                   "item_mapped_to_root_object" => {"type" => "string"}
-                }
+                },
+                "additionalProperties" => false
               }
-            }
+            },
+            "additionalProperties" => false
           },
           "root_object_mapped" => {
             "type" => "object",
@@ -182,10 +193,12 @@ module Verquest
                   "item_mapped" => {"type" => "string"},
                   "item_mapped_nested" => {"type" => "string"},
                   "item_unmapped" => {"type" => "string"}
-                }
+                },
+                "additionalProperties" => false
               },
               "reference_mapped_to_root" => referenced_validation_schema
-            }
+            },
+            "additionalProperties" => false
           },
           "root_object_mapped_to_root" => {
             "type" => "object",
@@ -198,7 +211,8 @@ module Verquest
                 "type" => "array",
                 "items" => referenced_validation_schema
               }
-            }
+            },
+            "additionalProperties" => false
           },
           "collection_unmapped" => {
             "type" => "array",
@@ -217,7 +231,8 @@ module Verquest
                 "item_mapped" => {"type" => "string"},
                 "item_mapped_nested" => {"type" => "string"},
                 "item_unmapped" => {"type" => "string"}
-              }
+              },
+              "additionalProperties" => false
             }
           },
           "collection_in_object" => {
@@ -228,7 +243,8 @@ module Verquest
                 "type" => "array",
                 "items" => referenced_validation_schema
               }
-            }
+            },
+            "additionalProperties" => false
           },
           "array_unmapped" => {"type" => "array", "items" => {"type" => "string"}},
           "array_mapped" => {"type" => "array", "items" => {"type" => "number"}},
@@ -244,7 +260,7 @@ module Verquest
     end
 
     def test_validate_schema
-      result = CompleteExampleRequest.validate_schema(version: "2025-06")
+      result = CompleteExampleRequest.valid_schema?(version: "2025-06")
 
       assert result
     end
@@ -440,9 +456,11 @@ module Verquest
           }
         ],
         "collection_with_fields" => [
-          {"item_mapped" => "item_mapped",
-           "item_mapped_nested" => "item_mapped_nested",
-           "item_unmapped" => "item_unmapped"}
+          {
+            "item_mapped" => "item_mapped",
+            "item_mapped_nested" => "item_mapped_nested",
+            "item_unmapped" => "item_unmapped"
+          }
         ],
         "collection_in_object" => {
           "collection_unmapped" => [
@@ -625,11 +643,38 @@ module Verquest
               "street" => {"type" => "string"},
               "city" => {"type" => "string"},
               "zip_code" => {"type" => "string"}
-            }
+            },
+            "additionalProperties" => true
           },
           "name" => {"type" => "string", "minLength" => 3, "maxLength" => 50}
+        }
+      }
+
+      assert_equal expected_validation_schema, validation_schema
+    end
+
+    def test_version_default_additional_properties
+      validation_schema = SimpleRequest.to_validation_schema(version: "2025-06")
+
+      expected_validation_schema = {
+        "type" => "object",
+        "description" => "This is a simple request for testing purposes.",
+        "required" => ["email"], # name is required in this version
+        "properties" => {
+          "email" => {"type" => "string", "format" => "email"},
+          "name" => {"type" => "string"},
+          "address" => {
+            "type" => "object",
+            "required" => ["city"],
+            "properties" => {
+              "street" => {"type" => "string"},
+              "city" => {"type" => "string"},
+              "zip_code" => {"type" => "string"}
+            },
+            "additionalProperties" => true
+          }
         },
-        "additionalProperties" => false
+        "additionalProperties" => true
       }
 
       assert_equal expected_validation_schema, validation_schema

@@ -3,7 +3,6 @@
 class ReferencedRequest < Verquest::Base
   version "2025-06" do
     description "This is an another example for testing purposes."
-    schema_options additional_properties: false
 
     with_options required: true, type: :string do
       field :simple_field, map: "simple.field", description: "The simple field"

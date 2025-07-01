@@ -57,7 +57,8 @@ module Verquest
                 }
               }
             },
-            "description" => "A test field"
+            "description" => "A test field",
+            "additionalProperties" => false
           }
         }
 
@@ -109,10 +110,12 @@ module Verquest
                   "required" => ["reference_field"],
                   "properties" => {
                     "reference_field" => {"type" => "string", "description" => "A test field"}
-                  }
+                  },
+                  "additionalProperties" => false
                 }
               }
             },
+            "additionalProperties" => false,
             "description" => "A test field"
           }
         }

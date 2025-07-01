@@ -67,7 +67,8 @@ module Verquest
               "required" => ["sub_field"],
               "properties" => {
                 "sub_field" => {"type" => "integer"}
-              }
+              },
+              "additionalProperties" => false
             },
             "description" => "A test array of items defined as an object"
           }
@@ -97,7 +98,8 @@ module Verquest
               "required" => ["sub_field"],
               "properties" => {
                 "sub_field" => {"type" => "integer"}
-              }
+              },
+              "additionalProperties" => false
             },
             "description" => "A test array of items defined as an object"
           }
@@ -124,7 +126,8 @@ module Verquest
                   "type" => "string",
                   "description" => "A test field"
                 }
-              }
+              },
+              "additionalProperties" => false
             }
           }
         }

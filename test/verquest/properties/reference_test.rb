@@ -58,7 +58,8 @@ module Verquest
                 "type" => "string",
                 "description" => "A test field"
               }
-            }
+            },
+            "additionalProperties" => false
           }
         }
 

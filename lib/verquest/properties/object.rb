@@ -24,7 +24,11 @@ module Verquest
         @name = name.to_s
         @required = required
         @map = map
-        @schema_options = schema_options&.transform_keys(&:to_s)
+        @schema_options = {
+          additionalProperties: Verquest.configuration.default_additional_properties
+        }.merge(schema_options)
+          .delete_if { |_, v| v.nil? }
+          .transform_keys(&:to_s)
       end
 
       # Add a child property to this object

@@ -73,7 +73,8 @@ module Verquest
               "items" => {
                 "type" => "object",
                 "required" => properties.values.select(&:required).map(&:name),
-                "properties" => properties.transform_values { |property| property.to_schema[property.name] }
+                "properties" => properties.transform_values { |property| property.to_schema[property.name] },
+                "additionalProperties" => Verquest.configuration.default_additional_properties
               }
             }.merge(schema_options)
           }
@@ -99,7 +100,8 @@ module Verquest
               "items" => {
                 "type" => "object",
                 "required" => properties.values.select(&:required).map(&:name),
-                "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
+                "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] },
+                "additionalProperties" => Verquest.configuration.default_additional_properties
               }
             }.merge(schema_options)
           }

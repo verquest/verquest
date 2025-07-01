@@ -483,6 +483,9 @@ Verquest.configure do |config|
   
   # Set custom version resolver
   config.version_resolver = CustomeVersionResolver # default is `Verquest::VersionResolver`
+  
+  # Set default value for additional properties
+  config.default_additional_properties = false # default
 end
 ```
 

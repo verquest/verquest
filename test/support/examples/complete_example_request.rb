@@ -4,7 +4,6 @@ require_relative "referenced_request"
 
 class CompleteExampleRequest < Verquest::Base
   description "Example for mapping feature"
-  schema_options additional_properties: false
 
   version "2025-06" do
     # fields

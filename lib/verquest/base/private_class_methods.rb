@@ -92,9 +92,9 @@ module Verquest
       camelize(schema_options)
 
       if current_scope.nil?
-        versions.schema_options = schema_options
+        versions.schema_options.merge!(schema_options)
       elsif current_scope.is_a?(Version)
-        current_scope.schema_options = schema_options
+        current_scope.schema_options.merge!(schema_options)
       else
         raise "Additional properties can only be set within a version scope or globally"
       end

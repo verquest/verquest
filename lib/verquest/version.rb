@@ -102,6 +102,12 @@ module Verquest
     def prepare
       return if frozen?
 
+      unless schema_options.key?("additionalProperties")
+        schema_options["additionalProperties"] = Verquest.configuration.default_additional_properties
+      end
+
+      schema_options.delete_if { |_, v| v.nil? }
+
       prepare_schema
       prepare_validation_schema
       prepare_mapping

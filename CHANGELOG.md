@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### New Features
+- Add `default_additional_properties` option to configuration.
+
 ## [0.4.0] - 2025-06-28
 
 ### Breaking Changes

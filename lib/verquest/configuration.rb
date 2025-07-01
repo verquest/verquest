@@ -52,7 +52,12 @@ module Verquest
     # @!attribute [rw] insert_property_defaults
     #   Controls whether default values defined in property schemas should be inserted when not provided during validation
     #   @return [Boolean] true if default values should be inserted, false otherwise
-    attr_accessor :validate_params, :json_schema_version, :validation_error_handling, :remove_extra_root_keys, :insert_property_defaults
+    #
+    # @!attribute [rw] default_additional_properties
+    #   Controls the default behavior for handling properties not defined in the schema
+    #   @return [Boolean] false to disallow additional properties (default), true to allow them
+    attr_accessor :validate_params, :json_schema_version, :validation_error_handling,
+      :remove_extra_root_keys, :insert_property_defaults, :default_additional_properties
 
     # @!attribute [r] current_version
     #   A callable object that returns the current API version to use when not explicitly specified
@@ -73,11 +78,12 @@ module Verquest
     def initialize
       @validate_params = true
       @json_schema_version = :draft2020_12
-      @validation_error_handling = :raise # or :result
+      @validation_error_handling = :raise
       @remove_extra_root_keys = true
       @version_resolver = VersionResolver
       @insert_property_defaults = true
       @custom_field_types = {}
+      @default_additional_properties = false
     end
 
     # Sets the current version strategy using a callable object
