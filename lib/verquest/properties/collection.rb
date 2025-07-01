@@ -23,10 +23,11 @@ module Verquest
       # @param name [String, Symbol] The name of the property
       # @param item [Verquest::Base, nil] Optional reference to an external schema class
       # @param required [Boolean] Whether this property is required
+      # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property
       # @raise [ArgumentError] If attempting to map a collection to the root
-      def initialize(name:, item: nil, required: false, map: nil, **schema_options)
+      def initialize(name:, item: nil, required: false, nullable: false, map: nil, **schema_options)
         raise ArgumentError, "You can not map collection to the root" if map == "/"
 
         @properties = {}
@@ -34,8 +35,15 @@ module Verquest
         @name = name.to_s
         @item = item
         @required = required
+        @nullable = nullable
         @map = map
         @schema_options = schema_options&.transform_keys(&:to_s)
+
+        @type = if nullable
+          %w[array null]
+        else
+          "array"
+        end
       end
 
       # Add a child property to this collection's item definition
@@ -60,7 +68,7 @@ module Verquest
         if has_item?
           {
             name => {
-              "type" => "array",
+              "type" => type,
               "items" => {
                 "$ref" => item.to_ref
               }
@@ -69,7 +77,7 @@ module Verquest
         else
           {
             name => {
-              "type" => "array",
+              "type" => type,
               "items" => {
                 "type" => "object",
                 "required" => properties.values.select(&:required).map(&:name),
@@ -89,14 +97,14 @@ module Verquest
         if has_item?
           {
             name => {
-              "type" => "array",
+              "type" => type,
               "items" => item.to_validation_schema(version: version)
             }.merge(schema_options)
           }
         else
           {
             name => {
-              "type" => "array",
+              "type" => type,
               "items" => {
                 "type" => "object",
                 "required" => properties.values.select(&:required).map(&:name),
@@ -143,7 +151,7 @@ module Verquest
 
       private
 
-      attr_reader :item, :schema_options, :properties
+      attr_reader :item, :schema_options, :properties, :type
     end
   end
 end

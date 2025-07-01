@@ -55,6 +55,10 @@ module Verquest
 
       private
 
+      # @!attribute [r] nullable
+      #   @return [Boolean] Whether this property can be null
+      attr_reader :nullable
+
       # Determines the mapping target key based on mapping configuration
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param collection [Boolean] Whether this is a collection mapping

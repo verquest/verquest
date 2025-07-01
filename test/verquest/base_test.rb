@@ -134,7 +134,7 @@ module Verquest
           "simple_field" => {"type" => "string", "description" => "The simple field"},
           "nested" => {
             "type" => "object",
-            "required" => ["nested_field_1", "nested_field_2"],
+            "required" => ["nested_field_2"],
             "properties" => {
               "nested_field_1" => {"type" => "string", "description" => "This is a nested field"},
               "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}

@@ -123,16 +123,18 @@ module Verquest
     # @param type [Symbol] The data type of the field
     # @param map [String, nil] An optional mapping to another field
     # @param required [Boolean] Whether the field is required
+    # @param nullable [Boolean] Whether the field can be null
     # @param schema_options [Hash] Additional schema options for the field
     # @return [void]
-    def field(name, type: nil, map: nil, required: false, **schema_options)
+    def field(name, type: nil, map: nil, required: nil, nullable: nil, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
-      required = default_options.fetch(:required, required)
-      schema_options = default_options.except(:type, :required).merge(schema_options)
+      required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
+      schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
-      field = Properties::Field.new(name:, type:, map:, required:, **schema_options)
+      field = Properties::Field.new(name:, type:, map:, required:, nullable:, **schema_options)
       current_scope.add(field)
     end
 
@@ -141,19 +143,21 @@ module Verquest
     # @param name [Symbol] The name of the object
     # @param map [String, nil] An optional mapping to another object
     # @param required [Boolean] Whether the object is required
+    # @param nullable [Boolean] Whether the object can be null
     # @param schema_options [Hash] Additional schema options for the object
     # @yield Block executed in the context of the new object definition
     # @return [void]
-    def object(name, map: nil, required: false, **schema_options, &block)
+    def object(name, map: nil, required: nil, nullable: nil, **schema_options, &block)
       unless block_given?
         raise ArgumentError, "a block must be given to define the object"
       end
 
       camelize(schema_options)
-      required = default_options.fetch(:required, required)
-      schema_options = default_options.except(:type, :required).merge(schema_options)
+      required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
+      schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
-      object = Properties::Object.new(name:, map:, required:, **schema_options)
+      object = Properties::Object.new(name:, map:, required:, nullable:, **schema_options)
       current_scope.add(object)
 
       if block_given?
@@ -171,11 +175,12 @@ module Verquest
     # @param name [Symbol] The name of the collection
     # @param item [Class, nil] The item type in the collection
     # @param required [Boolean] Whether the collection is required
+    # @param nullable [Boolean] Whether the collection can be null
     # @param map [String, nil] An optional mapping to another collection
     # @param schema_options [Hash] Additional schema options for the collection
     # @yield Block executed in the context of the new collection definition
     # @return [void]
-    def collection(name, item: nil, required: false, map: nil, **schema_options, &block)
+    def collection(name, item: nil, required: nil, nullable: nil, map: nil, **schema_options, &block)
       if item.nil? && !block_given?
         raise ArgumentError, "item must be provided or a block must be given to define the collection"
       elsif !item.nil? && !block_given? && !(item <= Verquest::Base)
@@ -183,10 +188,11 @@ module Verquest
       end
 
       camelize(schema_options)
-      required = default_options.fetch(:required, required)
-      schema_options = default_options.except(:required).merge(schema_options)
+      required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
+      schema_options = default_options.except(:required, :nullable).merge(schema_options)
 
-      collection = Properties::Collection.new(name:, item:, required:, map:, **schema_options)
+      collection = Properties::Collection.new(name:, item:, required:, nullable:, map:, **schema_options)
       current_scope.add(collection)
 
       if block_given?
@@ -206,30 +212,34 @@ module Verquest
     # @param property [Symbol, nil] An optional specific property to reference
     # @param map [String, nil] An optional mapping to another reference
     # @param required [Boolean] Whether the reference is required
+    # @param nullable [Boolean] Whether this reference can be null
     # @return [void]
-    def reference(name, from:, property: nil, map: nil, required: false)
-      required = default_options.fetch(:required, required)
+    def reference(name, from:, property: nil, map: nil, required: nil, nullable: nil)
+      required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
 
-      reference = Properties::Reference.new(name:, from:, property:, map:, required:)
+      reference = Properties::Reference.new(name:, from:, property:, map:, required:, nullable:)
       current_scope.add(reference)
     end
 
     # Defines a new array property for the current version scope
     #
     # @param name [Symbol] The name of the array property
-    # @param type [String] The data type of the array elements
+    # @param type [Symbol] The data type of the array elements
     # @param required [Boolean] Whether the array property is required
+    # @param nullable [Boolean] Whether this array can be null
     # @param map [String, nil] An optional mapping to another array property
     # @param schema_options [Hash] Additional schema options for the array property
     # @return [void]
-    def array(name, type:, required: false, map: nil, **schema_options)
+    def array(name, type:, required: nil, nullable: nil, map: nil, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
-      required = default_options.fetch(:required, required)
-      schema_options = default_options.except(:type, :required).merge(schema_options)
+      required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
+      schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
-      array = Properties::Array.new(name:, type:, required:, map:, **schema_options)
+      array = Properties::Array.new(name:, type:, required:, nullable:, map:, **schema_options)
       current_scope.add(array)
     end
 

@@ -26,12 +26,14 @@ module Verquest
       # @param name [String, Symbol] The name of the property
       # @param from [Class] The schema class to reference
       # @param property [Symbol, nil] Optional specific property to reference
+      # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param required [Boolean] Whether this property is required
-      def initialize(name:, from:, property: nil, map: nil, required: false)
+      def initialize(name:, from:, property: nil, nullable: false, map: nil, required: false)
         @name = name.to_s
         @from = from
         @property = property
+        @nullable = nullable
         @map = map
         @required = required
       end
@@ -40,9 +42,20 @@ module Verquest
       #
       # @return [Hash] The schema definition with a $ref pointer
       def to_schema
-        {
-          name => {"$ref" => from.to_ref(property: property)}
-        }
+        if nullable
+          {
+            name => {
+              "oneOf" => [
+                {"$ref" => from.to_ref(property: property)},
+                {"type" => "null"}
+              ]
+            }
+          }
+        else
+          {
+            name => {"$ref" => from.to_ref(property: property)}
+          }
+        end
       end
 
       # Generate validation schema for this reference property
@@ -50,8 +63,14 @@ module Verquest
       # @param version [String, nil] The version to generate validation schema for
       # @return [Hash] The validation schema for this reference
       def to_validation_schema(version: nil)
+        schema = from.to_validation_schema(version:, property: property).dup
+
+        if nullable
+          schema["type"] = [schema["type"], "null"] unless schema["type"].include?("null")
+        end
+
         {
-          name => from.to_validation_schema(version:, property: property)
+          name => schema
         }
       end
 

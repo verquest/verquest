@@ -25,11 +25,12 @@ module Verquest
       # @param name [String, Symbol] The name of the property
       # @param type [String, Symbol] The data type for this field, can be a default type or a custom field type
       # @param required [Boolean] Whether this property is required (overridden by custom type if it defines required)
+      # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property (merged with custom type options)
       # @raise [ArgumentError] If type is not one of the allowed types (default or custom)
       # @raise [ArgumentError] If attempting to map a field to root without a name
-      def initialize(name:, type:, required: false, map: nil, **schema_options)
+      def initialize(name:, type:, required: false, nullable: false, map: nil, **schema_options)
         raise ArgumentError, "Type must be one of #{allowed_types.join(", ")}" unless allowed_types.include?(type.to_s)
         raise ArgumentError, "You can not map fields to the root without a name" if map == "/"
 
@@ -48,14 +49,21 @@ module Verquest
         end
 
         @name = name.to_s
+        @nullable = nullable
         @map = map
+
+        if nullable
+          @type = [@type, "null"]
+        end
       end
 
       # Generate JSON schema definition for this field
       #
       # @return [Hash] The schema definition for this field
       def to_schema
-        {name => {"type" => type}.merge(schema_options)}
+        {
+          name => {"type" => type}.merge(schema_options)
+        }
       end
 
       # Create mapping for this field property

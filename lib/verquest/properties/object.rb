@@ -16,19 +16,27 @@ module Verquest
       #
       # @param name [String, Symbol] The name of the property
       # @param required [Boolean] Whether this property is required
+      # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
       # @param schema_options [Hash] Additional JSON schema options for this property
-      def initialize(name:, required: false, map: nil, **schema_options)
+      def initialize(name:, required: false, nullable: false, map: nil, **schema_options)
         @properties = {}
 
         @name = name.to_s
         @required = required
+        @nullable = nullable
         @map = map
         @schema_options = {
           additionalProperties: Verquest.configuration.default_additional_properties
         }.merge(schema_options)
           .delete_if { |_, v| v.nil? }
           .transform_keys(&:to_s)
+
+        @type = if nullable
+          %w[object null]
+        else
+          "object"
+        end
       end
 
       # Add a child property to this object
@@ -45,7 +53,7 @@ module Verquest
       def to_schema
         {
           name => {
-            "type" => "object",
+            "type" => type,
             "required" => properties.values.select(&:required).map(&:name),
             "properties" => properties.transform_values { |property| property.to_schema[property.name] }
           }.merge(schema_options)
@@ -59,7 +67,7 @@ module Verquest
       def to_validation_schema(version: nil)
         {
           name => {
-            "type" => "object",
+            "type" => type,
             "required" => properties.values.select(&:required).map(&:name),
             "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
           }.merge(schema_options)

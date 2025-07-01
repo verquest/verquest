@@ -1,7 +1,11 @@
 ## [Unreleased]
 
+### Fixed
+- Handling `with_options` defaults like required and nullable.
+
 ### New Features
 - Add `default_additional_properties` option to configuration.
+- Add support for nullable properties (`nullable: true`) based on the latest JSON Schema specification, which is also used in OpenAPI 3.1.
 
 ## [0.4.0] - 2025-06-28
 

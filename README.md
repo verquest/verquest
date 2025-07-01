@@ -62,7 +62,7 @@ class UserCreateRequest < Verquest::Base
       field :email, format: "email", description: "The email address of the user"
     end
     
-    field :birth_date, type: :string, format: "date", description: "The birth date of the user"
+    field :birth_date, type: :string, nullable: true, format: "date", description: "The birth date of the user"
 
     reference :address, from: AddressCreateRequest, required: true
 
@@ -135,7 +135,7 @@ Output:
     "first_name" => {"type" => "string", "description" => "The first name of the user", "maxLength" => 50},
     "last_name" => {"type" => "string", "description" => "The last name of the user", "maxLength" => 50},
     "email" => {"type" => "string", "format" => "email", "description" => "The email address of the user"},
-    "birth_date" => {"type" => "string", "format" => "date", "description" => "The birth date of the user"},
+    "birth_date" => {"type" => ["string", "null"], "format" => "date", "description" => "The birth date of the user"},
     "address" => {"$ref" => "#/components/schemas/AddressCreateRequest"},
     "permissions" => {
       "type" => "array",
@@ -275,6 +275,68 @@ The JSON schema can be used for both validation of incoming parameters and for g
 - `description`: Adds a description to the request or per version.
 - `schema_options`: Allows you to set additional options for the JSON Schema, such as `additional_properties` for request or per version. All fields (except `reference`) can be defined with options like `required`, `format`, `min_lenght`, `max_length`, etc. all in snake case.
 - `with_options`: Allows you to define multiple fields with the same options, reducing repetition.
+
+#### Nullable properties
+
+You can define nullable properties in your request schema by setting the `nullable` option to `true`. This feature is based on the latest JSON Schema specification, which is also used in OpenAPI 3.1.
+
+```ruby
+class NullableRequest < Verquest::Base
+  description "This is a simple request with nullable properties for testing purposes."
+
+  version "2025-06" do
+    with_options nullable: true do
+      array :array, type: :string
+      collection :collection_with_item, item: ReferencedRequest
+      collection :collection_with_object do
+        field :field, type: :string, nullable: false
+      end
+
+      field :field, type: :string
+
+      object :object do
+        field :field, type: :string, nullable: false
+      end
+
+      reference :referenced_object, from: ReferencedRequest
+      reference :referenced_field, from: ReferencedRequest, property: :simple_field
+    end
+  end
+end
+```
+
+Will produce this validation schema:
+
+```ruby
+{
+  "type" => "object",
+  "description" => "This is a simple request with nullable properties for testing purposes.",
+  "required" => [],
+  "properties" => {
+    "array" => {"type" => %w[array null], "items" => {"type" => "string"}},
+    "collection_with_item" => {"type" => %w[array null], "items" => {"type" => "object", "description" => "This is an another example for testing purposes.", "required" => %w[simple_field nested], "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_1 nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}}, "additionalProperties" => false}},
+    "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "required" => [], "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
+    "field" => {"type" => %w[string null]},
+    "object" => {
+      "type" => %w[object null],
+      "required" => [],
+      "properties" => {
+        "field" => {"type" => "string"}
+      },
+      "additionalProperties" => false
+    },
+    "referenced_object" => {
+      "type" => %w[object null],
+      "description" => "This is an another example for testing purposes.",
+      "required" => %w[simple_field nested],
+      "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_1 nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}},
+      "additionalProperties" => false
+    },
+    "referenced_field" => {"type" => %w[string null], "description" => "The simple field"}
+  },
+  "additionalProperties" => false
+}
+```
 
 #### Custom Field Types
 
