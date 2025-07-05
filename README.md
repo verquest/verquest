@@ -89,6 +89,8 @@ class UserCreateRequest < Verquest::Base
         end
       end
     end
+    
+    const :company, value: "Awesome Inc."
   end
 end
 ```
@@ -172,7 +174,8 @@ Output:
           "description" => "Some social networks"
         }
       }
-    }
+    },
+    "company" => {"const" => "Awesome Inc."}
   },
   "additionalProperties" => false
 }
@@ -240,7 +243,8 @@ Output:
             "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
           }, 
           "description" => "Some social networks"}
-      }
+      },
+      "company" => {"const" => "Awesome Inc."}
     }
   },
   "additionalProperties" => false
@@ -269,6 +273,7 @@ The JSON schema can be used for both validation of incoming parameters and for g
 - `array`: Represents a JSON array with scalar items.
 - `collection`: Represents a array of objects defined manually or by a reference to another request.
 - `reference`: Represents a reference to another request, allowing you to reuse existing request structures.
+- `const`: Represents a [constant](https://json-schema.org/understanding-json-schema/reference/const#constant-values) value that is always present in the request.
 
 #### Helper methods
 

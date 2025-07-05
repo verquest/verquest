@@ -60,7 +60,8 @@ module Verquest
                 },
                 "additionalProperties" => false
               },
-              "reference_mapped_to_root" => {"$ref" => "#/components/schemas/ReferencedRequest"}
+              "reference_mapped_to_root" => {"$ref" => "#/components/schemas/ReferencedRequest"},
+              "const_mapped_to_root" => {"const" => "const_mapped_to_root"}
             },
             "additionalProperties" => false
           },
@@ -115,7 +116,9 @@ module Verquest
           "reference_unmapped" => {"$ref" => "#/components/schemas/ReferencedRequest"},
           "reference_mapped_to_root" => {"$ref" => "#/components/schemas/ReferencedRequest"},
           "reference_unmapped_with_property" => {"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"},
-          "reference_mapped_with_property" => {"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"}
+          "reference_mapped_with_property" => {"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"},
+          "const_unmapped" => {"const" => 1},
+          "const_mapped" => {"const" => true}
         },
         "additionalProperties" => false
       }
@@ -196,7 +199,8 @@ module Verquest
                 },
                 "additionalProperties" => false
               },
-              "reference_mapped_to_root" => referenced_validation_schema
+              "reference_mapped_to_root" => referenced_validation_schema,
+              "const_mapped_to_root" => {"const" => "const_mapped_to_root"}
             },
             "additionalProperties" => false
           },
@@ -251,7 +255,9 @@ module Verquest
           "reference_unmapped" => referenced_validation_schema,
           "reference_mapped_to_root" => referenced_validation_schema,
           "reference_unmapped_with_property" => {"type" => "string", "description" => "The simple field"},
-          "reference_mapped_with_property" => {"type" => "string", "description" => "The simple field"}
+          "reference_mapped_with_property" => {"type" => "string", "description" => "The simple field"},
+          "const_unmapped" => {"const" => 1},
+          "const_mapped" => {"const" => true}
         },
         "additionalProperties" => false
       }
@@ -293,6 +299,7 @@ module Verquest
         "root_object_mapped.reference_mapped_to_root.simple_field" => "simple.field",
         "root_object_mapped.reference_mapped_to_root.nested.nested_field_1" => "nested.field_1",
         "root_object_mapped.reference_mapped_to_root.nested.nested_field_2" => "nested.field_2",
+        "root_object_mapped.const_mapped_to_root" => "const_mapped_to_root",
         "root_object_mapped_to_root.item_mapped" => "item_mapped_rename_root_object_mapped_to_root",
         "root_object_mapped_to_root.item_mapped_nested" => "nested.item_mapped_root_object_mapped_to_root",
         "root_object_mapped_to_root.item_unmapped_root_object_mapped_to_root" => "item_unmapped_root_object_mapped_to_root",
@@ -320,7 +327,9 @@ module Verquest
         "reference_mapped_to_root.nested.nested_field_1" => "referenced.nested.field_1",
         "reference_mapped_to_root.nested.nested_field_2" => "referenced.nested.field_2",
         "reference_unmapped_with_property" => "reference_unmapped_with_property",
-        "reference_mapped_with_property" => "referenced_with_property"
+        "reference_mapped_with_property" => "referenced_with_property",
+        "const_unmapped" => "const_unmapped",
+        "const_mapped" => "const.mapped"
       }
 
       assert_equal expected_mapping, mapping

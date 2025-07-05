@@ -53,6 +53,7 @@ class CompleteExampleRequest < Verquest::Base
       end
 
       reference :reference_mapped_to_root, from: ReferencedRequest, map: "/" # => simple.field + mapping from ReferencedRequest
+      const :const_mapped_to_root, value: "const_mapped_to_root", map: "/const_mapped_to_root" # => const_mapped_to_root
     end
 
     # objects mapped to root
@@ -88,5 +89,9 @@ class CompleteExampleRequest < Verquest::Base
     reference :reference_mapped_to_root, from: ReferencedRequest, map: "referenced" # => referenced.simple.field
     reference :reference_unmapped_with_property, from: ReferencedRequest, property: :simple_field  # => reference_unmapped_with_property
     reference :reference_mapped_with_property, from: ReferencedRequest, map: "referenced_with_property", property: :simple_field # => referenced_with_property
+
+    # const
+    const :const_unmapped, value: 1 # => const_unmapped
+    const :const_mapped, value: true, map: "const.mapped" # => const.mapped
   end
 end
