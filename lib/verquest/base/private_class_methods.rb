@@ -138,6 +138,20 @@ module Verquest
       current_scope.add(field)
     end
 
+    # Defines a new constant property for the current version scope
+    #
+    # @param name [Symbol] The name of the constant
+    # @param value [Object] The value of the constant
+    # @param map [String, nil] An optional mapping to another constant
+    # @param required [Boolean, Array<Symbol>] Whether the constant is required
+    # @return [void]
+    def const(name, value:, map: nil, required: nil)
+      required = default_options.fetch(:required, false) if required.nil?
+
+      const = Properties::Const.new(name:, value:, map:, required:)
+      current_scope.add(const)
+    end
+
     # Defines a new object for the current version scope
     #
     # @param name [Symbol] The name of the object
