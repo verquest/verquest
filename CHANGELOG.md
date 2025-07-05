@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### New Features
+- Add support for inverted mapping, that can be used to map internal structure to external representation (e.g., for errors). ([#](https://github.com/CiTroNaK/verquest/pull/), [@CiTroNaK](https://github.com/CiTroNaK))
+
 ## [0.5.0] - 2025-07-01
 
 ### Fixed

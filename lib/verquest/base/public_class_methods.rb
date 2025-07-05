@@ -102,6 +102,18 @@ module Verquest
       end
     end
 
+    # Returns the external mapping for a specific version
+    #
+    # This method returns a mapping hash that translates from internal attribute names back to external parameter names.
+    #
+    # @param version [String, nil] Specific version to use, defaults to configuration setting
+    # @return [Hash] The inverted mapping configuration where keys are internal names and values are external names
+    # @see #mapping
+    def external_mapping(version: nil)
+      version = resolve(version)
+      version.external_mapping
+    end
+
     # Returns the JSON reference for the request or a specific property
     #
     # @param property [String, Symbol, nil] Specific property to retrieve reference for

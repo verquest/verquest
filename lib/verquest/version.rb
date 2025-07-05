@@ -38,7 +38,10 @@ module Verquest
     #
     # @!attribute [r] transformer
     #   @return [Verquest::Transformer] The transformer that applies the mapping
-    attr_reader :name, :properties, :schema, :validation_schema, :mapping, :transformer
+    #
+    # @!attribute [r] external_mapping
+    #   @return [Hash] The mapping from internal attribute paths back to external paths
+    attr_reader :name, :properties, :schema, :validation_schema, :mapping, :transformer, :external_mapping
 
     # @!attribute [rw] schema_options
     #   @return [Hash] Additional JSON schema options for this version
@@ -113,6 +116,7 @@ module Verquest
       prepare_schema
       prepare_validation_schema
       prepare_mapping
+      prepare_external_mapping
       @transformer = Transformer.new(mapping: mapping)
 
       freeze
@@ -244,6 +248,19 @@ module Verquest
       if (duplicates = mapping.keys.select { |k| mapping.values.count(k) > 1 }).any?
         raise MappingError.new("Mapping must be unique. Found duplicates in version '#{name}': #{duplicates.join(", ")}")
       end
+    end
+
+    # Prepares the inverted parameter mapping for this version
+    #
+    # Inverts the standard mapping to create a reverse lookup from internal
+    # attribute names back to external parameter names. This is useful when
+    # transforming internal data back to the external API representation.
+    #
+    # @return [Hash] The frozen inverted mapping where keys are internal attribute
+    #   paths and values are the corresponding external schema paths
+    # @see #prepare_mapping
+    def prepare_external_mapping
+      @external_mapping = mapping.invert.freeze
     end
   end
 end

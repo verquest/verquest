@@ -8,11 +8,11 @@ Verquest is a Ruby gem that offers an elegant solution for versioning API reques
 - Defining versioned request structures
 - Gracefully handling API versioning
 - Mapping between external and internal parameter structures
-- Validating parameters against [JSON Schema](https://json-schema.org/learn)
+- Validating parameters against [JSON Schema](https://json-schema.org/)
 - Generating components for OpenAPI documentation
-- Mapping error keys back to the external API structure (planned feature)
+- Mapping error keys back to the external API structure
 
-> The gem is still in development. Until version 1.0, the API may change. There are some features like `oneOf`, `anyOf`, `allOf` that are not implemented yet.
+> The gem is still in development. Until version 1.0, the API may change. There are some features like `oneOf`, `anyOf`, `allOf` that are not implemented yet. See open [issues](https://github.com/CiTroNaK/verquest/issues?q=sort:updated-desc%20is:issue%20is:open%20label:enhancement).
 
 ## Installation
 
@@ -276,7 +276,7 @@ The JSON schema can be used for both validation of incoming parameters and for g
 - `schema_options`: Allows you to set additional options for the JSON Schema, such as `additional_properties` for request or per version. All fields (except `reference`) can be defined with options like `required`, `format`, `min_lenght`, `max_length`, etc. all in snake case.
 - `with_options`: Allows you to define multiple fields with the same options, reducing repetition.
 
-### Required properties
+#### Required properties
 
 You can define required properties in your request schema by setting the `required` option to `true`, or provide a list of dependent required properties. This feature is based on the latest [JSON Schema specification](https://json-schema.org/understanding-json-schema/reference/conditionals#dependentRequired), which is also used in OpenAPI 3.1.
 
@@ -540,6 +540,25 @@ What you can use:
 - `/` to reference the root of the request structure
 - `nested.structure` use dot notation to reference nested structures
 - if the `map` is not set, the field name will be used as the key in the internal structure
+
+To get the mapping to map the request structure back to the external API structure, you can use the `external_mapping` method:
+
+```ruby
+UserCreateRequest.external_mapping(version: "2025-06")
+```
+
+Will produce the following mapping:
+
+```ruby
+{
+  "name" => "full_name",
+  "email" => "email",
+  "phone" => "phone",
+  "address_street" => "address.street",
+  "address_city" => "address.city",
+  "address_zip" => "address.postal_code"
+}
+```
 
 There are some limitations and the implementation can be improved, but it should works for most common use cases.
 
