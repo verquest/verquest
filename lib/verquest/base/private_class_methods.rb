@@ -144,11 +144,13 @@ module Verquest
     # @param value [Object] The value of the constant
     # @param map [String, nil] An optional mapping to another constant
     # @param required [Boolean, Array<Symbol>] Whether the constant is required
+    # @param schema_options [Hash] Additional schema options for the constant
     # @return [void]
-    def const(name, value:, map: nil, required: nil)
+    def const(name, value:, map: nil, required: nil, **schema_options)
+      camelize(schema_options)
       required = default_options.fetch(:required, false) if required.nil?
 
-      const = Properties::Const.new(name:, value:, map:, required:)
+      const = Properties::Const.new(name:, value:, map:, required:, **schema_options)
       current_scope.add(const)
     end
 

@@ -14,11 +14,13 @@ module Verquest
       # @param value [Object] The fixed value of the constant (can be any scalar value)
       # @param map [Object, nil] Optional mapping information
       # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names (can be overridden by custom type)
-      def initialize(name:, value:, map: nil, required: false)
+      # @param schema_options [Hash] Additional JSON schema options for this property
+      def initialize(name:, value:, map: nil, required: false, **schema_options)
         @name = name.to_s
         @value = value
         @map = map
         @required = required
+        @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
       # Generate JSON schema definition for this constant
@@ -28,7 +30,7 @@ module Verquest
         {
           name => {
             "const" => value
-          }
+          }.merge(schema_options)
         }
       end
 
@@ -45,7 +47,7 @@ module Verquest
 
       private
 
-      attr_reader :value
+      attr_reader :value, :schema_options
     end
   end
 end
