@@ -145,7 +145,7 @@ module Verquest
         collection.mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: "2025-06")
 
         expected_mapping = {
-          "test_collection[].reference_field" => "test_collection[].renamed_field"
+          "test_collection[]/reference_field" => "test_collection[]/renamed_field"
         }
 
         assert_equal expected_mapping, mapping
@@ -162,7 +162,7 @@ module Verquest
         collection.mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: "2025-06")
 
         expected_mapping = {
-          "test_collection[].reference_field" => "renamed_collection[].renamed_field"
+          "test_collection[]/reference_field" => "renamed_collection[]/renamed_field"
         }
 
         assert_equal expected_mapping, mapping

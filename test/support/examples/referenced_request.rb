@@ -5,7 +5,7 @@ class ReferencedRequest < Verquest::Base
     description "This is an another example for testing purposes."
 
     with_options required: true, type: :string do
-      field :simple_field, map: "simple.field", description: "The simple field"
+      field :simple_field, map: "simple/field", description: "The simple field"
 
       object :nested do
         field :nested_field_1, required: false, map: "field_1", description: "This is a nested field"

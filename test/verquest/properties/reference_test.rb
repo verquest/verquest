@@ -93,7 +93,7 @@ module Verquest
         reference.mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: "2025-06")
 
         expected_mapping = {
-          "test_field.reference_field" => "test_field.reference_field"
+          "test_field/reference_field" => "test_field/reference_field"
         }
 
         assert_equal expected_mapping, mapping
@@ -110,7 +110,7 @@ module Verquest
         reference.mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: "2025-06")
 
         expected_mapping = {
-          "test_field.reference_field" => "referenced_object.reference_field"
+          "test_field/reference_field" => "referenced_object/reference_field"
         }
 
         assert_equal expected_mapping, mapping

@@ -42,7 +42,7 @@ module Verquest
       # @param version [String, nil] The version to create mapping for
       # @return [Hash] The updated mapping hash
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
-        mapping[(key_prefix + [name]).join(".")] = mapping_value_key(value_prefix:)
+        mapping[(key_prefix + [name]).join("/")] = mapping_value_key(value_prefix:)
       end
 
       private

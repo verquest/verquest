@@ -3,13 +3,13 @@ module Verquest
   #
   # The Transformer class handles the conversion of parameter structures based on
   # a mapping of source paths to target paths. It supports deep nested structures,
-  # array notations, and complex path expressions using dot notation.
+  # array notations, and complex path expressions using slash notation.
   #
   # @example Basic transformation
   #   mapping = {
-  #     "user.firstName" => "user.first_name",
-  #     "user.lastName" => "user.last_name",
-  #     "addresses[].zip" => "addresses[].postal_code"
+  #     "user/firstName" => "user/first_name",
+  #     "user/lastName" => "user/last_name",
+  #     "addresses[]/zip" => "addresses[]/postal_code"
   #   }
   #
   #   transformer = Verquest::Transformer.new(mapping: mapping)
@@ -84,13 +84,13 @@ module Verquest
       end
     end
 
-    # Parses a dot-notation path into structured path parts
+    # Parses a slash-notation path into structured path parts
     # Uses memoization for performance optimization
     #
-    # @param path [String] The dot-notation path (e.g., "user.address.street")
+    # @param path [String] The slash-notation path (e.g., "user/address/street")
     # @return [Array<Hash>] Array of path parts with :key and :array attributes
     def parse_path(path)
-      path_cache[path] ||= path.split(".").map do |part|
+      path_cache[path] ||= path.split("/").map do |part|
         if part.end_with?("[]")
           {key: part[0...-2], array: true}
         else

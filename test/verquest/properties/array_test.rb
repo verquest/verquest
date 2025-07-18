@@ -45,7 +45,7 @@ module Verquest
         array = Array.new(
           name: :test_array,
           type: :string,
-          map: "mapped.test.array",
+          map: "mapped/test/array",
           required: true
         )
 
@@ -53,7 +53,7 @@ module Verquest
         array.mapping(key_prefix: [], value_prefix: [], mapping: mapping)
 
         expected_mapping = {
-          "test_array" => "mapped.test.array"
+          "test_array" => "mapped/test/array"
         }
 
         assert_equal expected_mapping, mapping
@@ -71,7 +71,7 @@ module Verquest
         array.mapping(key_prefix: %w[nested level], value_prefix: %w[nested level], mapping: mapping)
 
         expected_mapping = {
-          "nested.level.test_array" => "nested.level.array"
+          "nested/level/test_array" => "nested/level/array"
         }
 
         assert_equal expected_mapping, mapping
@@ -89,7 +89,7 @@ module Verquest
         array.mapping(key_prefix: %w[nested level], value_prefix: %w[nested level], mapping: mapping)
 
         expected_mapping = {
-          "nested.level.test_array" => "array"
+          "nested/level/test_array" => "array"
         }
 
         assert_equal expected_mapping, mapping
@@ -106,7 +106,7 @@ module Verquest
         array.mapping(key_prefix: %w[nested level], value_prefix: %w[nested level], mapping: mapping)
 
         expected_mapping = {
-          "nested.level.test_array" => "nested.level.test_array"
+          "nested/level/test_array" => "nested/level/test_array"
         }
 
         assert_equal expected_mapping, mapping

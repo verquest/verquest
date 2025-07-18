@@ -67,13 +67,13 @@ module Verquest
       # @return [String] The target mapping key
       def mapping_value_key(value_prefix:, collection: false)
         value_key = if map.nil?
-          (value_prefix + [name]).join(".")
+          (value_prefix + [name]).join("/")
         elsif map == "/"
           ""
         elsif map.start_with?("/")
           map.gsub(%r{^/}, "")
         else
-          (value_prefix + map.split(".")).join(".")
+          (value_prefix + map.split("/")).join("/")
         end
 
         if collection
@@ -93,9 +93,9 @@ module Verquest
         elsif map == "/"
           []
         elsif map.start_with?("/")
-          map.gsub(%r{^/}, "").split(".")
+          map.gsub(%r{^/}, "").split("/")
         else
-          value_prefix + map.split(".")
+          value_prefix + map.split("/")
         end
 
         if collection && value_prefix.any?
