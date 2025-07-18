@@ -87,16 +87,16 @@ module Verquest
         value_key_prefix = mapping_value_key(value_prefix:)
 
         # Single field mapping
-        if property && reference_mapping.size == 1 && !reference_mapping.keys.first.include?(".")
+        if property && reference_mapping.size == 1 && !reference_mapping.keys.first.include?("/")
           reference_mapping = {
-            (key_prefix + [name]).join(".") => value_key_prefix
+            (key_prefix + [name]).join("/") => value_key_prefix
           }
         else
-          if value_key_prefix != "" && !value_key_prefix.end_with?(".")
-            value_key_prefix = "#{value_key_prefix}."
+          if value_key_prefix != "" && !value_key_prefix.end_with?("/")
+            value_key_prefix = "#{value_key_prefix}/"
           end
 
-          reference_mapping.transform_keys! { "#{(key_prefix + [name]).join(".")}.#{_1}" }
+          reference_mapping.transform_keys! { "#{(key_prefix + [name]).join("/")}/#{_1}" }
           reference_mapping.transform_values! { "#{value_key_prefix}#{_1}" }
         end
 

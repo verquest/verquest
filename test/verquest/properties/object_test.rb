@@ -158,9 +158,9 @@ module Verquest
         object.mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: "2025-06")
 
         expected_mapping = {
-          "test_field.sub_field" => "now_as_root_field",
-          "test_field.reference_field" => "test_field",
-          "test_field.sub_collection[].reference_field" => "collection[].reference_field"
+          "test_field/sub_field" => "now_as_root_field",
+          "test_field/reference_field" => "test_field",
+          "test_field/sub_collection[]/reference_field" => "collection[]/reference_field"
         }
 
         assert_equal expected_mapping, mapping

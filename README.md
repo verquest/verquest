@@ -543,7 +543,7 @@ Will be transformed to:
 
 What you can use:
 - `/` to reference the root of the request structure
-- `nested.structure` use dot notation to reference nested structures
+- `nested/structure` use slash notation to reference nested structures
 - if the `map` is not set, the field name will be used as the key in the internal structure
 
 To get the mapping to map the request structure back to the external API structure, you can use the `external_mapping` method:
@@ -559,9 +559,9 @@ Will produce the following mapping:
   "name" => "full_name",
   "email" => "email",
   "phone" => "phone",
-  "address_street" => "address.street",
-  "address_city" => "address.city",
-  "address_zip" => "address.postal_code"
+  "address_street" => "address/street",
+  "address_city" => "address/city",
+  "address_zip" => "address/postal_code"
 }
 ```
 

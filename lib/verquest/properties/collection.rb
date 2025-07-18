@@ -142,8 +142,8 @@ module Verquest
           value_key_prefix = mapping_value_key(value_prefix: value_prefix, collection: true)
 
           reference_mapping = item.mapping(version:).dup
-          reference_mapping.transform_keys! { "#{(key_prefix + [name]).join(".")}[].#{_1}" }
-          reference_mapping.transform_values! { "#{value_key_prefix}.#{_1}" }
+          reference_mapping.transform_keys! { "#{(key_prefix + [name]).join("/")}[]/#{_1}" }
+          reference_mapping.transform_values! { "#{value_key_prefix}/#{_1}" }
 
           mapping.merge!(reference_mapping)
         else
