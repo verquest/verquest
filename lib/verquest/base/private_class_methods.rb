@@ -138,6 +138,26 @@ module Verquest
       current_scope.add(field)
     end
 
+    # Defines a new enum property for the current version scope
+    #
+    # @param name [Symbol] The name of the enum
+    # @param values [Array] The possible values for the enum
+    # @param map [String, nil] An optional mapping to another property
+    # @param required [Boolean, Array<Symbol>] Whether the enum is required
+    # @param nullable [Boolean] Whether the enum can be null
+    # @param schema_options [Hash] Additional schema options for the enum
+    # @return [void]
+    def enum(name, values:, map: nil, required: nil, nullable: nil, **schema_options)
+      camelize(schema_options)
+
+      required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
+      schema_options = default_options.except(:required, :nullable).merge(schema_options)
+
+      enum_property = Properties::Enum.new(name:, values:, map:, required:, nullable:, **schema_options)
+      current_scope.add(enum_property)
+    end
+
     # Defines a new constant property for the current version scope
     #
     # @param name [Symbol] The name of the constant
