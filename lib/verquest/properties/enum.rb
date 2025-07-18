@@ -11,12 +11,14 @@ module Verquest
       #
       # @param name [String, Symbol] The name of the property
       # @param values [Array] The enum values for this property
-      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names (can be overridden by custom type)
+      # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
-      # @param schema_options [Hash] Additional JSON schema options for this property (merged with custom type options)
-      # @raise [ArgumentError] If type is not one of the allowed types (default or custom)
-      # @raise [ArgumentError] If attempting to map a field to root without a name
+      # @param schema_options [Hash] Additional JSON schema options for this property
+      # @raise [ArgumentError] If attempting to map an enum to root without a name
+      # @raise [ArgumentError] If values is empty
+      # @raise [ArgumentError] If values are not unique
+      # @raise [ArgumentError] If only one value is provided (should use const instead)
       def initialize(name:, values:, required: false, nullable: false, map: nil, **schema_options)
         raise ArgumentError, "You can not map enums to the root without a name" if map == "/"
         raise ArgumentError, "Values must not be empty" if values.empty?
