@@ -1,7 +1,7 @@
 ## [Unreleased]
 
 ### Breaking Changes
-- **BREAKING:** Switching to slash notation for mapping to improve consistency with how properties are referenced in JSON Schema. Before: `example.nested.property`, now: `example/nested/property`.
+- **BREAKING:** Switching to slash notation for mapping to improve consistency with how properties are referenced in JSON Schema. Before: `example.nested.property`, now: `example/nested/property`. ([#12](https://github.com/CiTroNaK/verquest/pull/12), [@CiTroNaK](https://github.com/CiTroNaK))
 
 ### New Features
 - Add support for inverted mapping, that can be used to map internal structure to external representation (e.g., for errors). ([#10](https://github.com/CiTroNaK/verquest/pull/10), [@CiTroNaK](https://github.com/CiTroNaK))
