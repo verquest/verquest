@@ -75,7 +75,7 @@ class UserCreateRequest < Verquest::Base
       end
     end
     
-    field :role, type: :string, description: "Role of the user", enum: %w[member manager], default: "member"
+    enum :role, values: %w[member manager], default: "member", description: "Role of the user", required: true
     
     object :profile_details do
       field :bio, type: :string, description: "Short biography of the user"
@@ -132,7 +132,7 @@ Output:
 {
   "type" => "object",
   "description" => "User Create Request",
-  "required" => ["first_name", "last_name", "email", "address"],
+  "required" => ["first_name", "last_name", "email", "address", "role"],
   "properties" => {
     "first_name" => {"type" => "string", "description" => "The first name of the user", "maxLength" => 50},
     "last_name" => {"type" => "string", "description" => "The last name of the user", "maxLength" => 50},
@@ -153,10 +153,9 @@ Output:
       "description" => "Permissions associated with the user"
     },
     "role" => {
-      "type" => "string",
-      "description" => "Role of the user",
-      "enum" => ["member", "manager"],
-      "default" => "member"
+      "enum" => ["member", "manager"], 
+      "default" => "member", 
+      "description" => "Role of the user"
     },
     "profile_details" => {
       "type" => "object",
@@ -194,7 +193,7 @@ Output:
 {
   "type" => "object",
   "description" => "User Create Request",
-  "required" => ["first_name", "last_name", "email", "address"],
+  "required" => ["first_name", "last_name", "email", "address", "role"],
   "properties" => {
     "first_name" => {"type" => "string", "description" => "The first name of the user", "maxLength" => 50},
     "last_name" => {"type" => "string", "description" => "The last name of the user", "maxLength" => 50},
@@ -225,10 +224,9 @@ Output:
       "description" => "Permissions associated with the user"
     },
     "role" => {
-      "type" => "string",
-      "description" => "Role of the user",
       "enum" => ["member", "manager"],
-      "default" => "member"
+      "default" => "member",
+      "description" => "Role of the user"
     },
     "profile_details" => {"type" => "object",
       "required" => [],
@@ -269,6 +267,7 @@ The JSON schema can be used for both validation of incoming parameters and for g
 #### Component types
 
 - `field`: Represents a scalar value (string, integer, boolean, etc.).
+- `enum`: Represents a property with a limited set of values (enumeration).
 - `object`: Represents a JSON object with properties.
 - `array`: Represents a JSON array with scalar items.
 - `collection`: Represents a array of objects defined manually or by a reference to another request.

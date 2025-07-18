@@ -118,7 +118,9 @@ module Verquest
           "reference_unmapped_with_property" => {"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"},
           "reference_mapped_with_property" => {"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"},
           "const_unmapped" => {"const" => 1},
-          "const_mapped" => {"const" => true}
+          "const_mapped" => {"const" => true},
+          "enum_unmapped" => {"enum" => %w[one two three]},
+          "enum_mapped" => {"enum" => [1, "a", 2, "b", "null"]}
         },
         "additionalProperties" => false
       }
@@ -257,7 +259,9 @@ module Verquest
           "reference_unmapped_with_property" => {"type" => "string", "description" => "The simple field"},
           "reference_mapped_with_property" => {"type" => "string", "description" => "The simple field"},
           "const_unmapped" => {"const" => 1},
-          "const_mapped" => {"const" => true}
+          "const_mapped" => {"const" => true},
+          "enum_unmapped" => {"enum" => %w[one two three]},
+          "enum_mapped" => {"enum" => [1, "a", 2, "b", "null"]}
         },
         "additionalProperties" => false
       }
@@ -329,7 +333,9 @@ module Verquest
         "reference_unmapped_with_property" => "reference_unmapped_with_property",
         "reference_mapped_with_property" => "referenced_with_property",
         "const_unmapped" => "const_unmapped",
-        "const_mapped" => "const/mapped"
+        "const_mapped" => "const/mapped",
+        "enum_unmapped" => "enum_unmapped",
+        "enum_mapped" => "enum/mapped"
       }
 
       assert_equal expected_mapping, mapping

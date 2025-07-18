@@ -93,5 +93,9 @@ class CompleteExampleRequest < Verquest::Base
     # const
     const :const_unmapped, value: 1 # => const_unmapped
     const :const_mapped, value: true, map: "const/mapped" # => const/mapped
+
+    # enums
+    enum :enum_unmapped, values: %w[one two three] # => enum_unmapped
+    enum :enum_mapped, values: [1, "a", 2, "b"], nullable: true, map: "enum/mapped" # => enum/mapped
   end
 end
