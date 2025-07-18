@@ -559,9 +559,9 @@ Will produce the following mapping:
   "name" => "full_name",
   "email" => "email",
   "phone" => "phone",
-  "address_street" => "address.street",
-  "address_city" => "address.city",
-  "address_zip" => "address.postal_code"
+  "address_street" => "address/street",
+  "address_city" => "address/city",
+  "address_zip" => "address/postal_code"
 }
 ```
 
