@@ -19,7 +19,7 @@ Verquest is a Ruby gem that offers an elegant solution for versioning API reques
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "verquest", "~> 0.5"
+gem "verquest", "~> 0.6"
 ```
 
 And then execute:
@@ -609,7 +609,7 @@ end
 
 ## Documentation
 
-For detailed documentation, please visit the [YARD documentation](https://www.rubydoc.info/gems/verquest/0.5.0/).
+For detailed documentation, please visit the [YARD documentation](https://www.rubydoc.info/gems/verquest/0.6.0/).
 
 ## Development
 

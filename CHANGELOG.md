@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.6.0] - 2025-07-18
+
 ### Breaking Changes
 - **BREAKING:** Switching to slash notation for mapping to improve consistency with how properties are referenced in JSON Schema. Before: `example.nested.property`, now: `example/nested/property`. ([#12](https://github.com/CiTroNaK/verquest/pull/12), [@CiTroNaK](https://github.com/CiTroNaK))
 
