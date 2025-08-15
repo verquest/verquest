@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "Verquest is a Ruby gem that offers an elegant solution for versioning API requests"
   spec.description = "Verquest helps you version API requests, simplifying the management of changes, handling the mapping for internal versus external names and structures, validating parameters, and exporting your requests to JSON Schema components for OpenAPI."
-  spec.homepage = "https://github.com/CiTroNaK/verquest"
+  spec.homepage = "https://github.com/verquest/verquest"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2"
 
