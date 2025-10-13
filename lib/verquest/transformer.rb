@@ -113,30 +113,23 @@ module Verquest
 
       case data
       when Hash
-        # Only check for string keys
         return nil unless data.key?(key.to_s)
-
-        # Always use string keys
         value = data[key.to_s]
-
         if current_part[:array] && value.is_a?(Array)
-          # Process array elements and filter out nil values
-          value.map { |item| extract_value(item, remaining_path) }.compact
+          # Process each object in the array separately
+          value.map { |item| extract_value(item, remaining_path) }
         else
-          # Continue traversing the path
           extract_value(value, remaining_path)
         end
       when Array
         if current_part[:array]
           # Map through array elements with remaining path
-          data.map { |item| extract_value(item, remaining_path) }.compact
+          data.map { |item| extract_value(item, remaining_path) }
         else
           # Try to extract from each array element with the full path
-          result = data.map { |item| extract_value(item, path_parts) }.compact
-          result.empty? ? nil : result
+          data.map { |item| extract_value(item, path_parts) }
         end
       else
-        # For scalar values, return only if we're at the end of the path
         remaining_path.empty? ? data : nil
       end
     end
@@ -152,26 +145,32 @@ module Verquest
 
       current_part = path_parts.first
       remaining_path = path_parts[1..]
-      key = current_part[:key].to_s # Ensure key is a string for consistency
+      key = current_part[:key].to_s
 
-      if remaining_path.empty?
-        # End of path, set the value directly
-        result[key] = value
-      elsif current_part[:array] && value.is_a?(Array)
-        # Handle array notation in target path
-        result[key] ||= []
-
-        # Process each value in the array
-        value.each_with_index do |v, i|
-          result[key][i] ||= {}
-          set_value(result[key][i], remaining_path, v)
-        end
-      else
-        # Continue building nested structure
-        result[key] ||= {}
-        set_value(result[key], remaining_path, value)
+      if value.nil?
+        # Skip setting nil values
+        return result
       end
 
+      if remaining_path.empty?
+        result[key] = value
+      elsif current_part[:array] && value.is_a?(Array)
+        result[key] ||= []
+        value.each_with_index do |v, i|
+          next if v.nil? # Skip nil items in array
+          result[key][i] ||= {}
+          set_value(result[key][i], remaining_path, v)
+          # Remove keys with nil values from each object
+          result[key][i].delete_if { |_, val| val.nil? }
+        end
+        # Remove nils and compact the array
+        result[key] = result[key].compact
+      else
+        result[key] ||= {}
+        set_value(result[key], remaining_path, value)
+        # Remove keys with nil values from nested object
+        result[key].delete_if { |_, val| val.nil? }
+      end
       result
     end
   end
