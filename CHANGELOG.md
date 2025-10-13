@@ -1,14 +1,19 @@
 ## [Unreleased]
 
+## [0.6.1] - 2025-10-13
+
+### Fixed
+- Mapping for collections (array of objects). ([#15](https://github.com/verquest/verquest/pull/15), [@CiTroNaK](https://github.com/CiTroNaK))
+
 ## [0.6.0] - 2025-07-18
 
 ### Breaking Changes
-- **BREAKING:** Switching to slash notation for mapping to improve consistency with how properties are referenced in JSON Schema. Before: `example.nested.property`, now: `example/nested/property`. ([#12](https://github.com/CiTroNaK/verquest/pull/12), [@CiTroNaK](https://github.com/CiTroNaK))
+- **BREAKING:** Switching to slash notation for mapping to improve consistency with how properties are referenced in JSON Schema. Before: `example.nested.property`, now: `example/nested/property`. ([#12](https://github.com/verquest/verquest/pull/12), [@CiTroNaK](https://github.com/CiTroNaK))
 
 ### New Features
-- Add support for `enum` properties. ([#13](https://github.com/CiTroNaK/verquest/pull/13), [@CiTroNaK](https://github.com/CiTroNaK))
-- Add support for inverted mapping, that can be used to map internal structure to external representation (e.g., for errors). ([#10](https://github.com/CiTroNaK/verquest/pull/10), [@CiTroNaK](https://github.com/CiTroNaK))
-- Add support for constants in the schema, allowing to define fixed values for properties. ([#11](https://github.com/CiTroNaK/verquest/pull/11), [@CiTroNaK](https://github.com/CiTroNaK))
+- Add support for `enum` properties. ([#13](https://github.com/verquest/verquest/pull/13), [@CiTroNaK](https://github.com/CiTroNaK))
+- Add support for inverted mapping, that can be used to map internal structure to external representation (e.g., for errors). ([#10](https://github.com/verquest/verquest/pull/10), [@CiTroNaK](https://github.com/CiTroNaK))
+- Add support for constants in the schema, allowing to define fixed values for properties. ([#11](https://github.com/verquest/verquest/pull/11), [@CiTroNaK](https://github.com/CiTroNaK))
 
 ## [0.5.0] - 2025-07-01
 
