@@ -265,9 +265,10 @@ module Verquest
     # @param required [Boolean, Array<Symbol>] Whether the array property is required
     # @param nullable [Boolean] Whether this array can be null
     # @param map [String, nil] An optional mapping to another array property
+    # @param item_schema_options [Hash] Additional JSON schema options for the array items (merged with custom type options)
     # @param schema_options [Hash] Additional schema options for the array property
     # @return [void]
-    def array(name, type:, required: nil, nullable: nil, map: nil, **schema_options)
+    def array(name, type:, required: nil, nullable: nil, map: nil, item_schema_options: {}, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
@@ -275,7 +276,7 @@ module Verquest
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
-      array = Properties::Array.new(name:, type:, required:, nullable:, map:, **schema_options)
+      array = Properties::Array.new(name:, type:, required:, nullable:, map:, item_schema_options:, **schema_options)
       current_scope.add(array)
     end
 

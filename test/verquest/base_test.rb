@@ -111,7 +111,7 @@ module Verquest
             },
             "additionalProperties" => false
           },
-          "array_unmapped" => {"type" => "array", "items" => {"type" => "string"}},
+          "array_unmapped" => {"type" => "array", "items" => {"type" => "string", "format" => "uuid"}},
           "array_mapped" => {"type" => "array", "items" => {"type" => "number"}},
           "reference_unmapped" => {"$ref" => "#/components/schemas/ReferencedRequest"},
           "reference_mapped_to_root" => {"$ref" => "#/components/schemas/ReferencedRequest"},
@@ -252,7 +252,7 @@ module Verquest
             },
             "additionalProperties" => false
           },
-          "array_unmapped" => {"type" => "array", "items" => {"type" => "string"}},
+          "array_unmapped" => {"type" => "array", "items" => {"type" => "string", "format" => "uuid"}},
           "array_mapped" => {"type" => "array", "items" => {"type" => "number"}},
           "reference_unmapped" => referenced_validation_schema,
           "reference_mapped_to_root" => referenced_validation_schema,
@@ -495,7 +495,7 @@ module Verquest
             }
           ]
         },
-        "array_unmapped" => %w[a b c],
+        "array_unmapped" => %w[4662f352-e1dd-4ab6-9078-ffb12c82e8ad 2a44097e-6bb5-4df9-8091-a925449bd9cf],
         "array_mapped" => [1, 2, 3],
         "reference_unmapped" => {
           "simple_field" => "simple_field",
@@ -612,7 +612,7 @@ module Verquest
             }
           ]
         },
-        "array_unmapped" => %w[a b c],
+        "array_unmapped" => %w[4662f352-e1dd-4ab6-9078-ffb12c82e8ad 2a44097e-6bb5-4df9-8091-a925449bd9cf],
         "rename_array_mapped" => [1, 2, 3],
         "reference_unmapped" => {
           "simple" => {"field" => "simple_field"},

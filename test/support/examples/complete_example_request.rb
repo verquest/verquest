@@ -81,7 +81,7 @@ class CompleteExampleRequest < Verquest::Base
     end
 
     # arrays
-    array :array_unmapped, type: :string # => array_unmapped
+    array :array_unmapped, type: :string, item_schema_options: {format: "uuid"} # => array_unmapped
     array :array_mapped, type: :number, map: "rename_array_mapped" # => rename_array_mapped
 
     # references
