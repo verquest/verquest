@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [0.6.2] - 2025-12-09
+
+### Fixed
+- The `item_schema_options` is now properly passed to the `Array` property.
+
 ## [0.6.1] - 2025-10-13
 
 ### Fixed
