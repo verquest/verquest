@@ -11,6 +11,7 @@ gem "rake", "~> 13.0"
 gem "minitest", "~> 6"
 gem "minitest-difftastic", "~> 0.2"
 gem "mocha", "~> 3.0"
+gem "simplecov", "~> 0.22", require: false
 
 gem "standard"
 gem "standard-performance"

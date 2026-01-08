@@ -19,6 +19,7 @@ GEM
       pretty_please
     dispersion (0.2.0)
       prism
+    docile (1.4.1)
     erb (6.0.1)
     hana (1.3.7)
     io-console (0.8.2)
@@ -91,6 +92,12 @@ GEM
       rubocop (>= 1.72.1)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
+    simplecov (0.22.0)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+      simplecov_json_formatter (~> 0.1)
+    simplecov-html (0.13.2)
+    simplecov_json_formatter (0.1.4)
     simpleidn (0.2.3)
     standard (1.52.0)
       language_server-protocol (~> 3.17.0.2)
@@ -114,7 +121,6 @@ GEM
 
 PLATFORMS
   arm64-darwin-24
-  ruby
   x86_64-linux
 
 DEPENDENCIES
@@ -126,6 +132,7 @@ DEPENDENCIES
   redcarpet (~> 3.6)
   rubocop-minitest
   rubocop-rake
+  simplecov (~> 0.22)
   standard
   standard-performance
   verquest!
