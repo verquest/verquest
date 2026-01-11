@@ -119,7 +119,6 @@ module Verquest
             "type" => "array",
             "items" => {
               "type" => "object",
-              "description" => nil,
               "required" => ["reference_field"],
               "properties" => {
                 "reference_field" => {

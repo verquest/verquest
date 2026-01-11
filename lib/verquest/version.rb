@@ -113,11 +113,19 @@ module Verquest
 
       schema_options.delete_if { |_, v| v.nil? }
 
-      prepare_schema
-      prepare_validation_schema
-      prepare_mapping
-      prepare_external_mapping
-      @transformer = Transformer.new(mapping: mapping)
+      if combination?
+        prepare_combination_schema
+        prepare_combination_validation_schema
+        prepare_combination_mapping
+        prepare_combination_external_mapping
+        @transformer = Transformer.new(mapping: mapping, discriminator: combination_discriminator)
+      else
+        prepare_schema
+        prepare_validation_schema
+        prepare_mapping
+        prepare_external_mapping
+        @transformer = Transformer.new(mapping: mapping)
+      end
 
       freeze
     end
@@ -196,6 +204,36 @@ module Verquest
       transformer.call(params)
     end
 
+    def combination?
+      return @_combination if defined?(@_combination)
+
+      @_combination = properties.values.count == 1 &&
+        properties.values.first&.is_a?(Verquest::Properties::OneOf) &&
+        properties.values.first.name.nil?
+    end
+
+    # Check if this version has a nested oneOf property (oneOf with a name)
+    #
+    # @return [Boolean] true if there's a nested oneOf property
+    def has_nested_one_of?
+      return @_has_nested_one_of if defined?(@_has_nested_one_of)
+
+      @_has_nested_one_of = properties.values.any? do |p|
+        p.is_a?(Verquest::Properties::OneOf) && !p.name.nil?
+      end
+    end
+
+    # Check if this version has multiple nested oneOf properties
+    #
+    # @return [Boolean] true if there are multiple nested oneOf properties
+    def has_multiple_nested_one_of?
+      return @_has_multiple_nested_one_of if defined?(@_has_multiple_nested_one_of)
+
+      @_has_multiple_nested_one_of = properties.values.count do |p|
+        p.is_a?(Verquest::Properties::OneOf) && !p.name.nil?
+      end > 1
+    end
+
     private
 
     # Generates the JSON schema for this version
@@ -208,12 +246,22 @@ module Verquest
     def prepare_schema
       @schema = {
         "type" => "object",
-        "description" => description,
         "required" => required_properties,
         "properties" => properties.transform_values { |property| property.to_schema[property.name] }
       }.merge(schema_options).tap do |schema|
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+        schema["description"] = description if description
       end.freeze
+    end
+
+    # Generates the JSON schema for combination schemas (oneOf at root level)
+    #
+    # For combination schemas, the schema is delegated directly to the oneOf
+    # property since it represents the entire request structure.
+    #
+    # @return [Hash] The schema from the oneOf property
+    def prepare_combination_schema
+      @schema = properties.values.first.to_schema
     end
 
     # Generates the validation schema for this version
@@ -225,12 +273,22 @@ module Verquest
     def prepare_validation_schema
       @validation_schema = {
         "type" => "object",
-        "description" => description,
         "required" => required_properties,
         "properties" => properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
       }.merge(schema_options).tap do |schema|
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+        schema["description"] = description if description
       end.freeze
+    end
+
+    # Generates the validation schema for combination schemas (oneOf at root level)
+    #
+    # For combination schemas, the validation schema is delegated directly to
+    # the oneOf property, which includes inline schema definitions for each option.
+    #
+    # @return [Hash] The validation schema from the oneOf property
+    def prepare_combination_validation_schema
+      @validation_schema = properties.values.first.to_validation_schema(version: name)
     end
 
     # Prepares the parameter mapping for this version
@@ -238,15 +296,91 @@ module Verquest
     # Collects mappings from all properties in this version and checks for
     # duplicate mappings, which would cause conflicts during transformation.
     #
+    # When nested oneOf properties are present, the mapping includes a _oneOfs array
+    # containing each oneOf's metadata and variant mappings, plus base properties.
+    #
     # @return [Hash] The mapping from schema property paths to internal paths
     # @raise [MappingError] If duplicate mappings are detected
     def prepare_mapping
-      @mapping = properties.values.each_with_object({}) do |property, mapping|
+      # Separate oneOf properties from regular properties
+      one_of_properties = properties.values.select { |p| p.is_a?(Verquest::Properties::OneOf) }
+      regular_properties = properties.values.reject { |p| p.is_a?(Verquest::Properties::OneOf) }
+
+      if one_of_properties.size == 1
+        prepare_single_nested_one_of_mapping(one_of_properties.first, regular_properties)
+      elsif one_of_properties.size > 1
+        prepare_multiple_nested_one_of_mapping(one_of_properties, regular_properties)
+      else
+        prepare_flat_mapping(regular_properties)
+      end
+    end
+
+    # Prepares mapping for versions with a single nested oneOf property (legacy format)
+    #
+    # @param one_of_property [Verquest::Properties::OneOf] The nested oneOf property
+    # @param regular_properties [Array<Verquest::Properties::Base>] Non-oneOf properties
+    # @return [void]
+    def prepare_single_nested_one_of_mapping(one_of_property, regular_properties)
+      # Collect regular property mappings
+      regular_mapping = {}
+      regular_properties.each do |property|
+        property.mapping(key_prefix: [], value_prefix: [], mapping: regular_mapping, version: name)
+      end
+
+      # Collect oneOf property mappings
+      one_of_mapping = {}
+      one_of_property.mapping(key_prefix: [], value_prefix: [], mapping: one_of_mapping, version: name)
+
+      # Merge regular mappings into each oneOf variant
+      @mapping = {}
+
+      # Preserve metadata keys
+      %w[_discriminator _variant_schemas _variant_path].each do |metadata_key|
+        @mapping[metadata_key] = one_of_mapping[metadata_key] if one_of_mapping.key?(metadata_key)
+      end
+
+      one_of_mapping.each do |discriminator_value, variant_mapping|
+        next if discriminator_value.start_with?("_") # Skip metadata keys
+
+        @mapping[discriminator_value] = regular_mapping.merge(variant_mapping)
+      end
+    end
+
+    # Prepares mapping for versions with multiple nested oneOf properties
+    #
+    # @param one_of_properties [Array<Verquest::Properties::OneOf>] The nested oneOf properties
+    # @param regular_properties [Array<Verquest::Properties::Base>] Non-oneOf properties
+    # @return [void]
+    def prepare_multiple_nested_one_of_mapping(one_of_properties, regular_properties)
+      @mapping = {}
+
+      # Collect regular property mappings at root level
+      regular_properties.each do |property|
+        property.mapping(key_prefix: [], value_prefix: [], mapping: @mapping, version: name)
+      end
+
+      # Collect each oneOf's mapping into _oneOfs array
+      @mapping["_oneOfs"] = one_of_properties.map do |one_of_property|
+        one_of_mapping = {}
+        one_of_property.mapping(key_prefix: [], value_prefix: [], mapping: one_of_mapping, version: name)
+        one_of_mapping
+      end
+    end
+
+    # Prepares flat mapping for versions without nested oneOf
+    #
+    # @param properties_list [Array<Verquest::Properties::Base>] Properties to map
+    # @return [void]
+    # @raise [MappingError] If duplicate mappings are detected
+    def prepare_flat_mapping(properties_list)
+      @mapping = properties_list.each_with_object({}) do |property, mapping|
         property.mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
       end
 
-      if (duplicates = mapping.keys.select { |k| mapping.values.count(k) > 1 }).any?
-        raise MappingError.new("Mapping must be unique. Found duplicates in version '#{name}': #{duplicates.join(", ")}")
+      seen = Set.new
+      duplicates = mapping.values.select { |v| !seen.add?(v) }
+      if duplicates.any?
+        raise MappingError.new("Mapping must be unique. Found duplicates in version '#{name}': #{duplicates.uniq.join(", ")}")
       end
     end
 
@@ -256,11 +390,97 @@ module Verquest
     # attribute names back to external parameter names. This is useful when
     # transforming internal data back to the external API representation.
     #
+    # For nested oneOf schemas, inverts each discriminator value's mapping.
+    # Skips metadata keys that are not variant mappings.
+    #
     # @return [Hash] The frozen inverted mapping where keys are internal attribute
     #   paths and values are the corresponding external schema paths
     # @see #prepare_mapping
     def prepare_external_mapping
-      @external_mapping = mapping.invert.freeze
+      @external_mapping = if has_multiple_nested_one_of?
+        invert_multiple_one_of_mapping
+      elsif has_nested_one_of?
+        invert_single_one_of_mapping
+      else
+        mapping.invert.freeze
+      end
+    end
+
+    # Inverts mapping for single nested oneOf
+    #
+    # @return [Hash] The inverted mapping
+    def invert_single_one_of_mapping
+      mapping.each_with_object({}) do |(key, value), result|
+        result[key] = if key.start_with?("_")
+          value
+        else
+          value.invert
+        end
+      end.freeze
+    end
+
+    # Inverts mapping for multiple nested oneOf
+    #
+    # @return [Hash] The inverted mapping
+    def invert_multiple_one_of_mapping
+      result = {}
+
+      mapping.each do |key, value|
+        if key == "_oneOfs"
+          result["_oneOfs"] = value.map do |one_of_mapping|
+            one_of_mapping.each_with_object({}) do |(k, v), inverted|
+              inverted[k] = if k.start_with?("_")
+                v
+              else
+                v.invert
+              end
+            end
+          end
+        elsif key.start_with?("_")
+          result[key] = value
+        else
+          result[value] = key # Invert base properties
+        end
+      end
+
+      result.freeze
+    end
+
+    # Prepares the parameter mapping for combination schemas (oneOf)
+    #
+    # For combination schemas, the mapping is keyed by the discriminator value
+    # so the transformer can select the appropriate mapping based on the input.
+    #
+    # @return [Hash] A hash where keys are discriminator values and values are mapping hashes
+    def prepare_combination_mapping
+      @mapping = {}
+      properties.values.first.mapping(key_prefix: [], value_prefix: [], mapping: @mapping, version: name)
+    end
+
+    # Prepares the inverted parameter mapping for combination schemas
+    #
+    # For combination schemas, inverts each discriminator value's mapping.
+    # Skips metadata keys that are not variant mappings.
+    #
+    # @return [Hash] The frozen inverted mapping for each discriminator value
+    def prepare_combination_external_mapping
+      @external_mapping = mapping.each_with_object({}) do |(key, value), result|
+        # Skip metadata keys, only invert variant mapping hashes
+        result[key] = if key.start_with?("_")
+          value
+        else
+          value.invert
+        end
+      end.freeze
+    end
+
+    # Returns the discriminator property name for combination schemas
+    #
+    # @return [String, nil] The discriminator property name
+    def combination_discriminator
+      return nil unless combination?
+
+      properties.values.first.send(:discriminator)
     end
   end
 end
