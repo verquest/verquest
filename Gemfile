@@ -8,9 +8,9 @@ gemspec
 gem "irb"
 gem "rake", "~> 13.0"
 
-gem "minitest", "~> 5.16"
+gem "minitest", "~> 6"
 gem "minitest-difftastic", "~> 0.2"
-gem "mocha", "~> 2.7"
+gem "mocha", "~> 3.0"
 
 gem "standard"
 gem "standard-performance"
