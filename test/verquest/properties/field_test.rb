@@ -5,6 +5,8 @@ require "test_helper"
 module Verquest
   module Properties
     class FieldTest < Minitest::Test
+      include ConfigurationTestHelper
+
       ::FieldTestReferenceClass = Class.new(Verquest::Base) do
         version "2025-06" do
           field :reference_field, type: :string, required: true, description: "A test field"
@@ -85,77 +87,64 @@ module Verquest
       end
 
       def test_custom_field_type
-        Verquest.configuration.custom_field_types = {
+        custom_types = {
           custom_type: {
             type: "string",
             schema_options: {format: "custom", pattern: /\Acustom_\w+\z/, min_length: 5, max_length: 20}
           }
         }
 
-        field = Field.new(
-          name: :custom_field,
-          type: :custom_type,
-          required: true,
-          description: "A custom field"
-        )
+        with_configuration(custom_field_types: custom_types) do
+          field = Field.new(
+            name: :custom_field,
+            type: :custom_type,
+            required: true,
+            description: "A custom field"
+          )
 
-        expected_schema = {
-          "custom_field" => {
-            "type" => "string",
-            "format" => "custom",
-            "pattern" => /\Acustom_\w+\z/,
-            "minLength" => 5,
-            "maxLength" => 20,
-            "description" => "A custom field"
+          expected_schema = {
+            "custom_field" => {
+              "type" => "string",
+              "format" => "custom",
+              "pattern" => /\Acustom_\w+\z/,
+              "minLength" => 5,
+              "maxLength" => 20,
+              "description" => "A custom field"
+            }
           }
-        }
 
-        assert_equal expected_schema, field.to_schema
-      ensure
-        Verquest.configuration.custom_field_types = {}
+          assert_equal expected_schema, field.to_schema
+        end
       end
 
       def test_custom_field_type_without_schema_options
-        Verquest.configuration.custom_field_types = {
-          simple_custom: {
-            type: "string"
-          }
-        }
+        custom_types = {simple_custom: {type: "string"}}
 
-        field = Field.new(
-          name: :simple_field,
-          type: :simple_custom,
-          required: true
-        )
+        with_configuration(custom_field_types: custom_types) do
+          field = Field.new(
+            name: :simple_field,
+            type: :simple_custom,
+            required: true
+          )
 
-        expected_schema = {
-          "simple_field" => {
-            "type" => "string"
-          }
-        }
+          expected_schema = {"simple_field" => {"type" => "string"}}
 
-        assert_equal expected_schema, field.to_schema
-      ensure
-        Verquest.configuration.custom_field_types = {}
+          assert_equal expected_schema, field.to_schema
+        end
       end
 
       def test_custom_field_type_with_required_override
-        Verquest.configuration.custom_field_types = {
-          required_type: {
-            type: "string",
-            required: true
-          }
-        }
+        custom_types = {required_type: {type: "string", required: true}}
 
-        field = Field.new(
-          name: :required_field,
-          type: :required_type,
-          required: false # This should be overridden by custom type
-        )
+        with_configuration(custom_field_types: custom_types) do
+          field = Field.new(
+            name: :required_field,
+            type: :required_type,
+            required: false # This should be overridden by custom type
+          )
 
-        assert field.required
-      ensure
-        Verquest.configuration.custom_field_types = {}
+          assert field.required
+        end
       end
 
       def test_invalid_type_raises_error

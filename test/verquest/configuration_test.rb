@@ -4,13 +4,7 @@ require "test_helper"
 
 module Verquest
   class ConfigurationTest < Minitest::Test
-    def setup
-      @original_config = Verquest.configuration.dup
-    end
-
-    def teardown
-      Verquest.instance_variable_set(:@configuration, @original_config)
-    end
+    include ConfigurationTestHelper
 
     def test_default_values
       config = Configuration.new
@@ -147,13 +141,15 @@ module Verquest
     end
 
     def test_configure_block
-      Verquest.configure do |config|
-        config.validate_params = false
-        config.json_schema_version = :draft7
-      end
+      with_configuration(validate_params: true, json_schema_version: :draft2020_12) do
+        Verquest.configure do |config|
+          config.validate_params = false
+          config.json_schema_version = :draft7
+        end
 
-      refute Verquest.configuration.validate_params
-      assert_equal :draft7, Verquest.configuration.json_schema_version
+        refute Verquest.configuration.validate_params
+        assert_equal :draft7, Verquest.configuration.json_schema_version
+      end
     end
   end
 end

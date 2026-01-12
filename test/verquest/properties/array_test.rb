@@ -5,6 +5,8 @@ require "test_helper"
 module Verquest
   module Properties
     class ArrayTest < Minitest::Test
+      include ConfigurationTestHelper
+
       def test_to_schema
         array = Array.new(
           name: :test_array,
@@ -113,64 +115,60 @@ module Verquest
       end
 
       def test_custom_field_type
-        Verquest.configuration.custom_field_types = {
+        custom_types = {
           custom_type: {
             type: "string",
             schema_options: {format: "custom", pattern: /\Acustom_\w+\z/, min_length: 5, max_length: 20}
           }
         }
 
-        array = Array.new(
-          name: :test_array,
-          type: :custom_type,
-          description: "A test array",
-          item_schema_options: {description: "The item"}
-        )
+        with_configuration(custom_field_types: custom_types) do
+          array = Array.new(
+            name: :test_array,
+            type: :custom_type,
+            description: "A test array",
+            item_schema_options: {description: "The item"}
+          )
 
-        expected_schema = {
-          "test_array" => {
-            "type" => "array",
-            "items" => {
-              "type" => "string",
-              "format" => "custom",
-              "pattern" => /\Acustom_\w+\z/,
-              "minLength" => 5,
-              "maxLength" => 20,
-              "description" => "The item"
-            },
-            "description" => "A test array"
+          expected_schema = {
+            "test_array" => {
+              "type" => "array",
+              "items" => {
+                "type" => "string",
+                "format" => "custom",
+                "pattern" => /\Acustom_\w+\z/,
+                "minLength" => 5,
+                "maxLength" => 20,
+                "description" => "The item"
+              },
+              "description" => "A test array"
+            }
           }
-        }
 
-        assert_equal expected_schema, array.to_schema
-      ensure
-        Verquest.configuration.custom_field_types = {}
+          assert_equal expected_schema, array.to_schema
+        end
       end
 
       def test_custom_field_type_without_schema_options
-        Verquest.configuration.custom_field_types = {
-          simple_custom: {
-            type: "integer"
+        custom_types = {simple_custom: {type: "integer"}}
+
+        with_configuration(custom_field_types: custom_types) do
+          array = Array.new(
+            name: :test_array,
+            type: :simple_custom,
+            description: "A test array"
+          )
+
+          expected_schema = {
+            "test_array" => {
+              "type" => "array",
+              "items" => {"type" => "integer"},
+              "description" => "A test array"
+            }
           }
-        }
 
-        array = Array.new(
-          name: :test_array,
-          type: :simple_custom,
-          description: "A test array"
-        )
-
-        expected_schema = {
-          "test_array" => {
-            "type" => "array",
-            "items" => {"type" => "integer"},
-            "description" => "A test array"
-          }
-        }
-
-        assert_equal expected_schema, array.to_schema
-      ensure
-        Verquest.configuration.custom_field_types = {}
+          assert_equal expected_schema, array.to_schema
+        end
       end
 
       def test_invalid_type_raises_error

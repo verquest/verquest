@@ -4,6 +4,8 @@ require "test_helper"
 
 module Verquest
   class DSLTest < Minitest::Test
+    include ConfigurationTestHelper
+
     def test_object_without_block_raises_error
       error = assert_raises(ArgumentError) do
         Class.new(Verquest::Base) do
@@ -48,33 +50,29 @@ module Verquest
     end
 
     def test_resolve_with_current_version_from_config
-      original_current_version = Verquest.configuration.current_version
-
       test_class = Class.new(Verquest::Base) do
         version "2025-06" do
           field :test_field, type: :string
         end
       end
 
-      Verquest.configuration.current_version = -> { "2025-06" }
+      with_configuration(current_version: -> { "2025-06" }) do
+        schema = test_class.to_schema
 
-      # Should work without providing version
-      schema = test_class.to_schema
-
-      assert schema["properties"].key?("test_field")
-    ensure
-      Verquest.configuration.instance_variable_set(:@current_version, original_current_version)
+        assert schema["properties"].key?("test_field")
+      end
     end
 
     def test_resolve_without_version_raises_error
-      original_current_version = Verquest.configuration.current_version
-      Verquest.configuration.instance_variable_set(:@current_version, nil)
-
       test_class = Class.new(Verquest::Base) do
         version "2025-06" do
           field :test_field, type: :string
         end
       end
+
+      # current_version setter requires a callable, so we use instance_variable_set for nil
+      original = Verquest.configuration.current_version
+      Verquest.configuration.instance_variable_set(:@current_version, nil)
 
       error = assert_raises(ArgumentError) do
         test_class.to_schema
@@ -82,7 +80,7 @@ module Verquest
 
       assert_equal "Version must be provided or set by Verquest.configuration.current_version", error.message
     ensure
-      Verquest.configuration.instance_variable_set(:@current_version, original_current_version)
+      Verquest.configuration.instance_variable_set(:@current_version, original)
     end
 
     def test_version_not_found_error
