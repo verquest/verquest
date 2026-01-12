@@ -32,18 +32,12 @@ class Verquest::RootLevelOneOfTest < Minitest::Test
 
     validation_schema = PetRequest.to_validation_schema(version: "2025-06")
 
+    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
     expected_schema = {
       "oneOf" => [
         {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
         {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-      ],
-      "discriminator" => {
-        "propertyName" => "type",
-        "mapping" => {
-          "dog" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
-          "cat" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-        }
-      }
+      ]
     }
 
     assert_equal expected_schema, validation_schema
@@ -174,6 +168,7 @@ class Verquest::NestedOneOfTest < Minitest::Test
   def test_validation_schema_payment
     validation_schema = OrderRequest.to_validation_schema(version: "2025-06")
 
+    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
     expected_payment_schema = {
       "oneOf" => [
         {
@@ -197,33 +192,7 @@ class Verquest::NestedOneOfTest < Minitest::Test
           },
           "additionalProperties" => false
         }
-      ],
-      "discriminator" => {
-        "propertyName" => "method",
-        "mapping" => {
-          "card" => {
-            "type" => "object",
-            "required" => %w[method card_number expiry],
-            "properties" => {
-              "method" => {"const" => "card"},
-              "card_number" => {"type" => "string"},
-              "expiry" => {"type" => "string"},
-              "cvv" => {"type" => "string"}
-            },
-            "additionalProperties" => false
-          },
-          "bank" => {
-            "type" => "object",
-            "required" => %w[method account_number routing_number],
-            "properties" => {
-              "method" => {"const" => "bank"},
-              "account_number" => {"type" => "string"},
-              "routing_number" => {"type" => "string"}
-            },
-            "additionalProperties" => false
-          }
-        }
-      }
+      ]
     }
 
     assert_equal expected_payment_schema, validation_schema["properties"]["payment"]

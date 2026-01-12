@@ -72,18 +72,12 @@ class Verquest::Properties::OneOfTest < Minitest::Test
     one_of_property.add(Verquest::Properties::Reference.new(name: "dog", from: DogComponent))
     one_of_property.add(Verquest::Properties::Reference.new(name: "cat", from: CatComponent))
 
+    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
     expected_schema = {
       "oneOf" => [
         {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
         {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-      ],
-      "discriminator" => {
-        "propertyName" => "type",
-        "mapping" => {
-          "dog" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
-          "cat" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-        }
-      }
+      ]
     }
 
     assert_equal expected_schema, one_of_property.to_validation_schema(version: "2025-06")
@@ -99,19 +93,13 @@ class Verquest::Properties::OneOfTest < Minitest::Test
     one_of_property.add(Verquest::Properties::Reference.new(name: "dog", from: DogComponent))
     one_of_property.add(Verquest::Properties::Reference.new(name: "cat", from: CatComponent))
 
+    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
     expected_schema = {
       "animal" => {
         "oneOf" => [
           {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
           {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-        ],
-        "discriminator" => {
-          "propertyName" => "type",
-          "mapping" => {
-            "dog" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
-            "cat" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-          }
-        }
+        ]
       }
     }
 

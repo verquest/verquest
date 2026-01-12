@@ -317,12 +317,14 @@ module Verquest
 
       # Builds the validation schema structure with inline definitions
       #
+      # Unlike the documentation schema, the validation schema omits the discriminator
+      # since it's an OpenAPI extension that JSON Schema validators ignore.
+      # Validators validate against the oneOf array directly.
+      #
       # @param version [String, nil] The version to generate validation schema for
-      # @return [Hash] Validation schema with oneOf array and optional discriminator
+      # @return [Hash] Validation schema with oneOf array (no discriminator)
       def build_validation_schema(version:)
-        schema = {schema_keyword => collect_inline_schemas(version)}
-        add_discriminator_to_schema(schema, :inline, version: version)
-        schema
+        {schema_keyword => collect_inline_schemas(version)}
       end
 
       # Collects $ref schema references for all variants
