@@ -56,15 +56,15 @@ module Verquest
 
       # Add a schema option to this oneOf
       #
-      # For root-level oneOf (name is nil), only Reference properties are allowed.
-      # The schema is stored using its name as the key for discriminator-based lookup.
+      # Both Reference and Object properties are allowed at any level.
+      # Object properties define inline schemas directly within the oneOf.
       #
-      # @param schema [Verquest::Properties::Reference] The schema to add as an option
-      # @raise [ArgumentError] If name is nil and schema is not a Reference
-      # @return [Verquest::Properties::Reference] The added schema
+      # @param schema [Verquest::Properties::Reference, Verquest::Properties::Object] The schema to add
+      # @raise [ArgumentError] If schema is neither a Reference nor an Object
+      # @return [Verquest::Properties::Base] The added schema
       def add(schema)
-        if root_level? && !schema.is_a?(Verquest::Properties::Reference)
-          raise ArgumentError, "Must be a Verquest::Properties::Reference instance when used directly under version."
+        unless schema.is_a?(Verquest::Properties::Reference) || schema.is_a?(Verquest::Properties::Object)
+          raise ArgumentError, "Must be a Reference or Object property"
         end
 
         schemas[schema.name] = schema
@@ -193,6 +193,10 @@ module Verquest
 
       # Builds variant mappings for each schema option
       #
+      # Handles both Reference and Object schemas:
+      # - Reference: delegates to the referenced schema's mapping
+      # - Object: builds mapping from child properties directly
+      #
       # @param mapping [Hash] The mapping hash to populate
       # @param source_prefix [Array<String>] Source path prefix
       # @param target_prefix [Array<String>] Target path prefix
@@ -200,16 +204,64 @@ module Verquest
       # @return [void]
       def build_variant_mappings(mapping, source_prefix, target_prefix, version)
         schemas.each_value do |schema|
-          reference_mapping = schema.send(:from).mapping(version: version)
-          reference_map = schema.send(:map)
-          variant_target_prefix = compute_reference_target_prefix(reference_map, target_prefix)
+          if schema.is_a?(Verquest::Properties::Reference)
+            build_reference_variant_mapping(mapping, schema, source_prefix, target_prefix, version)
+          elsif schema.is_a?(Verquest::Properties::Object)
+            build_object_variant_mapping(mapping, schema, source_prefix, target_prefix, version)
+          end
+        end
+      end
 
-          mapping[schema.name] = build_prefixed_mapping(
-            reference_mapping,
-            source_prefix,
-            variant_target_prefix
+      # Builds mapping for a Reference variant
+      #
+      # @param mapping [Hash] The mapping hash to populate
+      # @param schema [Verquest::Properties::Reference] The reference schema
+      # @param source_prefix [Array<String>] Source path prefix
+      # @param target_prefix [Array<String>] Target path prefix
+      # @param version [String, nil] The version for schema resolution
+      # @return [void]
+      def build_reference_variant_mapping(mapping, schema, source_prefix, target_prefix, version)
+        reference_mapping = schema.send(:from).mapping(version: version)
+        reference_map = schema.send(:map)
+        variant_target_prefix = compute_reference_target_prefix(reference_map, target_prefix)
+
+        mapping[schema.name] = build_prefixed_mapping(
+          reference_mapping,
+          source_prefix,
+          variant_target_prefix
+        )
+      end
+
+      # Builds mapping for an inline Object variant
+      #
+      # Unlike nested objects, inline oneOf variants map their properties directly
+      # under the oneOf property path (not under oneOf/variant_name).
+      # This mirrors how Reference variants work.
+      #
+      # @param mapping [Hash] The mapping hash to populate
+      # @param schema [Verquest::Properties::Object] The object schema
+      # @param source_prefix [Array<String>] Source path prefix
+      # @param target_prefix [Array<String>] Target path prefix
+      # @param version [String, nil] The version for schema resolution
+      # @return [void]
+      def build_object_variant_mapping(mapping, schema, source_prefix, target_prefix, version)
+        object_mapping = {}
+        object_map = schema.send(:map)
+        variant_target_prefix = compute_reference_target_prefix(object_map, target_prefix)
+
+        # Build mapping from object's child properties
+        # Properties are mapped directly under source_prefix (not source_prefix + object_name)
+        # to match how Reference variants work
+        schema.send(:properties).each_value do |property|
+          property.mapping(
+            key_prefix: source_prefix,
+            value_prefix: variant_target_prefix,
+            mapping: object_mapping,
+            version: version
           )
         end
+
+        mapping[schema.name] = object_mapping
       end
 
       # Builds a mapping hash with prefixes applied to all keys and values
@@ -363,16 +415,22 @@ module Verquest
 
       # Builds the discriminator mapping based on mode
       #
+      # For :ref mode, only Reference schemas are included since Objects don't have $ref.
+      # This follows OpenAPI spec where discriminator mapping contains only $ref strings.
+      #
       # @param mode [Symbol] Either :ref for $ref mapping or :inline for full schemas
       # @param version [String, nil] The version for inline schema resolution
       # @return [Hash] The discriminator value to schema mapping
       def build_discriminator_mapping(mode, version)
         schemas.each_with_object({}) do |(name, schema), mapping|
-          mapping[name] = case mode
+          case mode
           when :ref
-            schema.to_schema[name]["$ref"]
+            # Only include References in discriminator mapping (Objects don't have $ref)
+            next unless schema.is_a?(Verquest::Properties::Reference)
+
+            mapping[name] = schema.to_schema[name]["$ref"]
           when :inline
-            schema.to_validation_schema(version: version)[name]
+            mapping[name] = schema.to_validation_schema(version: version)[name]
           end
         end
       end
