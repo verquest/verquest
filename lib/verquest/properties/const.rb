@@ -36,11 +36,11 @@ module Verquest
 
       # Create mapping for this const property
       #
-      # @param key_prefix [Array<Symbol>] Prefix for the source key
+      # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for
-      # @return [Hash] The updated mapping hash
+      # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
         mapping[(key_prefix + [name]).join("/")] = mapping_value_key(value_prefix:)
       end

@@ -171,7 +171,7 @@ module Verquest
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for
-      # @return [Hash] The updated mapping hash
+      # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
         if has_item?
           value_key_prefix = mapping_value_key(value_prefix: value_prefix, collection: true)

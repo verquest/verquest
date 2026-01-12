@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Verquest
   # Configuration for the Verquest gem
   #

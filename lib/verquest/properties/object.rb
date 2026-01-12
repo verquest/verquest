@@ -84,7 +84,7 @@ module Verquest
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for
-      # @return [Hash] The updated mapping hash
+      # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
         properties.values.each do |property|
           property.mapping(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:)

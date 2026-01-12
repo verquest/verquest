@@ -49,7 +49,7 @@ module Verquest
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String, nil] The version to create mapping for
-      # @return [Hash] The updated mapping hash
+      # @return [void]
       # @raise [NoMethodError] This is an abstract method that must be overridden
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
         raise NoMethodError

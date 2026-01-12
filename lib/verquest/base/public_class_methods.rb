@@ -12,7 +12,7 @@ module Verquest
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @param validate [Boolean, nil] Whether to validate the params, defaults to configuration setting
     # @param remove_extra_root_keys [Boolean, nil] Whether to remove extra keys at the root level, defaults to configuration setting
-    # @return [Verquest::Result, Hash, Exception] When validation_error_handling is :result, returns a Success result with mapped params or Failure result with validation errors.
+    # @return [Verquest::Result, Hash] When validation_error_handling is :result, returns a Success result with mapped params or Failure result with validation errors.
     #   When validation_error_handling is :raise, returns mapped params directly or raises InvalidParamsError with validation errors.
     def process(params, version: nil, validate: nil, remove_extra_root_keys: nil)
       validate = Verquest.configuration.validate_params if validate.nil?

@@ -80,8 +80,8 @@ module Verquest
       # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
-      # @param version [String, nil] The version to create mapping for
-      # @return [Hash] The updated mapping hash
+      # @param version [String] The version to create mapping for
+      # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
         reference_mapping = from.mapping(version:, property:).dup
         value_key_prefix = mapping_value_key(value_prefix:)

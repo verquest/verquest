@@ -20,7 +20,7 @@ module Verquest
       # by selecting those with their required attribute set to true (boolean).
       # Results are memoized to avoid recalculating on subsequent calls.
       #
-      # @return [Array<Symbol>] Names of properties marked as unconditionally required (required == true)
+      # @return [Array<String>] Names of properties marked as unconditionally required (required == true)
       def required_properties
         @_required_properties ||= properties.values.select { _1.required == true }.map(&:name)
       end
