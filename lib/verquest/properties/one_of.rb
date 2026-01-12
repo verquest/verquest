@@ -41,7 +41,7 @@ module Verquest
       #
       # @param name [String, Symbol, nil] The property name, or nil for root-level oneOf
       # @param discriminator [String, Symbol, nil] The property name used to discriminate between schemas.
-      #   Required for parameter transformation, optional for validation-only schemas.
+      #   When omitted, the transformer infers the variant by validating against each schema.
       # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
@@ -117,7 +117,7 @@ module Verquest
         build_variant_mappings(mapping, source_prefix, target_prefix, version)
         store_discriminator_path(mapping, source_prefix)
         store_variant_schemas(mapping, version) unless discriminator
-        store_nullable_metadata(mapping, source_prefix) if nullable
+        store_nullable_metadata(mapping) if nullable
       end
 
       # Returns validation schemas for all variants
@@ -311,9 +311,8 @@ module Verquest
       # without attempting variant resolution.
       #
       # @param mapping [Hash] The mapping hash to update
-      # @param source_prefix [Array<String>] The source path prefix
       # @return [void]
-      def store_nullable_metadata(mapping, source_prefix)
+      def store_nullable_metadata(mapping)
         mapping["_nullable"] = true
         mapping["_nullable_path"] = name unless root_level?
       end
@@ -363,7 +362,7 @@ module Verquest
       # @return [Hash] Schema with oneOf array and optional discriminator
       def build_schema_with_refs
         schema = {schema_keyword => collect_schema_refs}
-        add_discriminator_to_schema(schema, :ref)
+        add_discriminator_to_schema(schema)
         schema
       end
 
@@ -400,38 +399,33 @@ module Verquest
 
       # Adds discriminator information to the schema if present
       #
+      # Only Reference schemas are included in the discriminator mapping since
+      # Objects don't have $ref. This follows OpenAPI spec where discriminator
+      # mapping contains only $ref strings.
+      #
       # @param schema [Hash] The schema to modify
-      # @param mode [Symbol] Either :ref for $ref mapping or :inline for full schemas
-      # @param version [String, nil] The version for inline schema resolution
       # @return [void]
-      def add_discriminator_to_schema(schema, mode, version: nil)
+      def add_discriminator_to_schema(schema)
         return unless discriminator
 
         schema["discriminator"] = {
           "propertyName" => discriminator,
-          "mapping" => build_discriminator_mapping(mode, version)
+          "mapping" => build_discriminator_mapping
         }
       end
 
-      # Builds the discriminator mapping based on mode
+      # Builds the discriminator mapping with $ref values
       #
-      # For :ref mode, only Reference schemas are included since Objects don't have $ref.
+      # Only Reference schemas are included since Objects don't have $ref.
       # This follows OpenAPI spec where discriminator mapping contains only $ref strings.
       #
-      # @param mode [Symbol] Either :ref for $ref mapping or :inline for full schemas
-      # @param version [String, nil] The version for inline schema resolution
-      # @return [Hash] The discriminator value to schema mapping
-      def build_discriminator_mapping(mode, version)
+      # @return [Hash] The discriminator value to $ref mapping
+      def build_discriminator_mapping
         schemas.each_with_object({}) do |(name, schema), mapping|
-          case mode
-          when :ref
-            # Only include References in discriminator mapping (Objects don't have $ref)
-            next unless schema.is_a?(Verquest::Properties::Reference)
+          # Only include References in discriminator mapping (Objects don't have $ref)
+          next unless schema.is_a?(Verquest::Properties::Reference)
 
-            mapping[name] = schema.to_schema[name]["$ref"]
-          when :inline
-            mapping[name] = schema.to_validation_schema(version: version)[name]
-          end
+          mapping[name] = schema.to_schema[name]["$ref"]
         end
       end
     end

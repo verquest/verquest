@@ -204,6 +204,12 @@ module Verquest
       transformer.call(params)
     end
 
+    # Check if this version is a combination schema (root-level oneOf)
+    #
+    # A combination schema has a single root-level oneOf property (name is nil)
+    # where the entire request body matches one of the defined schemas.
+    #
+    # @return [Boolean] true if this is a combination schema
     def combination?
       return @_combination if defined?(@_combination)
 
