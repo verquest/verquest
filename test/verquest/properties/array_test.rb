@@ -143,6 +143,50 @@ module Verquest
         }
 
         assert_equal expected_schema, array.to_schema
+      ensure
+        Verquest.configuration.custom_field_types = {}
+      end
+
+      def test_custom_field_type_without_schema_options
+        Verquest.configuration.custom_field_types = {
+          simple_custom: {
+            type: "integer"
+          }
+        }
+
+        array = Array.new(
+          name: :test_array,
+          type: :simple_custom,
+          description: "A test array"
+        )
+
+        expected_schema = {
+          "test_array" => {
+            "type" => "array",
+            "items" => {"type" => "integer"},
+            "description" => "A test array"
+          }
+        }
+
+        assert_equal expected_schema, array.to_schema
+      ensure
+        Verquest.configuration.custom_field_types = {}
+      end
+
+      def test_invalid_type_raises_error
+        error = assert_raises(ArgumentError) do
+          Array.new(name: :test_array, type: :invalid_type)
+        end
+
+        assert_match(/Type must be one of/, error.message)
+      end
+
+      def test_map_to_root_raises_error
+        error = assert_raises(ArgumentError) do
+          Array.new(name: :test_array, type: :string, map: "/")
+        end
+
+        assert_equal "You can not map array to the root", error.message
       end
     end
   end

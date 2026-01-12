@@ -280,4 +280,17 @@ class Verquest::Properties::OneOfTest < Minitest::Test
 
     assert_nil one_of_without.discriminator
   end
+
+  def test_add_invalid_schema_raises_error
+    one_of = Verquest::Properties::OneOf.new(
+      name: "value",
+      required: false
+    )
+
+    error = assert_raises(ArgumentError) do
+      one_of.add(Verquest::Properties::Field.new(name: :invalid, type: :string))
+    end
+
+    assert_equal "Must be a Reference or Object property", error.message
+  end
 end

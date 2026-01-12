@@ -111,6 +111,67 @@ module Verquest
         }
 
         assert_equal expected_schema, field.to_schema
+      ensure
+        Verquest.configuration.custom_field_types = {}
+      end
+
+      def test_custom_field_type_without_schema_options
+        Verquest.configuration.custom_field_types = {
+          simple_custom: {
+            type: "string"
+          }
+        }
+
+        field = Field.new(
+          name: :simple_field,
+          type: :simple_custom,
+          required: true
+        )
+
+        expected_schema = {
+          "simple_field" => {
+            "type" => "string"
+          }
+        }
+
+        assert_equal expected_schema, field.to_schema
+      ensure
+        Verquest.configuration.custom_field_types = {}
+      end
+
+      def test_custom_field_type_with_required_override
+        Verquest.configuration.custom_field_types = {
+          required_type: {
+            type: "string",
+            required: true
+          }
+        }
+
+        field = Field.new(
+          name: :required_field,
+          type: :required_type,
+          required: false # This should be overridden by custom type
+        )
+
+        assert field.required
+      ensure
+        Verquest.configuration.custom_field_types = {}
+      end
+
+      def test_invalid_type_raises_error
+        error = assert_raises(ArgumentError) do
+          Field.new(name: :test_field, type: :invalid_type)
+        end
+
+        assert_match(/Type must be one of/, error.message)
+      end
+
+      def test_map_to_root_raises_error
+        error = assert_raises(ArgumentError) do
+          Field.new(name: :test_field, type: :string, map: "/")
+        end
+
+        assert_equal "You can not map fields to the root without a name", error.message
       end
     end
   end
