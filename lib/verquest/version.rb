@@ -222,22 +222,25 @@ module Verquest
     #
     # @return [Boolean] true if there's a nested oneOf property
     def has_nested_one_of?
-      return @_has_nested_one_of if defined?(@_has_nested_one_of)
-
-      @_has_nested_one_of = properties.values.any? do |p|
-        p.is_a?(Verquest::Properties::OneOf) && !p.name.nil?
-      end
+      nested_one_of_count > 0
     end
 
     # Check if this version has multiple nested oneOf properties
     #
     # @return [Boolean] true if there are multiple nested oneOf properties
     def has_multiple_nested_one_of?
-      return @_has_multiple_nested_one_of if defined?(@_has_multiple_nested_one_of)
+      nested_one_of_count > 1
+    end
 
-      @_has_multiple_nested_one_of = properties.values.count do |p|
+    # Returns the count of nested oneOf properties (computed once and cached)
+    #
+    # @return [Integer] Number of nested oneOf properties
+    def nested_one_of_count
+      return @_nested_one_of_count if defined?(@_nested_one_of_count)
+
+      @_nested_one_of_count = properties.values.count do |p|
         p.is_a?(Verquest::Properties::OneOf) && !p.name.nil?
-      end > 1
+      end
     end
 
     private

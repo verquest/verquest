@@ -247,17 +247,33 @@ module Verquest
 
     # Finds matching variants for given data and schemas
     #
+    # Uses cached JSONSchemer instances for performance and exits early
+    # if more than one match is found (ambiguous case).
+    #
     # @param data [Hash] The data to validate
     # @param variant_schemas [Hash] The variant schemas to validate against
     # @return [Array<String>] Names of matching variants
     def find_matching_variants_for(data, variant_schemas)
+      schemers = schemers_for(variant_schemas)
       matches = []
-      variant_schemas.each do |name, schema|
-        schemer = JSONSchemer.schema(schema)
+      schemers.each do |name, schemer|
         matches << name if schemer.valid?(data)
         break if matches.size > 1 # Early exit on ambiguity
       end
       matches
+    end
+
+    # Returns cached schemers for a given variant_schemas hash
+    #
+    # @param variant_schemas [Hash] The variant schemas
+    # @return [Hash] Cached schemer instances keyed by variant name
+    def schemers_for(variant_schemas)
+      # Use object_id as cache key since variant_schemas is a frozen hash
+      cache_key = variant_schemas.object_id
+      @one_of_schemer_caches ||= {}
+      @one_of_schemer_caches[cache_key] ||= variant_schemas.transform_values do |schema|
+        JSONSchemer.schema(schema)
+      end
     end
 
     # Resolves variant mapping using discriminator value
@@ -602,10 +618,18 @@ module Verquest
     #
     # @return [void]
     def precompile_schemers
-      return unless variant_schemas
-
-      variant_schemas.each do |name, schema|
+      # Precompile for single oneOf
+      variant_schemas&.each do |name, schema|
         schemer_cache[name] = JSONSchemer.schema(schema)
+      end
+
+      # Precompile for multiple oneOf
+      return unless multiple_one_of?
+
+      mapping["_oneOfs"].each do |one_of_mapping|
+        next unless one_of_mapping["_variant_schemas"]
+
+        schemers_for(one_of_mapping["_variant_schemas"])
       end
     end
 
