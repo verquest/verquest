@@ -31,6 +31,9 @@ module Verquest
     #   one_of = Verquest::Properties::OneOf.new(name: :value)
     #   # Validates that exactly one schema matches
     class OneOf < Base
+      # JSON Schema for null type, used when nullable is true
+      NULL_TYPE_SCHEMA = {"type" => "null"}.freeze
+
       # @return [String, nil] The discriminator property name for schema selection
       attr_reader :discriminator
 
@@ -40,10 +43,12 @@ module Verquest
       # @param discriminator [String, Symbol, nil] The property name used to discriminate between schemas.
       #   Required for parameter transformation, optional for validation-only schemas.
       # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
+      # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
-      def initialize(name: nil, discriminator: nil, required: false, map: nil)
+      def initialize(name: nil, discriminator: nil, required: false, nullable: false, map: nil)
         @name = name&.to_s
         @required = required
+        @nullable = nullable
         @map = map
         @discriminator = discriminator&.to_s
         @schemas = {}
@@ -112,6 +117,7 @@ module Verquest
         build_variant_mappings(mapping, source_prefix, target_prefix, version)
         store_discriminator_path(mapping, source_prefix)
         store_variant_schemas(mapping, version) unless discriminator
+        store_nullable_metadata(mapping, source_prefix) if nullable
       end
 
       # Returns validation schemas for all variants
@@ -247,6 +253,19 @@ module Verquest
         mapping["_variant_path"] = name unless root_level?
       end
 
+      # Stores nullable metadata in the mapping
+      #
+      # When nullable is true, the transformer needs to know to allow null values
+      # without attempting variant resolution.
+      #
+      # @param mapping [Hash] The mapping hash to update
+      # @param source_prefix [Array<String>] The source path prefix
+      # @return [void]
+      def store_nullable_metadata(mapping, source_prefix)
+        mapping["_nullable"] = true
+        mapping["_nullable_path"] = name unless root_level?
+      end
+
       # Joins path segments into a slash-separated path string
       #
       # @param prefix [Array<String>] The path prefix segments
@@ -310,7 +329,9 @@ module Verquest
       #
       # @return [Array<Hash>] Array of schema references
       def collect_schema_refs
-        schemas.values.map { |schema| schema.to_schema[schema.name] }
+        refs = schemas.values.map { |schema| schema.to_schema[schema.name] }
+        refs << NULL_TYPE_SCHEMA if nullable
+        refs
       end
 
       # Collects inline schema definitions for all variants
@@ -318,7 +339,9 @@ module Verquest
       # @param version [String, nil] The version for schema resolution
       # @return [Array<Hash>] Array of inline schema definitions
       def collect_inline_schemas(version)
-        schemas.values.map { |schema| schema.to_validation_schema(version: version)[schema.name] }
+        inline_schemas = schemas.values.map { |schema| schema.to_validation_schema(version: version)[schema.name] }
+        inline_schemas << NULL_TYPE_SCHEMA if nullable
+        inline_schemas
       end
 
       # Adds discriminator information to the schema if present

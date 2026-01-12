@@ -93,6 +93,9 @@ module Verquest
       active_mapping = resolve_mapping(params)
       return {} if active_mapping.nil?
 
+      # Handle nullable oneOf with null value
+      return transform_null_value(params) if active_mapping == :null_value
+
       result = {}
 
       active_mapping.each do |source_path, target_path|
@@ -134,6 +137,9 @@ module Verquest
     def resolve_mapping(params)
       # Handle multiple oneOf
       return resolve_multiple_one_of(params) if multiple_one_of?
+
+      # Handle nullable oneOf - if value is null, skip variant resolution
+      return :null_value if nullable_one_of_with_null_value?(params)
 
       disc_path = effective_discriminator
       return mapping unless disc_path || variant_schemas
@@ -608,6 +614,62 @@ module Verquest
     # @return [String, nil] The discriminator path from constructor or mapping
     def effective_discriminator
       discriminator || mapping["_discriminator"]
+    end
+
+    # Checks if this is a nullable oneOf and the value is null
+    #
+    # @param params [Hash] The input parameters
+    # @return [Boolean] True if nullable oneOf with null value
+    def nullable_one_of_with_null_value?(params)
+      return false unless mapping["_nullable"]
+
+      nullable_path = mapping["_nullable_path"]
+
+      if nullable_path
+        # Nested oneOf - check if the property exists and is null
+        params.key?(nullable_path) && params[nullable_path].nil?
+      else
+        # Root-level oneOf - check if params itself is null
+        params.nil?
+      end
+    end
+
+    # Transforms a null value for nullable oneOf
+    #
+    # For nested oneOf, we need to transform non-oneOf properties as well,
+    # then add the null value for the oneOf property.
+    #
+    # @param params [Hash] The input parameters
+    # @return [Hash] The result with null value at the appropriate path
+    def transform_null_value(params)
+      nullable_path = mapping["_nullable_path"]
+
+      if nullable_path
+        # Nested oneOf - transform non-oneOf properties plus null for the oneOf property
+        result = {}
+
+        # Get any variant to extract the non-oneOf property mappings
+        sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
+        if sample_variant
+          variant_mapping = sample_variant[1]
+          variant_mapping.each do |source_path, target_path|
+            # Skip paths that belong to the oneOf property (start with nullable_path/)
+            next if source_path.start_with?("#{nullable_path}/")
+
+            value = extract_value(params, parse_path(source_path.to_s))
+            next if value.nil?
+
+            set_value(result, parse_path(target_path.to_s), value)
+          end
+        end
+
+        # Add the null value for the oneOf property
+        result[nullable_path] = nil
+        result
+      else
+        # Root-level oneOf - return empty hash (null at root)
+        {}
+      end
     end
 
     # Precompiles paths for discriminator-based variant mappings

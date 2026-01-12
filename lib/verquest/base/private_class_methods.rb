@@ -289,13 +289,15 @@ module Verquest
     # @param name [Symbol, nil] The property name, or nil for root-level oneOf
     # @param discriminator [Symbol, nil] The property used to discriminate between schemas
     # @param required [Boolean, Array<Symbol>, nil] Whether this property is required
+    # @param nullable [Boolean] Whether this property can be null
     # @param map [String, nil] An optional mapping to another property
     # @yield Block defining the schema options using reference declarations
     # @return [void]
-    def one_of(name: nil, discriminator: nil, required: nil, map: nil, &block)
+    def one_of(name: nil, discriminator: nil, required: nil, nullable: nil, map: nil, &block)
       required = default_options.fetch(:required, false) if required.nil?
+      nullable = default_options.fetch(:nullable, false) if nullable.nil?
 
-      one_of = Properties::OneOf.new(name:, discriminator:, required:, map:)
+      one_of = Properties::OneOf.new(name:, discriminator:, required:, nullable:, map:)
       current_scope.add(one_of)
 
       if block_given?
