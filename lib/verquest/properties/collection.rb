@@ -61,6 +61,22 @@ module Verquest
         !item.nil?
       end
 
+      # Check if this collection contains a oneOf property as its item type
+      #
+      # @return [Boolean] True if the collection contains a oneOf property
+      def has_one_of?
+        properties.values.size == 1 && properties.values.first.is_a?(Verquest::Properties::OneOf)
+      end
+
+      # Returns the oneOf property if this collection contains one
+      #
+      # @return [Verquest::Properties::OneOf, nil] The oneOf property or nil
+      def one_of_property
+        return nil unless has_one_of?
+
+        properties.values.first
+      end
+
       # Generate JSON schema definition for this collection property
       #
       # @return [Hash] The schema definition for this collection property
@@ -72,6 +88,13 @@ module Verquest
               "items" => {
                 "$ref" => item.to_ref
               }
+            }.merge(schema_options)
+          }
+        elsif has_one_of?
+          {
+            name => {
+              "type" => type,
+              "items" => one_of_property.to_schema[one_of_property.name] || one_of_property.to_schema
             }.merge(schema_options)
           }
         else
@@ -103,6 +126,14 @@ module Verquest
               "items" => item.to_validation_schema(version: version)
             }.merge(schema_options)
           }
+        elsif has_one_of?
+          one_of_schema = one_of_property.to_validation_schema(version: version)
+          {
+            name => {
+              "type" => type,
+              "items" => one_of_schema[one_of_property.name] || one_of_schema
+            }.merge(schema_options)
+          }
         else
           {
             name => {
@@ -122,13 +153,17 @@ module Verquest
 
       # Create mapping for this collection property and all its children
       #
-      # This method handles two different scenarios:
+      # This method handles three different scenarios:
       # 1. When the collection references an external item schema (`has_item?` returns true)
       #    - Creates mappings by transforming keys from the referenced item schema
       #    - Adds array notation ([]) to indicate this is a collection
       #    - Prefixes all keys and values with the appropriate paths
       #
-      # 2. When the collection has inline item properties
+      # 2. When the collection contains a oneOf property (`has_one_of?` returns true)
+      #    - Creates variant-keyed mappings for discriminator-less oneOf support
+      #    - Each variant gets array notation applied to its paths
+      #
+      # 3. When the collection has inline item properties
       #    - Creates mappings for each property in the collection items
       #    - Each property gets mapped with array notation and appropriate prefixes
       #
@@ -142,10 +177,14 @@ module Verquest
           value_key_prefix = mapping_value_key(value_prefix: value_prefix, collection: true)
 
           reference_mapping = item.mapping(version:).dup
-          reference_mapping.transform_keys! { "#{(key_prefix + [name]).join("/")}[]/#{_1}" }
-          reference_mapping.transform_values! { "#{value_key_prefix}/#{_1}" }
+          reference_mapping.transform_keys! { |k| "#{(key_prefix + [name]).join("/")}[]/#{k}" }
+          reference_mapping.transform_values! { |v| "#{value_key_prefix}/#{v}" }
 
           mapping.merge!(reference_mapping)
+        elsif has_one_of?
+          one_of_mapping = {}
+          one_of_property.mapping(key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping: one_of_mapping, version:)
+          mapping.merge!(one_of_mapping)
         else
           properties.values.each do |property|
             property.mapping(key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping:, version:)

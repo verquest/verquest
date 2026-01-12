@@ -51,7 +51,6 @@ module Verquest
         expected_schema = {
           "test_field" => {
             "type" => "object",
-            "description" => nil,
             "required" => ["reference_field"],
             "properties" => {
               "reference_field" => {

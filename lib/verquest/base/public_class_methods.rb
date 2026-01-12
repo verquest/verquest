@@ -22,7 +22,7 @@ module Verquest
 
       params = params.dup
       params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
-      params = params.slice(*version_class.properties.keys) if remove_extra_root_keys
+      params = params.slice(*version_class.properties.keys) if remove_extra_root_keys && !version_class.combination?
 
       if validate && (validation_result = version_class.validate_params(params: params)) && validation_result.any?
         case Verquest.configuration.validation_error_handling
@@ -32,13 +32,22 @@ module Verquest
           Result.failure(validation_result)
         end
       else
-        mapped_params = version_class.map_params(params)
+        begin
+          mapped_params = version_class.map_params(params)
 
-        case Verquest.configuration.validation_error_handling
-        when :raise
-          mapped_params
-        when :result
-          Result.success(mapped_params)
+          case Verquest.configuration.validation_error_handling
+          when :raise
+            mapped_params
+          when :result
+            Result.success(mapped_params)
+          end
+        rescue MappingError => e
+          case Verquest.configuration.validation_error_handling
+          when :raise
+            raise
+          when :result
+            Result.failure([{message: e.message, type: "mapping_error"}])
+          end
         end
       end
     end
