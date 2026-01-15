@@ -145,7 +145,15 @@ module Verquest
       return mapping unless disc_path || variant_schemas
 
       if disc_path
-        resolve_by_discriminator(params, disc_path)
+        result = resolve_by_discriminator(params, disc_path)
+        return result if result
+
+        # If discriminator not found, check if oneOf property is absent
+        # In that case, return base mapping without oneOf properties
+        one_of_property = disc_path.split("/").first
+        return extract_base_mapping_without_one_of(one_of_property) if one_of_property_absent?(params, one_of_property)
+
+        nil
       else
         resolve_by_schema_inference(params)
       end
@@ -288,12 +296,42 @@ module Verquest
       mapping[discriminator_value.to_s] || mapping[discriminator_value]
     end
 
+    # Checks if the oneOf property is absent from params
+    #
+    # @param params [Hash] The input parameters
+    # @param one_of_property [String] The oneOf property name
+    # @return [Boolean] True if the oneOf property is not present in params
+    def one_of_property_absent?(params, one_of_property)
+      !params.key?(one_of_property)
+    end
+
+    # Extracts base mapping for non-oneOf properties when oneOf is absent
+    #
+    # When the oneOf property is optional and not provided, we still need to
+    # transform the non-oneOf properties. This method extracts those mappings
+    # from any variant (they should all have the same non-oneOf properties).
+    #
+    # @param one_of_property [String] The oneOf property name to exclude
+    # @return [Hash] Mapping containing only non-oneOf properties
+    def extract_base_mapping_without_one_of(one_of_property)
+      sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
+      return {} unless sample_variant
+
+      sample_variant[1].reject { |k, _| k.start_with?("#{one_of_property}/") }
+    end
+
     # Resolves variant mapping by validating against each schema
     #
     # @param params [Hash] The input parameters
     # @return [Hash, nil] The resolved mapping
     # @raise [Verquest::MappingError] If no schema matches or multiple schemas match
     def resolve_by_schema_inference(params)
+      # Check if oneOf property is absent (optional oneOf)
+      variant_path = mapping["_variant_path"]
+      if variant_path && one_of_property_absent?(params, variant_path)
+        return extract_base_mapping_without_one_of(variant_path)
+      end
+
       data_to_validate = extract_variant_data(params)
       matching_variants = find_matching_variants(data_to_validate)
 

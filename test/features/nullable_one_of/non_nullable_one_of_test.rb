@@ -18,6 +18,16 @@ class Verquest::NonNullableOneOfTest < Minitest::Test
     end
   end
 
+  def test_when_one_of_is_not_in_params
+    params = {
+      "owner_name" => "Rex"
+    }
+
+    result = NonNullablePetRequest.process(params, version: "2025-06", validate: true)
+
+    assert_equal params, result
+  end
+
   def test_schema_does_not_include_null_type
     schema = NonNullablePetRequest.to_schema(version: "2025-06")
 

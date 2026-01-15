@@ -18,6 +18,16 @@ class Verquest::NullableOneOfWithoutDiscriminatorTest < Minitest::Test
     end
   end
 
+  def test_when_one_of_is_not_in_params
+    params = {
+      "container_id" => "123"
+    }
+
+    result = NullableItemRequest.process(params, version: "2025-06", validate: true)
+
+    assert_equal params, result
+  end
+
   def test_schema_includes_null_type
     schema = NullableItemRequest.to_schema(version: "2025-06")
 
