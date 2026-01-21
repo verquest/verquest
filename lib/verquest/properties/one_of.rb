@@ -117,7 +117,7 @@ module Verquest
         build_variant_mappings(mapping, source_prefix, target_prefix, version)
         store_discriminator_path(mapping, source_prefix)
         store_variant_schemas(mapping, version) unless discriminator
-        store_nullable_metadata(mapping) if nullable
+        store_nullable_metadata(mapping, target_prefix:) if nullable
       end
 
       # Returns validation schemas for all variants
@@ -311,10 +311,14 @@ module Verquest
       # without attempting variant resolution.
       #
       # @param mapping [Hash] The mapping hash to update
+      # @param target_prefix [Array<String>] The target path prefix for the oneOf property
       # @return [void]
-      def store_nullable_metadata(mapping)
+      def store_nullable_metadata(mapping, target_prefix:)
         mapping["_nullable"] = true
-        mapping["_nullable_path"] = name unless root_level?
+        return if root_level?
+
+        mapping["_nullable_path"] = name
+        mapping["_nullable_target_path"] = target_prefix.join("/")
       end
 
       # Joins path segments into a slash-separated path string

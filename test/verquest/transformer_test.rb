@@ -171,4 +171,259 @@ class Verquest::TransformerTest < Minitest::Test
 
     assert_match(/Ambiguous oneOf match.*schema_a.*schema_b|Ambiguous oneOf match.*schema_b.*schema_a/, error.message)
   end
+
+  def test_preserves_null_values
+    mapping = {
+      "firstName" => "first_name",
+      "lastName" => "last_name",
+      "middleName" => "middle_name"
+    }
+    input = {
+      "firstName" => "Alice",
+      "lastName" => nil,
+      "middleName" => "Jane"
+    }
+    expected = {
+      "first_name" => "Alice",
+      "last_name" => nil,
+      "middle_name" => "Jane"
+    }
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_missing_keys_are_not_included
+    mapping = {
+      "firstName" => "first_name",
+      "lastName" => "last_name",
+      "middleName" => "middle_name"
+    }
+    input = {
+      "firstName" => "Alice"
+      # lastName and middleName are missing (not present in hash)
+    }
+    expected = {
+      "first_name" => "Alice"
+    }
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_preserves_null_values_in_nested_objects
+    mapping = {
+      "user/firstName" => "user/first_name",
+      "user/lastName" => "user/last_name"
+    }
+    input = {
+      "user" => {
+        "firstName" => "Alice",
+        "lastName" => nil
+      }
+    }
+    expected = {
+      "user" => {
+        "first_name" => "Alice",
+        "last_name" => nil
+      }
+    }
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_preserves_null_values_in_arrays
+    mapping = {
+      "users[]/firstName" => "users[]/first_name",
+      "users[]/lastName" => "users[]/last_name"
+    }
+    input = {
+      "users" => [
+        {"firstName" => "Alice", "lastName" => nil},
+        {"firstName" => "Bob", "lastName" => "Jones"}
+      ]
+    }
+    expected = {
+      "users" => [
+        {"first_name" => "Alice", "last_name" => nil},
+        {"first_name" => "Bob", "last_name" => "Jones"}
+      ]
+    }
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_null_object_does_not_expand_to_nested_structure
+    # When an entire object is null, the transformer should not create
+    # nested structure with null values for required fields
+    mapping = {
+      "site/id" => "site/id",
+      "site/name" => "site/name",
+      "resource/id" => "resource/id",
+      "assignee/id" => "assignee/id"
+    }
+    input = {
+      "site" => nil,
+      "resource" => nil,
+      "assignee" => nil
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal input, result
+  end
+
+  def test_null_object_alongside_other_fields
+    mapping = {
+      "title" => "title",
+      "site/id" => "site/id",
+      "site/name" => "site/name",
+      "resource/id" => "resource/id"
+    }
+    input = {
+      "title" => "My Title",
+      "site" => nil,
+      "resource" => nil
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal input, result
+  end
+
+  def test_null_objects_with_nullable_one_of
+    # When nullable oneOf is null alongside other nullable objects,
+    # all null values should be preserved
+    mapping = {
+      "_nullable" => true,
+      "_nullable_path" => "resource",
+      "_variant_schemas" => {
+        "unit" => {
+          "type" => "object",
+          "required" => %w[id],
+          "properties" => {"id" => {"type" => "string"}},
+          "additionalProperties" => false
+        }
+      },
+      "unit" => {
+        "title" => "title",
+        "site/id" => "site/id",
+        "assignee/id" => "assignee/id",
+        "resource/unit/id" => "resource/unit/id"
+      }
+    }
+    input = {
+      "site" => nil,
+      "resource" => nil,
+      "assignee" => nil
+    }
+    expected = {
+      "site" => nil,
+      "resource" => nil,
+      "assignee" => nil
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_null_one_of_with_mapping
+    # When nullable oneOf has a map: option, the null should use the target path
+    mapping = {
+      "_nullable" => true,
+      "_nullable_path" => "resource",
+      "_nullable_target_path" => "taskable",
+      "_variant_schemas" => {
+        "unit" => {
+          "type" => "object",
+          "required" => %w[id],
+          "properties" => {"id" => {"type" => "string"}},
+          "additionalProperties" => false
+        }
+      },
+      "unit" => {
+        "title" => "title",
+        "site/id" => "site/id",
+        "assignee/id" => "assigned_to/id",
+        "resource/unit/id" => "taskable/unit/id"
+      }
+    }
+    input = {
+      "title" => "Test",
+      "site" => nil,
+      "resource" => nil,
+      "assignee" => nil
+    }
+    expected = {
+      "title" => "Test",
+      "site" => nil,
+      "taskable" => nil,
+      "assigned_to" => nil
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_null_object_with_remapped_path
+    # When null object's children are mapped to a different target path,
+    # the null should be set at the correct target depth
+    mapping = {
+      "coupon/id" => "booking/coupon/id",
+      "contract_template/id" => "booking/pandadoc_template/id"
+    }
+    input = {
+      "coupon" => nil,
+      "contract_template" => nil
+    }
+    expected = {
+      "booking" => {
+        "coupon" => nil,
+        "pandadoc_template" => nil
+      }
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_null_object_with_remapped_path_mixed_values
+    # Test when some objects are null and others have values
+    mapping = {
+      "coupon/id" => "booking/coupon/id",
+      "contract_template/id" => "booking/pandadoc_template/id",
+      "customer/name" => "customer/name"
+    }
+    input = {
+      "coupon" => nil,
+      "contract_template" => {"id" => "template-123"},
+      "customer" => {"name" => "John"}
+    }
+    expected = {
+      "booking" => {
+        "coupon" => nil,
+        "pandadoc_template" => {"id" => "template-123"}
+      },
+      "customer" => {"name" => "John"}
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
 end

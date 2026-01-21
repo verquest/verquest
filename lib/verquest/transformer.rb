@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 module Verquest
+  # Sentinel value to distinguish between "key not found" and "key is nil"
+  NOT_FOUND = Object.new.freeze
+
   # Transforms parameters based on path mappings
   #
   # The Transformer class handles the conversion of parameter structures based on
@@ -97,14 +100,39 @@ module Verquest
       return transform_null_value(params) if active_mapping == :null_value
 
       result = {}
+      null_parent_targets = {}
 
       active_mapping.each do |source_path, target_path|
+        source_parts = parse_path(source_path.to_s)
+        target_parts = parse_path(target_path.to_s)
+
         # Extract value using the source path
-        value = extract_value(params, parse_path(source_path.to_s))
-        next if value.nil?
+        value = extract_value(params, source_parts)
+
+        if value.equal?(NOT_FOUND)
+          # Check if a parent of the source path is explicitly null
+          null_depth = find_null_parent_depth(params, source_parts)
+          if null_depth
+            # Calculate the corresponding target depth by preserving the same
+            # number of trailing path parts that come after the null position
+            parts_after_null = source_parts.length - null_depth
+            target_null_depth = target_parts.length - parts_after_null
+            target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
+            null_parent_targets[target_prefix] = true
+          end
+          next
+        end
 
         # Set the extracted value at the target path
-        set_value(result, parse_path(target_path.to_s), value)
+        set_value(result, target_parts, value)
+      end
+
+      # Preserve null parents in the result
+      null_parent_targets.each_key do |target_prefix|
+        target_parts = parse_path(target_prefix)
+        # Only set null if the path doesn't already exist with a value
+        existing = extract_value(result, target_parts)
+        set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
       end
 
       result
@@ -121,6 +149,34 @@ module Verquest
     # @!attribute [r] schemer_cache
     #   @return [Hash] Cache for JSONSchemer instances
     attr_reader :mapping, :path_cache, :discriminator, :schemer_cache
+
+    # Finds the depth of the first null parent in the path
+    #
+    # Traverses the path parts and checks if any intermediate value is explicitly null
+    # (the key exists but the value is nil). Returns the depth (1-indexed) of the first
+    # null parent found, or nil if no null parent exists.
+    #
+    # @param params [Hash] The input parameters
+    # @param path_parts [Array<Hash>] The parsed path parts
+    # @return [Integer, nil] The depth of the null parent, or nil if none found
+    def find_null_parent_depth(params, path_parts)
+      current = params
+
+      path_parts.each_with_index do |part, index|
+        return nil unless current.is_a?(Hash)
+
+        key = part[:key]
+        return nil unless current.key?(key)
+
+        value = current[key]
+        # Found an explicit null - return depth (1-indexed, so index + 1)
+        return index + 1 if value.nil?
+
+        current = value
+      end
+
+      nil
+    end
 
     # Resolves which mapping to use based on the discriminator value or schema inference
     #
@@ -213,7 +269,7 @@ module Verquest
     # @return [Hash, nil] The resolved variant mapping
     def resolve_one_of_by_discriminator(params, one_of_mapping, disc_path)
       discriminator_value = extract_value(params, parse_path(disc_path))
-      return nil if discriminator_value.nil?
+      return nil if discriminator_value.equal?(NOT_FOUND) || discriminator_value.nil?
 
       one_of_mapping[discriminator_value.to_s] || one_of_mapping[discriminator_value]
     end
@@ -231,7 +287,7 @@ module Verquest
       data_to_validate = if variant_path
         extracted = extract_value(params, parse_path(variant_path))
         # If the oneOf field is not present, skip it (optional field)
-        return nil if extracted.nil?
+        return nil if extracted.equal?(NOT_FOUND)
 
         extracted
       else
@@ -291,7 +347,7 @@ module Verquest
     # @return [Hash, nil] The resolved mapping
     def resolve_by_discriminator(params, disc_path)
       discriminator_value = extract_value(params, parse_path(disc_path))
-      return nil if discriminator_value.nil?
+      return nil if discriminator_value.equal?(NOT_FOUND) || discriminator_value.nil?
 
       mapping[discriminator_value.to_s] || mapping[discriminator_value]
     end
@@ -356,7 +412,8 @@ module Verquest
       variant_path = mapping["_variant_path"]
       return params unless variant_path
 
-      extract_value(params, parse_path(variant_path)) || {}
+      result = extract_value(params, parse_path(variant_path))
+      result.equal?(NOT_FOUND) ? {} : result
     end
 
     # Finds all variants whose schema validates the input
@@ -451,16 +508,42 @@ module Verquest
     # @param result [Hash] The result hash to update
     # @return [void]
     def transform_non_collection_properties(params, result)
+      null_parent_targets = {}
+
       mapping.each do |key, value|
         # Skip metadata keys and variant mappings (which are Hashes)
         next if key.start_with?("_")
         next if value.is_a?(Hash)
 
-        # This is a simple key => value mapping for a root-level property
-        extracted = extract_value(params, parse_path(key))
-        next if extracted.nil?
+        source_parts = parse_path(key.to_s)
+        target_parts = parse_path(value.to_s)
 
-        set_value(result, parse_path(value), extracted)
+        # This is a simple key => value mapping for a root-level property
+        extracted = extract_value(params, source_parts)
+
+        if extracted.equal?(NOT_FOUND)
+          # Check if a parent of the source path is explicitly null
+          null_depth = find_null_parent_depth(params, source_parts)
+          if null_depth
+            # Calculate the corresponding target depth by preserving the same
+            # number of trailing path parts that come after the null position
+            parts_after_null = source_parts.length - null_depth
+            target_null_depth = target_parts.length - parts_after_null
+            target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
+            null_parent_targets[target_prefix] = true
+          end
+          next
+        end
+
+        set_value(result, target_parts, extracted)
+      end
+
+      # Preserve null parents in the result
+      null_parent_targets.each_key do |target_prefix|
+        target_parts = parse_path(target_prefix)
+        # Only set null if the path doesn't already exist with a value
+        existing = extract_value(result, target_parts)
+        set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
       end
     end
 
@@ -546,7 +629,8 @@ module Verquest
       variant_path = mapping["_variant_path"]
       return item unless variant_path
 
-      extract_value(item, parse_path(variant_path)) || {}
+      result = extract_value(item, parse_path(variant_path))
+      result.equal?(NOT_FOUND) ? {} : result
     end
 
     # Extracts the item-level mapping from a variant mapping
@@ -597,7 +681,7 @@ module Verquest
 
       item_mapping.each do |source_path, target_path|
         value = extract_value(item, parse_path(source_path))
-        next if value.nil?
+        next if value.equal?(NOT_FOUND)
 
         set_value(result, parse_path(target_path), value)
       end
@@ -709,6 +793,7 @@ module Verquest
       if nullable_path
         # Nested oneOf - transform non-oneOf properties plus null for the oneOf property
         result = {}
+        null_parent_targets = {}
 
         # Get any variant to extract the non-oneOf property mappings
         sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
@@ -718,15 +803,38 @@ module Verquest
             # Skip paths that belong to the oneOf property (start with nullable_path/)
             next if source_path.start_with?("#{nullable_path}/")
 
-            value = extract_value(params, parse_path(source_path.to_s))
-            next if value.nil?
+            source_parts = parse_path(source_path.to_s)
+            target_parts = parse_path(target_path.to_s)
+            value = extract_value(params, source_parts)
 
-            set_value(result, parse_path(target_path.to_s), value)
+            if value.equal?(NOT_FOUND)
+              # Check if a parent of the source path is explicitly null
+              null_depth = find_null_parent_depth(params, source_parts)
+              if null_depth
+                # Calculate the corresponding target depth by preserving the same
+                # number of trailing path parts that come after the null position
+                parts_after_null = source_parts.length - null_depth
+                target_null_depth = target_parts.length - parts_after_null
+                target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
+                null_parent_targets[target_prefix] = true
+              end
+              next
+            end
+
+            set_value(result, target_parts, value)
           end
         end
 
-        # Add the null value for the oneOf property
-        result[nullable_path] = nil
+        # Preserve null parents in the result
+        null_parent_targets.each_key do |target_prefix|
+          target_parts = parse_path(target_prefix)
+          existing = extract_value(result, target_parts)
+          set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
+        end
+
+        # Add the null value for the oneOf property using target path (respects map: option)
+        nullable_target_path = mapping["_nullable_target_path"] || nullable_path
+        result[nullable_target_path] = nil
         result
       else
         # Root-level oneOf - return empty hash (null at root)
@@ -779,7 +887,7 @@ module Verquest
     # @param data [Hash, Array, Object] The data to extract value from
     # @param path_parts [Array<Hash>] The parsed path parts
     # @param index [Integer] Current position in path_parts (avoids array slicing)
-    # @return [Object, nil] The extracted value or nil if not found
+    # @return [Object, NOT_FOUND] The extracted value or NOT_FOUND if key doesn't exist
     def extract_value(data, path_parts, index = 0)
       return data if index >= path_parts.length
 
@@ -788,7 +896,7 @@ module Verquest
 
       case data
       when Hash
-        return nil unless data.key?(key.to_s)
+        return NOT_FOUND unless data.key?(key.to_s)
         value = data[key.to_s]
         if current_part[:array] && value.is_a?(Array)
           # Process each object in the array separately
@@ -805,7 +913,9 @@ module Verquest
           data.map { |item| extract_value(item, path_parts, index) }
         end
       else
-        (index >= path_parts.length - 1) ? data : nil
+        # If data is not a Hash or Array (e.g., nil, string, number), we cannot
+        # traverse further to extract nested values. Return NOT_FOUND.
+        NOT_FOUND
       end
     end
 
@@ -823,29 +933,24 @@ module Verquest
       key = current_part[:key].to_s
       last_part = index == path_parts.length - 1
 
-      if value.nil?
-        # Skip setting nil values
-        return result
-      end
-
       if last_part
         result[key] = value
       elsif current_part[:array] && value.is_a?(Array)
         result[key] ||= []
         value.each_with_index do |v, i|
-          next if v.nil? # Skip nil items in array
+          next if v.equal?(NOT_FOUND) # Skip NOT_FOUND items in array
           result[key][i] ||= {}
           set_value(result[key][i], path_parts, v, index + 1)
-          # Remove keys with nil values from each object
-          result[key][i].delete_if { |_, val| val.nil? }
+          # Remove keys with NOT_FOUND values from each object
+          result[key][i].delete_if { |_, val| val.equal?(NOT_FOUND) }
         end
-        # Remove nils and compact the array
-        result[key] = result[key].compact
+        # Remove NOT_FOUND entries and compact the array
+        result[key] = result[key].reject { |item| item.equal?(NOT_FOUND) }
       else
         result[key] ||= {}
         set_value(result[key], path_parts, value, index + 1)
-        # Remove keys with nil values from nested object
-        result[key].delete_if { |_, val| val.nil? }
+        # Remove keys with NOT_FOUND values from nested object
+        result[key].delete_if { |_, val| val.equal?(NOT_FOUND) }
       end
       result
     end

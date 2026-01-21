@@ -344,7 +344,7 @@ module Verquest
       @mapping = {}
 
       # Preserve metadata keys
-      %w[_discriminator _variant_schemas _variant_path _nullable _nullable_path].each do |metadata_key|
+      %w[_discriminator _variant_schemas _variant_path _nullable _nullable_path _nullable_target_path].each do |metadata_key|
         @mapping[metadata_key] = one_of_mapping[metadata_key] if one_of_mapping.key?(metadata_key)
       end
 

@@ -103,3 +103,75 @@ class Verquest::CollectionWithOneOfTest < Minitest::Test
     assert ItemsRequest.valid_schema?(version: "2025-06")
   end
 end
+
+# Tests for nullable objects alongside collection with oneOf
+class Verquest::CollectionWithOneOfAndNullableObjectsTest < Minitest::Test
+  class OrderUpdateRequest < Verquest::Base
+    version "2025-09" do
+      field :billing_period, type: :string, map: "/booking/billing_period"
+
+      object :coupon, map: "/booking/coupon", nullable: true do
+        field :id, type: :string, required: true
+      end
+
+      object :contract_template, map: "/booking/pandadoc_template", nullable: true do
+        field :id, type: :string, required: true
+      end
+
+      collection :line_items do
+        one_of do
+          reference :update, from: WithIdComponent
+          reference :create, from: WithoutIdComponent
+        end
+      end
+    end
+  end
+
+  def test_process_with_null_objects_and_no_collection
+    params = {"coupon" => nil, "contract_template" => nil}
+    expected = {"booking" => {"coupon" => nil, "pandadoc_template" => nil}}
+
+    result = OrderUpdateRequest.process(params, version: "2025-09")
+
+    assert_equal expected, result
+  end
+
+  def test_process_with_null_objects_and_collection
+    params = {
+      "coupon" => nil,
+      "contract_template" => nil,
+      "line_items" => [{"id" => "item-1", "name" => "Test"}]
+    }
+    expected = {
+      "booking" => {"coupon" => nil, "pandadoc_template" => nil},
+      "line_items" => [{"id" => "item-1", "name" => "Test"}]
+    }
+
+    result = OrderUpdateRequest.process(params, version: "2025-09")
+
+    assert_equal expected, result
+  end
+
+  def test_process_with_mixed_null_and_values
+    params = {
+      "billing_period" => "monthly",
+      "coupon" => {"id" => "coupon_123"},
+      "contract_template" => nil
+    }
+    expected = {
+      "booking" => {
+        "billing_period" => "monthly",
+        "coupon" => {"id" => "coupon_123"},
+        "pandadoc_template" => nil
+      }
+    }
+
+    result = OrderUpdateRequest.process(params, version: "2025-09")
+
+    assert_equal expected, result
+  end
+
+  def test_valid_schema
+    assert OrderUpdateRequest.valid_schema?(version: "2025-09")
+  end
+end
