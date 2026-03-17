@@ -426,4 +426,135 @@ class Verquest::TransformerTest < Minitest::Test
 
     assert_equal expected, result
   end
+
+  def test_null_object_with_hoisted_target_path
+    # When target path is shallower than source (e.g., "site/id" => "site_id"),
+    # null parent should set null at the correct target key
+    mapping = {
+      "site/id" => "site_id",
+      "name" => "name"
+    }
+    input = {
+      "site" => nil,
+      "name" => "Test"
+    }
+    expected = {
+      "site_id" => nil,
+      "name" => "Test"
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_null_object_with_equal_depth_target
+    # When target depth equals source depth, should still work
+    mapping = {
+      "site/id" => "location/id",
+      "name" => "name"
+    }
+    input = {
+      "site" => nil,
+      "name" => "Test"
+    }
+    expected = {
+      "location" => nil,
+      "name" => "Test"
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_collection_item_with_null_nested_object
+    # transform_item_with_mapping should preserve null parents
+    mapping = {
+      "_variant_schemas" => {
+        "with_site" => {
+          "type" => "object",
+          "required" => %w[name],
+          "properties" => {
+            "name" => {"type" => "string"},
+            "site" => {
+              "oneOf" => [
+                {"type" => "object", "properties" => {"id" => {"type" => "string"}}, "required" => ["id"]},
+                {"type" => "null"}
+              ]
+            }
+          },
+          "additionalProperties" => false
+        }
+      },
+      "with_site" => {
+        "items[]/name" => "items[]/name",
+        "items[]/site/id" => "items[]/site/id"
+      }
+    }
+
+    input = {
+      "items" => [
+        {"name" => "A", "site" => {"id" => "s1"}},
+        {"name" => "B", "site" => nil}
+      ]
+    }
+    expected = {
+      "items" => [
+        {"name" => "A", "site" => {"id" => "s1"}},
+        {"name" => "B", "site" => nil}
+      ]
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+    result = transformer.call(input)
+
+    assert_equal expected, result
+  end
+
+  def test_unknown_discriminator_value_raises_error
+    # Unknown discriminator value should raise MappingError, not silently return {}
+    mapping = {
+      "_discriminator" => "type",
+      "dog" => {"type" => "type", "name" => "name", "bark" => "bark"},
+      "cat" => {"type" => "type", "name" => "name", "meow" => "meow"}
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+
+    error = assert_raises(Verquest::MappingError) do
+      transformer.call({"type" => "fish", "name" => "Nemo"})
+    end
+
+    assert_match(/No matching variant.*fish|Unknown discriminator value.*fish/, error.message)
+  end
+
+  def test_schema_inference_with_null_variant_path
+    # When variant_path field is present but null, should return base mapping
+    # not raise MappingError
+    mapping = {
+      "_variant_schemas" => {
+        "with_id" => {
+          "type" => "object",
+          "required" => %w[id],
+          "properties" => {"id" => {"type" => "string"}},
+          "additionalProperties" => false
+        }
+      },
+      "_variant_path" => "resource",
+      "with_id" => {
+        "title" => "title",
+        "resource/id" => "resource/id"
+      }
+    }
+
+    transformer = Verquest::Transformer.new(mapping: mapping)
+
+    # When resource is null, should not raise
+    result = transformer.call({"title" => "Test", "resource" => nil})
+
+    assert_equal({"title" => "Test", "resource" => nil}, result)
+  end
 end

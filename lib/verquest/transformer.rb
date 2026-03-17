@@ -86,7 +86,7 @@ module Verquest
     # Transforms input parameters according to the provided mapping
     #
     # @param params [Hash] The input parameters to transform
-    # @return [Hash] The transformed parameters with symbol keys
+    # @return [Hash] The transformed parameters with string keys
     def call(params)
       # Handle collection with oneOf (per-item variant inference)
       if collection_with_one_of?
@@ -99,43 +99,7 @@ module Verquest
       # Handle nullable oneOf with null value
       return transform_null_value(params) if active_mapping == :null_value
 
-      result = {}
-      null_parent_targets = {}
-
-      active_mapping.each do |source_path, target_path|
-        source_parts = parse_path(source_path.to_s)
-        target_parts = parse_path(target_path.to_s)
-
-        # Extract value using the source path
-        value = extract_value(params, source_parts)
-
-        if value.equal?(NOT_FOUND)
-          # Check if a parent of the source path is explicitly null
-          null_depth = find_null_parent_depth(params, source_parts)
-          if null_depth
-            # Calculate the corresponding target depth by preserving the same
-            # number of trailing path parts that come after the null position
-            parts_after_null = source_parts.length - null_depth
-            target_null_depth = target_parts.length - parts_after_null
-            target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
-            null_parent_targets[target_prefix] = true
-          end
-          next
-        end
-
-        # Set the extracted value at the target path
-        set_value(result, target_parts, value)
-      end
-
-      # Preserve null parents in the result
-      null_parent_targets.each_key do |target_prefix|
-        target_parts = parse_path(target_prefix)
-        # Only set null if the path doesn't already exist with a value
-        existing = extract_value(result, target_parts)
-        set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
-      end
-
-      result
+      apply_mapping_with_null_propagation(active_mapping, params)
     end
 
     private
@@ -178,6 +142,73 @@ module Verquest
       nil
     end
 
+    # Applies a mapping to params, extracting values and preserving null parents
+    #
+    # When a source path's parent is explicitly null, the corresponding target
+    # path is set to null in the result instead of being omitted.
+    #
+    # @param active_mapping [Hash] Source-to-target path mapping
+    # @param params [Hash] The input parameters
+    # @return [Hash] The transformed result
+    def apply_mapping_with_null_propagation(active_mapping, params)
+      result = {}
+      null_parent_targets = {}
+
+      active_mapping.each do |source_path, target_path|
+        source_parts = parse_path(source_path.to_s)
+        target_parts = parse_path(target_path.to_s)
+
+        value = extract_value(params, source_parts)
+
+        if value.equal?(NOT_FOUND)
+          track_null_parent(params, source_parts, target_parts, null_parent_targets)
+          next
+        end
+
+        set_value(result, target_parts, value)
+      end
+
+      flush_null_parents(result, null_parent_targets)
+
+      result
+    end
+
+    # Checks if a source path has a null parent and records the target path to nullify
+    #
+    # @param params [Hash] The input parameters
+    # @param source_parts [Array<Hash>] Parsed source path parts
+    # @param target_parts [Array<Hash>] Parsed target path parts
+    # @param null_parent_targets [Hash] Accumulator for target paths to set null
+    # @return [void]
+    def track_null_parent(params, source_parts, target_parts, null_parent_targets)
+      null_depth = find_null_parent_depth(params, source_parts)
+      return unless null_depth
+
+      # Number of path segments after the null position in the source
+      parts_after_null = source_parts.length - null_depth
+
+      # The target depth at which to set null. When target is shallower than
+      # the remaining source segments, clamp to the full target path.
+      target_null_depth = [target_parts.length - parts_after_null, target_parts.length].min
+      target_null_depth = [target_null_depth, 1].max
+
+      target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
+      null_parent_targets[target_prefix] = true
+    end
+
+    # Sets null values in result for tracked null parent targets
+    #
+    # @param result [Hash] The result hash to update
+    # @param null_parent_targets [Hash] Target paths to set null
+    # @return [void]
+    def flush_null_parents(result, null_parent_targets)
+      null_parent_targets.each_key do |target_prefix|
+        target_parts = parse_path(target_prefix)
+        existing = extract_value(result, target_parts)
+        set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
+      end
+    end
+
     # Resolves which mapping to use based on the discriminator value or schema inference
     #
     # For nested oneOf, the discriminator can be a path (e.g., "payment/method")
@@ -209,7 +240,9 @@ module Verquest
         one_of_property = disc_path.split("/").first
         return extract_base_mapping_without_one_of(one_of_property) if one_of_property_absent?(params, one_of_property)
 
-        nil
+        disc_value = extract_value(params, parse_path(disc_path))
+        raise Verquest::MappingError, "Unknown discriminator value \"#{disc_value}\" for oneOf. " \
+          "No matching variant found."
       else
         resolve_by_schema_inference(params)
       end
@@ -370,7 +403,7 @@ module Verquest
     # @param one_of_property [String] The oneOf property name to exclude
     # @return [Hash] Mapping containing only non-oneOf properties
     def extract_base_mapping_without_one_of(one_of_property)
-      sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
+      sample_variant = first_variant_mapping
       return {} unless sample_variant
 
       sample_variant[1].reject { |k, _| k.start_with?("#{one_of_property}/") }
@@ -382,10 +415,15 @@ module Verquest
     # @return [Hash, nil] The resolved mapping
     # @raise [Verquest::MappingError] If no schema matches or multiple schemas match
     def resolve_by_schema_inference(params)
-      # Check if oneOf property is absent (optional oneOf)
+      # Check if oneOf property is absent or null (optional/nullable oneOf)
       variant_path = mapping["_variant_path"]
-      if variant_path && one_of_property_absent?(params, variant_path)
-        return extract_base_mapping_without_one_of(variant_path)
+      if variant_path
+        return extract_base_mapping_without_one_of(variant_path) if one_of_property_absent?(params, variant_path)
+
+        if params.key?(variant_path) && params[variant_path].nil?
+          base = extract_base_mapping_without_one_of(variant_path)
+          return base.merge(variant_path => variant_path)
+        end
       end
 
       data_to_validate = extract_variant_data(params)
@@ -474,7 +512,7 @@ module Verquest
     # @return [Hash] The transformed parameters
     def transform_collection_with_one_of(params)
       # Find the collection path from the variant mappings
-      sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
+      sample_variant = first_variant_mapping
       return {} unless sample_variant
 
       sample_path = sample_variant[1].keys.first
@@ -508,43 +546,16 @@ module Verquest
     # @param result [Hash] The result hash to update
     # @return [void]
     def transform_non_collection_properties(params, result)
-      null_parent_targets = {}
-
+      non_collection_mapping = {}
       mapping.each do |key, value|
-        # Skip metadata keys and variant mappings (which are Hashes)
         next if key.start_with?("_")
         next if value.is_a?(Hash)
 
-        source_parts = parse_path(key.to_s)
-        target_parts = parse_path(value.to_s)
-
-        # This is a simple key => value mapping for a root-level property
-        extracted = extract_value(params, source_parts)
-
-        if extracted.equal?(NOT_FOUND)
-          # Check if a parent of the source path is explicitly null
-          null_depth = find_null_parent_depth(params, source_parts)
-          if null_depth
-            # Calculate the corresponding target depth by preserving the same
-            # number of trailing path parts that come after the null position
-            parts_after_null = source_parts.length - null_depth
-            target_null_depth = target_parts.length - parts_after_null
-            target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
-            null_parent_targets[target_prefix] = true
-          end
-          next
-        end
-
-        set_value(result, target_parts, extracted)
+        non_collection_mapping[key] = value
       end
 
-      # Preserve null parents in the result
-      null_parent_targets.each_key do |target_prefix|
-        target_parts = parse_path(target_prefix)
-        # Only set null if the path doesn't already exist with a value
-        existing = extract_value(result, target_parts)
-        set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
-      end
+      merged = apply_mapping_with_null_propagation(non_collection_mapping, params)
+      result.merge!(merged)
     end
 
     # Returns the target collection path, accounting for any mapping
@@ -554,7 +565,7 @@ module Verquest
     def target_collection_path(source_path)
       # Check if there's a custom mapping for the collection path
       # by looking at the target paths in any variant
-      sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
+      sample_variant = first_variant_mapping
       return source_path unless sample_variant
 
       sample_target = sample_variant[1].values.first
@@ -677,16 +688,7 @@ module Verquest
     # @param item_mapping [Hash] The mapping to use
     # @return [Hash] The transformed item
     def transform_item_with_mapping(item, item_mapping)
-      result = {}
-
-      item_mapping.each do |source_path, target_path|
-        value = extract_value(item, parse_path(source_path))
-        next if value.equal?(NOT_FOUND)
-
-        set_value(result, parse_path(target_path), value)
-      end
-
-      result
+      apply_mapping_with_null_propagation(item_mapping, item)
     end
 
     # Precompiles all paths from the mapping to improve performance
@@ -792,45 +794,8 @@ module Verquest
 
       if nullable_path
         # Nested oneOf - transform non-oneOf properties plus null for the oneOf property
-        result = {}
-        null_parent_targets = {}
-
-        # Get any variant to extract the non-oneOf property mappings
-        sample_variant = mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
-        if sample_variant
-          variant_mapping = sample_variant[1]
-          variant_mapping.each do |source_path, target_path|
-            # Skip paths that belong to the oneOf property (start with nullable_path/)
-            next if source_path.start_with?("#{nullable_path}/")
-
-            source_parts = parse_path(source_path.to_s)
-            target_parts = parse_path(target_path.to_s)
-            value = extract_value(params, source_parts)
-
-            if value.equal?(NOT_FOUND)
-              # Check if a parent of the source path is explicitly null
-              null_depth = find_null_parent_depth(params, source_parts)
-              if null_depth
-                # Calculate the corresponding target depth by preserving the same
-                # number of trailing path parts that come after the null position
-                parts_after_null = source_parts.length - null_depth
-                target_null_depth = target_parts.length - parts_after_null
-                target_prefix = target_parts[0...target_null_depth].map { |p| p[:key] }.join("/")
-                null_parent_targets[target_prefix] = true
-              end
-              next
-            end
-
-            set_value(result, target_parts, value)
-          end
-        end
-
-        # Preserve null parents in the result
-        null_parent_targets.each_key do |target_prefix|
-          target_parts = parse_path(target_prefix)
-          existing = extract_value(result, target_parts)
-          set_value(result, target_parts, nil) if existing.equal?(NOT_FOUND)
-        end
+        non_one_of_mapping = extract_non_one_of_mapping(nullable_path)
+        result = apply_mapping_with_null_propagation(non_one_of_mapping, params)
 
         # Add the null value for the oneOf property using target path (respects map: option)
         nullable_target_path = mapping["_nullable_target_path"] || nullable_path
@@ -840,6 +805,25 @@ module Verquest
         # Root-level oneOf - return empty hash (null at root)
         {}
       end
+    end
+
+    # Extracts non-oneOf property mappings from a variant for nullable oneOf handling
+    #
+    # @param nullable_path [String] The oneOf property path to exclude
+    # @return [Hash] Mapping containing only non-oneOf properties
+    def extract_non_one_of_mapping(nullable_path)
+      sample_variant = first_variant_mapping
+      return {} unless sample_variant
+
+      prefix = "#{nullable_path}/"
+      sample_variant[1].reject { |source, _| source.start_with?(prefix) }
+    end
+
+    # Returns the first non-metadata variant mapping entry
+    #
+    # @return [Array, nil] The [key, value] pair of the first variant, or nil
+    def first_variant_mapping
+      mapping.find { |k, v| !k.start_with?("_") && v.is_a?(Hash) }
     end
 
     # Precompiles paths for discriminator-based variant mappings
