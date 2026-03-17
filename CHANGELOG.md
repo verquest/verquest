@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [0.6.3] - 2026-03-17
+
+### Fixed
+- Transformer fixes: fix null propagation, unknown discriminator, and null variant path.
+
 ## [0.6.2] - 2025-12-09
 
 ### Fixed
