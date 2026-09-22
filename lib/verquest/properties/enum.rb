@@ -26,15 +26,11 @@ module Verquest
         raise ArgumentError, "Use const for a single value" if values.length == 1
 
         @name = name.to_s
-        @values = values
+        @values = nullable ? values | [nil] : values
         @required = required
         @nullable = nullable
         @map = map
         @schema_options = schema_options&.transform_keys(&:to_s)
-
-        if nullable && !values.include?("null")
-          values << "null"
-        end
       end
 
       # Generate JSON schema definition for this enum
