@@ -95,6 +95,59 @@ module Verquest
       assert_equal({"value" => "user"}, request.process({"value" => "user"}, version: "2025-06", validate: true))
     end
 
+    def test_const_inherits_scoped_nullability
+      request = Class.new(Verquest::Base) do
+        version "2025-06" do
+          with_options nullable: true, required: true do
+            const :value, value: "user"
+          end
+        end
+      end
+
+      assert_nullable_request(request)
+      assert_rejects(request, "admin")
+      assert_raises(InvalidParamsError) { request.process({}, version: "2025-06", validate: true) }
+    end
+
+    def test_const_can_override_scoped_nullability_with_false
+      request = Class.new(Verquest::Base) do
+        version "2025-06" do
+          with_options nullable: true do
+            const :value, value: "user", nullable: false
+          end
+        end
+      end
+
+      assert_rejects(request, nil)
+      assert_equal({"const" => "user"}, request.to_schema(version: "2025-06")["properties"]["value"])
+    end
+
+    def test_const_can_override_scoped_nullability_with_true
+      request = Class.new(Verquest::Base) do
+        version "2025-06" do
+          with_options nullable: false do
+            const :value, value: "user", nullable: true
+          end
+        end
+      end
+
+      assert_nullable_request(request)
+    end
+
+    def test_const_nullability_does_not_leak_out_of_scope
+      request = Class.new(Verquest::Base) do
+        version "2025-06" do
+          with_options nullable: true do
+            const :nullable_value, value: "user"
+          end
+          const :value, value: "user"
+        end
+      end
+
+      assert_rejects(request, nil)
+      assert_equal({"nullable_value" => nil}, request.process({"nullable_value" => nil}, version: "2025-06", validate: true))
+    end
+
     def test_nullable_null_constant_remains_null_only
       property = Properties::Const.new(name: :value, value: nil, nullable: true)
       validator = JSONSchemer.schema(property.to_validation_schema["value"])
