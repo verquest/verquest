@@ -331,7 +331,7 @@ const :kind, value: "user", nullable: true
 
 Nullable constants and references use `anyOf` with a null alternative in both exported and validation schemas. Nullable `one_of` uses an outer `anyOf` around the original `oneOf` and the null alternative. This allows null even when a referenced schema or multiple variants already accept it, while preserving all restrictions on non-null values. A discriminator, when present, stays alongside the inner `oneOf`.
 
-`required: true` still requires the key to be present; `nullable: true` only permits its value to be null.
+`required: true` still requires the key to be present; `nullable: true` only permits its value to be null. Defaults stay on the outer nullable schema so missing properties still receive them when default insertion is enabled. Explicit null values are not replaced by defaults.
 
 ```ruby
 class NullableRequest < Verquest::Base
