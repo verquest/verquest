@@ -32,16 +32,16 @@ class Verquest::NullableOneOfWithoutDiscriminatorTest < Minitest::Test
     schema = NullableItemRequest.to_schema(version: "2025-06")
 
     item_schema = schema["properties"]["item"]
-    one_of_array = item_schema["oneOf"]
+    any_of_array = item_schema["anyOf"]
 
-    assert_equal 3, one_of_array.size
-    assert_includes one_of_array, {"type" => "null"}
+    assert_equal 2, any_of_array.first["oneOf"].size
+    assert_includes any_of_array, {"type" => "null"}
   end
 
   def test_no_discriminator_in_schema
     schema = NullableItemRequest.to_schema(version: "2025-06")
 
-    refute schema["properties"]["item"].key?("discriminator")
+    refute schema["properties"]["item"]["anyOf"].first.key?("discriminator")
   end
 
   def test_valid_schema

@@ -18,36 +18,36 @@ class Verquest::NullableOneOfWithDiscriminatorTest < Minitest::Test
     end
   end
 
-  def test_schema_includes_three_options
+  def test_schema_preserves_two_variants_inside_nullable_union
     schema = NullablePetRequest.to_schema(version: "2025-06")
 
-    one_of_array = schema["properties"]["pet"]["oneOf"]
+    one_of_array = schema["properties"]["pet"]["anyOf"].first["oneOf"]
 
-    assert_equal 3, one_of_array.size
+    assert_equal 2, one_of_array.size
   end
 
   def test_schema_includes_null_type
     schema = NullablePetRequest.to_schema(version: "2025-06")
 
-    one_of_array = schema["properties"]["pet"]["oneOf"]
+    any_of_array = schema["properties"]["pet"]["anyOf"]
 
-    assert_includes one_of_array, {"type" => "null"}
+    assert_includes any_of_array, {"type" => "null"}
   end
 
   def test_validation_schema_includes_null_type
     validation_schema = NullablePetRequest.to_validation_schema(version: "2025-06")
 
     pet_schema = validation_schema["properties"]["pet"]
-    one_of_array = pet_schema["oneOf"]
+    any_of_array = pet_schema["anyOf"]
 
-    assert_equal 3, one_of_array.size
-    assert one_of_array.any? { |s| s["type"] == "null" }
+    assert_equal 2, any_of_array.first["oneOf"].size
+    assert_includes any_of_array, {"type" => "null"}
   end
 
   def test_discriminator_property_name
     schema = NullablePetRequest.to_schema(version: "2025-06")
 
-    discriminator = schema["properties"]["pet"]["discriminator"]
+    discriminator = schema["properties"]["pet"]["anyOf"].first["discriminator"]
 
     assert_equal "type", discriminator["propertyName"]
   end
@@ -55,7 +55,7 @@ class Verquest::NullableOneOfWithDiscriminatorTest < Minitest::Test
   def test_discriminator_does_not_include_null
     schema = NullablePetRequest.to_schema(version: "2025-06")
 
-    discriminator = schema["properties"]["pet"]["discriminator"]
+    discriminator = schema["properties"]["pet"]["anyOf"].first["discriminator"]
 
     assert_equal 2, discriminator["mapping"].size
     refute discriminator["mapping"].key?("null")

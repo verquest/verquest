@@ -26,8 +26,8 @@ module Verquest
             },
             "additionalProperties" => false
           },
-          "referenced_object" => {"oneOf" => [{"$ref" => "#/components/schemas/ReferencedRequest"}, {"type" => "null"}]},
-          "referenced_field" => {"oneOf" => [{"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"}, {"type" => "null"}]}
+          "referenced_object" => {"anyOf" => [{"$ref" => "#/components/schemas/ReferencedRequest"}, {"type" => "null"}]},
+          "referenced_field" => {"anyOf" => [{"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"}, {"type" => "null"}]}
         },
         "additionalProperties" => false
       }
@@ -58,13 +58,18 @@ module Verquest
             "additionalProperties" => false
           },
           "referenced_object" => {
-            "type" => %w[object null],
-            "description" => "This is an another example for testing purposes.",
-            "required" => %w[simple_field nested],
-            "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}},
-            "additionalProperties" => false
+            "anyOf" => [
+              {
+                "type" => "object",
+                "description" => "This is an another example for testing purposes.",
+                "required" => %w[simple_field nested],
+                "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}},
+                "additionalProperties" => false
+              },
+              {"type" => "null"}
+            ]
           },
-          "referenced_field" => {"type" => %w[string null], "description" => "The simple field"}
+          "referenced_field" => {"anyOf" => [{"type" => "string", "description" => "The simple field"}, {"type" => "null"}]}
         },
         "additionalProperties" => false
       }

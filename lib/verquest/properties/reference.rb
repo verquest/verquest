@@ -42,20 +42,7 @@ module Verquest
       #
       # @return [Hash] The schema definition with a $ref pointer
       def to_schema
-        if nullable
-          {
-            name => {
-              "oneOf" => [
-                {"$ref" => from.to_ref(property: property)},
-                {"type" => "null"}
-              ]
-            }
-          }
-        else
-          {
-            name => {"$ref" => from.to_ref(property: property)}
-          }
-        end
+        {name => nullable_schema({"$ref" => from.to_ref(property: property)})}
       end
 
       # Generate validation schema for this reference property
@@ -65,13 +52,7 @@ module Verquest
       def to_validation_schema(version: nil)
         schema = from.to_validation_schema(version:, property: property).dup
 
-        if nullable
-          schema["type"] = [schema["type"], "null"] unless schema["type"].include?("null")
-        end
-
-        {
-          name => schema
-        }
+        {name => nullable_schema(schema)}
       end
 
       # Create mapping for this reference property

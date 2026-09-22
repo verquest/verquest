@@ -319,6 +319,20 @@ Will produce this validation schema:
 
 You can define nullable properties in your request schema by setting the `nullable` option to `true`. This feature is based on the latest JSON Schema specification, which is also used in OpenAPI 3.1.
 
+Nullable enums include Ruby `nil` in their allowed values, which exports as JSON `null`, not the string `"null"`. This also applies to fields with an `enum:` constraint (including custom field types). The supplied values array is not modified.
+
+```ruby
+enum :role, values: %w[member admin], nullable: true
+# => {"role" => {"enum" => ["member", "admin", nil]}}
+
+const :kind, value: "user", nullable: true
+# => {"kind" => {"anyOf" => [{"const" => "user"}, {"type" => "null"}]}}
+```
+
+Nullable constants and references use `anyOf` with a null alternative in both exported and validation schemas. Nullable `one_of` uses an outer `anyOf` around the original `oneOf` and the null alternative. This allows null even when a referenced schema or multiple variants already accept it, while preserving all restrictions on non-null values. A discriminator, when present, stays alongside the inner `oneOf`.
+
+`required: true` still requires the key to be present; `nullable: true` only permits its value to be null.
+
 ```ruby
 class NullableRequest < Verquest::Base
   description "This is a simple request with nullable properties for testing purposes."
@@ -365,13 +379,18 @@ Will produce this validation schema:
       "additionalProperties" => false
     },
     "referenced_object" => {
-      "type" => %w[object null],
-      "description" => "This is an another example for testing purposes.",
-      "required" => %w[simple_field nested],
-      "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_1 nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}},
-      "additionalProperties" => false
+      "anyOf" => [
+        {
+          "type" => "object",
+          "description" => "This is an another example for testing purposes.",
+          "required" => %w[simple_field nested],
+          "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_1 nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}},
+          "additionalProperties" => false
+        },
+        {"type" => "null"}
+      ]
     },
-    "referenced_field" => {"type" => %w[string null], "description" => "The simple field"}
+    "referenced_field" => {"anyOf" => [{"type" => "string", "description" => "The simple field"}, {"type" => "null"}]}
   },
   "additionalProperties" => false
 }

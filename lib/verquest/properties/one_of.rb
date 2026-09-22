@@ -31,9 +31,6 @@ module Verquest
     #   one_of = Verquest::Properties::OneOf.new(name: :value)
     #   # Validates that exactly one schema matches
     class OneOf < Base
-      # JSON Schema for null type, used when nullable is true
-      NULL_TYPE_SCHEMA = {"type" => "null"}.freeze
-
       # @return [String, nil] The discriminator property name for schema selection
       attr_reader :discriminator
 
@@ -75,7 +72,7 @@ module Verquest
       # @return [Hash] The schema definition with oneOf array and optional discriminator
       def to_schema
         freeze_schemas
-        wrap_schema(build_schema_with_refs)
+        wrap_schema(nullable_schema(build_schema_with_refs))
       end
 
       # Generate validation schema for this oneOf property
@@ -87,7 +84,7 @@ module Verquest
       # @return [Hash] The validation schema with inline schema definitions
       def to_validation_schema(version: nil)
         freeze_schemas
-        wrap_schema(build_validation_schema(version: version))
+        wrap_schema(nullable_schema(build_validation_schema(version: version)))
       end
 
       # Create mapping for this oneOf property
@@ -386,9 +383,7 @@ module Verquest
       #
       # @return [Array<Hash>] Array of schema references
       def collect_schema_refs
-        refs = schemas.values.map { |schema| schema.to_schema[schema.name] }
-        refs << NULL_TYPE_SCHEMA if nullable
-        refs
+        schemas.values.map { |schema| schema.to_schema[schema.name] }
       end
 
       # Collects inline schema definitions for all variants
@@ -396,9 +391,7 @@ module Verquest
       # @param version [String, nil] The version for schema resolution
       # @return [Array<Hash>] Array of inline schema definitions
       def collect_inline_schemas(version)
-        inline_schemas = schemas.values.map { |schema| schema.to_validation_schema(version: version)[schema.name] }
-        inline_schemas << NULL_TYPE_SCHEMA if nullable
-        inline_schemas
+        schemas.values.map { |schema| schema.to_validation_schema(version: version)[schema.name] }
       end
 
       # Adds discriminator information to the schema if present
