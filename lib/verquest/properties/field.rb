@@ -54,6 +54,7 @@ module Verquest
 
         if nullable
           @type = [@type, "null"]
+          @schema_options["enum"] = @schema_options["enum"] | [nil] if @schema_options.key?("enum")
         end
       end
 

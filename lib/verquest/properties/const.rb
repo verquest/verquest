@@ -14,12 +14,14 @@ module Verquest
       # @param value [Object] The fixed value of the constant (can be any scalar value)
       # @param map [Object, nil] Optional mapping information
       # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names (can be overridden by custom type)
+      # @param nullable [Boolean] Whether this property can be null
       # @param schema_options [Hash] Additional JSON schema options for this property
-      def initialize(name:, value:, map: nil, required: false, **schema_options)
+      def initialize(name:, value:, map: nil, required: false, nullable: false, **schema_options)
         @name = name.to_s
         @value = value
         @map = map
         @required = required
+        @nullable = nullable
         @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
@@ -28,9 +30,7 @@ module Verquest
       # @return [Hash] The schema definition for this constant
       def to_schema
         {
-          name => {
-            "const" => value
-          }.merge(schema_options)
+          name => nullable_schema({"const" => value}.merge(schema_options))
         }
       end
 

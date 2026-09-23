@@ -19,10 +19,10 @@ class Verquest::NullableRootLevelOneOfTest < Minitest::Test
   def test_schema_includes_null_type_at_root
     schema = NullableRootPetRequest.to_schema(version: "2025-06")
 
-    one_of_array = schema["oneOf"]
+    any_of_array = schema["anyOf"]
 
-    assert_equal 3, one_of_array.size
-    assert_includes one_of_array, {"type" => "null"}
+    assert_equal 2, any_of_array.first["oneOf"].size
+    assert_includes any_of_array, {"type" => "null"}
   end
 
   def test_valid_schema

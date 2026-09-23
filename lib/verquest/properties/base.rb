@@ -12,6 +12,9 @@ module Verquest
     class Base
       include HelperMethods::RequiredProperties
 
+      # JSON Schema for null type, used when nullable is true
+      NULL_TYPE_SCHEMA = {"type" => "null"}.freeze
+
       # @!attribute [rw] name
       #   @return [String] The name of the property
       # @!attribute [rw] required
@@ -60,6 +63,15 @@ module Verquest
       # @!attribute [r] nullable
       #   @return [Boolean] Whether this property can be null
       attr_reader :nullable
+
+      # Allows null without weakening constraints, keeping defaults available for insertion
+      # @param schema [Hash] The original property schema
+      # @return [Hash] The schema, optionally wrapped in a nullable union
+      def nullable_schema(schema)
+        return schema unless nullable
+
+        schema.slice("default").merge("anyOf" => [schema.except("default"), NULL_TYPE_SCHEMA])
+      end
 
       # Determines the mapping target key based on mapping configuration
       # @param value_prefix [Array<String>] Prefix for the target value

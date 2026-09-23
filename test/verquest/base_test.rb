@@ -120,7 +120,7 @@ module Verquest
           "const_unmapped" => {"const" => 1},
           "const_mapped" => {"const" => true},
           "enum_unmapped" => {"enum" => %w[one two three]},
-          "enum_mapped" => {"enum" => [1, "a", 2, "b", "null"]}
+          "enum_mapped" => {"enum" => [1, "a", 2, "b", nil]}
         },
         "additionalProperties" => false
       }
@@ -261,7 +261,7 @@ module Verquest
           "const_unmapped" => {"const" => 1},
           "const_mapped" => {"const" => true},
           "enum_unmapped" => {"enum" => %w[one two three]},
-          "enum_mapped" => {"enum" => [1, "a", 2, "b", "null"]}
+          "enum_mapped" => {"enum" => [1, "a", 2, "b", nil]}
         },
         "additionalProperties" => false
       }
