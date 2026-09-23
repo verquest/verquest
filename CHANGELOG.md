@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [0.6.3] - 2026-09-23
+
+### Fixed
+- Handling `nullable: true` ([#18](https://github.com/verquest/verquest/pull/18), [@CiTroNaK](https://github.com/CiTroNaK))
+
 ## [0.6.3] - 2026-03-17
 
 ### Fixed
