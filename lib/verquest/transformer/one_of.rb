@@ -11,17 +11,22 @@ module Verquest
     #   one_of = OneOf.new(
     #     path: Path.new("pet"),
     #     discriminator: Path.new("pet/type"),
-    #     variants: {"dog" => [[Path.new("pet/bark"), Path.new("pet/bark")]]}
+    #     variants: {"dog" => Scope.new(pairs: [[Path.new("pet/bark"), Path.new("pet/bark")]], one_ofs: [], collections: [])}
     #   )
-    #   one_of.mapping_for({"pet" => {"type" => "dog", "bark" => true}}) # => the "dog" pairs
+    #   one_of.variant_for({"pet" => {"type" => "dog", "bark" => true}}) # => the "dog" scope
+    #
+    # Internal to the transformer, not part of the public API.
     class OneOf
-      # The pairs of an absent oneOf
-      NO_PAIRS = [].freeze
+      # An empty list of pairs, oneOfs or collections
+      NONE = [].freeze
+
+      # The variant of an absent oneOf
+      NO_VARIANT = Scope.new(pairs: NONE, one_ofs: NONE, collections: NONE)
 
       # Initialize a new OneOf
       #
       # @param path [Path] The oneOf property, empty for a oneOf at the scope root
-      # @param variants [Hash<String, Array<Array(Path, Path)>>] Source and target pairs by variant name
+      # @param variants [Hash<String, Scope>] The scope of each variant by name
       # @param discriminator [Path, nil] The discriminator property
       # @param variant_schemas [Hash<String, Hash>, nil] Validation schemas by variant name, without a discriminator
       # @param null_target [Path, nil] Where a null oneOf goes, defaults to the oneOf path
@@ -30,21 +35,21 @@ module Verquest
         @variants = variants
         @discriminator = discriminator
         @schemers = variant_schemas&.transform_values { |schema| schemer(schema) }
-        @null_mapping = path.empty? ? NO_PAIRS : [[path, null_target || path].freeze].freeze
+        @null_variant = path.empty? ? NO_VARIANT : Scope.new(pairs: [[path, null_target || path].freeze].freeze, one_ofs: NONE, collections: NONE)
         freeze
       end
 
-      # Returns the source and target pairs the data selects
+      # Returns the scope of the variant the data selects
       #
       # An absent oneOf maps nothing, and a null one maps only the null.
       #
       # @param data [Object] The scope data holding the oneOf
-      # @return [Array<Array(Path, Path)>] The source and target pairs
+      # @return [Scope] The variant scope
       # @raise [Verquest::MappingError] If no variant or more than one variant matches
-      def mapping_for(data)
+      def variant_for(data)
         value = path.extract(data)
-        return NO_PAIRS if value.equal?(Path::NOT_FOUND)
-        return null_mapping if value.nil?
+        return NO_VARIANT if value.equal?(Path::NOT_FOUND)
+        return null_variant if value.nil?
 
         variants.fetch(discriminator ? discriminated_variant(data) : inferred_variant(value))
       end
@@ -54,14 +59,14 @@ module Verquest
       # @!attribute [r] path
       #   @return [Path] The oneOf property
       # @!attribute [r] variants
-      #   @return [Hash<String, Array<Array(Path, Path)>>] Source and target pairs by variant name
+      #   @return [Hash<String, Scope>] The scope of each variant by name
       # @!attribute [r] discriminator
       #   @return [Path, nil] The discriminator property
       # @!attribute [r] schemers
       #   @return [Hash<String, JSONSchemer::Schema>, nil] Schemers by variant name
-      # @!attribute [r] null_mapping
-      #   @return [Array<Array(Path, Path)>] The pairs for a null oneOf
-      attr_reader :path, :variants, :discriminator, :schemers, :null_mapping
+      # @!attribute [r] null_variant
+      #   @return [Scope] The variant of a null oneOf
+      attr_reader :path, :variants, :discriminator, :schemers, :null_variant
 
       # Compiles a variant schema in the configured JSON Schema version, like the validation schema
       #

@@ -3,6 +3,10 @@
 require "test_helper"
 
 class Verquest::TransformerTest < Minitest::Test
+  def test_requires_layout_or_mapping
+    assert_equal "Transformer.new needs layout: (or the deprecated mapping:)", assert_raises(ArgumentError) { Verquest::Transformer.new }.message
+  end
+
   def test_array_of_objects_transformation
     mapping = {
       "users[]/firstName" => "users[]/first_name",
@@ -20,7 +24,7 @@ class Verquest::TransformerTest < Minitest::Test
         {"first_name" => "Bob", "last_name" => "Jones"}
       ]
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -43,7 +47,7 @@ class Verquest::TransformerTest < Minitest::Test
         {"first_name" => "Bob", "last_name" => "Jones"}
       ]
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -75,7 +79,7 @@ class Verquest::TransformerTest < Minitest::Test
       "without_id" => {"name" => "name", "description" => "description"}
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     # Test with_id variant
     result = transformer.call({"id" => "123", "name" => "Test"})
@@ -115,7 +119,7 @@ class Verquest::TransformerTest < Minitest::Test
       "without_id" => {"item/name" => "item/name", "item/description" => "item/description"}
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     # Test with_id variant nested
     result = transformer.call({"item" => {"id" => "123", "name" => "Test"}})
@@ -144,7 +148,7 @@ class Verquest::TransformerTest < Minitest::Test
       "with_id" => {"id" => "id", "name" => "name"}
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     # Input that doesn't match any schema (missing required 'id')
     error = assert_raises(Verquest::MappingError) do
@@ -164,7 +168,7 @@ class Verquest::TransformerTest < Minitest::Test
       "schema_b" => {"name" => "name"}
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     # Input that matches both schemas (ambiguous)
     error = assert_raises(Verquest::MappingError) { transformer.call({"name" => "Test"}) }
@@ -188,7 +192,7 @@ class Verquest::TransformerTest < Minitest::Test
       "last_name" => nil,
       "middle_name" => "Jane"
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -207,7 +211,7 @@ class Verquest::TransformerTest < Minitest::Test
     expected = {
       "first_name" => "Alice"
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -230,7 +234,7 @@ class Verquest::TransformerTest < Minitest::Test
         "last_name" => nil
       }
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -253,7 +257,7 @@ class Verquest::TransformerTest < Minitest::Test
         {"first_name" => "Bob", "last_name" => "Jones"}
       ]
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -274,7 +278,7 @@ class Verquest::TransformerTest < Minitest::Test
       "assignee" => nil
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal input, result
@@ -293,7 +297,7 @@ class Verquest::TransformerTest < Minitest::Test
       "resource" => nil
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal input, result
@@ -331,7 +335,7 @@ class Verquest::TransformerTest < Minitest::Test
       "assignee" => nil
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -371,7 +375,7 @@ class Verquest::TransformerTest < Minitest::Test
       "assigned_to" => nil
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -395,7 +399,7 @@ class Verquest::TransformerTest < Minitest::Test
       }
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -421,7 +425,7 @@ class Verquest::TransformerTest < Minitest::Test
       "customer" => {"name" => "John"}
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -443,7 +447,7 @@ class Verquest::TransformerTest < Minitest::Test
       "name" => "Test"
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -464,7 +468,7 @@ class Verquest::TransformerTest < Minitest::Test
       "name" => "Test"
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -508,7 +512,7 @@ class Verquest::TransformerTest < Minitest::Test
       ]
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
     result = transformer.call(input)
 
     assert_equal expected, result
@@ -522,7 +526,7 @@ class Verquest::TransformerTest < Minitest::Test
       "cat" => {"type" => "type", "name" => "name", "meow" => "meow"}
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     error = assert_raises(Verquest::MappingError) do
       transformer.call({"type" => "fish", "name" => "Nemo"})
@@ -550,7 +554,7 @@ class Verquest::TransformerTest < Minitest::Test
       }
     }
 
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     # When resource is null, should not raise
     result = transformer.call({"title" => "Test", "resource" => nil})
@@ -564,7 +568,7 @@ class Verquest::TransformerTest < Minitest::Test
       "dog" => {"order/pets[]/type" => "order/animals[]/type", "order/pets[]/bark" => "order/animals[]/bark"},
       "cat" => {"order/pets[]/type" => "order/animals[]/type", "order/pets[]/meow" => "order/animals[]/meow"}
     }
-    transformer = Verquest::Transformer.new(mapping: mapping)
+    transformer = build_transformer(mapping: mapping)
 
     cases = {
       {"order" => {"pets" => nil}} => {"order" => {"animals" => nil}},
@@ -583,12 +587,72 @@ class Verquest::TransformerTest < Minitest::Test
       "cat" => {"pets[]/type" => "cat_type"}
     }
 
-    error = assert_raises(Verquest::MappingError) { Verquest::Transformer.new(mapping: mapping) }
+    error = assert_raises(Verquest::MappingError) { build_transformer(mapping: mapping) }
 
     assert_equal "map: can't move a oneOf variant property out of its collection item (pets[]/type => dog_type)", error.message
   end
 
+  def test_two_one_ofs_in_the_same_collection
+    mapping = {
+      "id" => "id",
+      "_oneOfs" => [
+        {
+          "_discriminator" => "items[]/pet/type",
+          "dog" => {"items[]/pet/type" => "lines[]/animal/type", "items[]/pet/bark" => "lines[]/animal/bark"},
+          "cat" => {"items[]/pet/type" => "lines[]/animal/type", "items[]/pet/meow" => "lines[]/animal/meow"}
+        },
+        {
+          "_discriminator" => "items[]/toy/kind",
+          "ball" => {"items[]/toy/kind" => "lines[]/toy/kind", "items[]/toy/size" => "lines[]/toy/diameter"},
+          "rope" => {"items[]/toy/kind" => "lines[]/toy/kind", "items[]/toy/length" => "lines[]/toy/length"}
+        }
+      ]
+    }
+    params = {
+      "id" => 1,
+      "items" => [
+        {"pet" => {"type" => "dog", "bark" => true}, "toy" => {"kind" => "rope", "length" => 2}},
+        {"pet" => {"type" => "cat", "meow" => true}, "toy" => {"kind" => "ball", "size" => 3}}
+      ]
+    }
+    expected = {
+      "id" => 1,
+      "lines" => [
+        {"animal" => {"type" => "dog", "bark" => true}, "toy" => {"kind" => "rope", "length" => 2}},
+        {"animal" => {"type" => "cat", "meow" => true}, "toy" => {"kind" => "ball", "diameter" => 3}}
+      ]
+    }
+
+    assert_equal expected, build_transformer(mapping: mapping).call(params)
+  end
+
   def test_transformer_is_frozen
-    assert_predicate Verquest::Transformer.new(mapping: {"a" => "b"}), :frozen?
+    assert_predicate build_transformer(mapping: {"a" => "b"}), :frozen?
+  end
+
+  def test_mapping_constructor_takes_a_root_level_discriminator
+    mapping = {"dog" => {"type" => "type", "bark" => "woof"}, "cat" => {"type" => "type", "meow" => "purr"}}
+
+    result = build_transformer(mapping:, discriminator: :type).call({"type" => "dog", "bark" => true})
+
+    assert_equal({"type" => "dog", "woof" => true}, result)
+  end
+
+  def test_mapping_constructor_is_deprecated
+    deprecated = Warning[:deprecated]
+    Warning[:deprecated] = true
+
+    assert_output(nil, /transformer_test\.rb:\d+: warning: Verquest::Transformer\.new\(mapping:\) is deprecated and will be removed in 1\.0\.0/) do
+      Verquest::Transformer.new(mapping: {"a" => "b"})
+    end
+  ensure
+    Warning[:deprecated] = deprecated
+  end
+
+  private
+
+  # Builds a transformer from a mapping without printing the deprecation
+  def build_transformer(**options)
+    Verquest::DeprecationHelper.without_deprecation_warnings { Verquest::Transformer.new(**options) }
   end
 end

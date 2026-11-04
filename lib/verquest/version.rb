@@ -131,22 +131,21 @@ module Verquest
       end
 
       schema_options.delete_if { |_, v| v.nil? }
+      @all_properties = all_properties
 
       if combination?
         prepare_combination_schema
         prepare_combination_validation_schema
         prepare_combination_mapping
         prepare_combination_external_mapping
-        @transformer = Transformer.new(mapping: mapping, discriminator: combination_discriminator)
       else
         prepare_schema
         prepare_validation_schema
         prepare_mapping
         prepare_external_mapping
-        @transformer = Transformer.new(mapping: mapping)
       end
 
-      @all_properties = all_properties
+      @transformer = Transformer.new(layout: transformer_layout)
       freeze
     end
 
@@ -451,54 +450,39 @@ module Verquest
     #   paths and values are the corresponding external schema paths
     # @see #prepare_mapping
     def prepare_external_mapping
-      # Chosen by the mapping shape: oneOfs nested in objects or collections are in _oneOfs too
-      @external_mapping = if mapping.key?("_oneOfs")
-        invert_multiple_one_of_mapping
-      elsif has_nested_one_of?
-        invert_single_one_of_mapping
+      # A single top-level oneOf is keyed by variant; any other mapping is a path mapping, with oneOfs in _oneOfs.
+      @external_mapping = if has_nested_one_of? && !mapping.key?("_oneOfs")
+        invert_one_of_mapping(mapping)
       else
-        mapping.invert.freeze
-      end
-    end
-
-    # Inverts mapping for single nested oneOf
-    #
-    # @return [Hash] The inverted mapping
-    def invert_single_one_of_mapping
-      mapping.each_with_object({}) do |(key, value), result|
-        result[key] = if Transformer::METADATA_KEYS.include?(key)
-          value
-        else
-          value.invert
-        end
+        invert_path_mapping(mapping)
       end.freeze
     end
 
-    # Inverts mapping for multiple nested oneOf
+    # Inverts the source and target pairs of a mapping, and the oneOfs in its `_oneOfs`
     #
+    # A path mapping holds only pairs and `_oneOfs`; a oneOf's other metadata
+    # sits in its own mapping, which {#invert_one_of_mapping} keeps as it is.
+    #
+    # @param path_mapping [Hash] The mapping of source paths to target paths
     # @return [Hash] The inverted mapping
-    def invert_multiple_one_of_mapping
-      result = {}
-
-      mapping.each do |key, value|
+    def invert_path_mapping(path_mapping)
+      path_mapping.each_with_object({}) do |(key, value), result|
         if key == "_oneOfs"
-          result["_oneOfs"] = value.map do |one_of_mapping|
-            one_of_mapping.each_with_object({}) do |(k, v), inverted|
-              inverted[k] = if Transformer::METADATA_KEYS.include?(k)
-                v
-              else
-                v.invert
-              end
-            end
-          end
-        elsif Transformer::METADATA_KEYS.include?(key)
-          result[key] = value
+          result[key] = value.map { |one_of_mapping| invert_one_of_mapping(one_of_mapping) }
         else
-          result[value] = key # Invert base properties
+          result[value] = key
         end
       end
+    end
 
-      result.freeze
+    # Inverts each variant mapping of a oneOf mapping, keeping its metadata
+    #
+    # @param one_of_mapping [Hash] The oneOf mapping (variant name => variant mapping, plus metadata)
+    # @return [Hash] The oneOf mapping with each variant mapping inverted
+    def invert_one_of_mapping(one_of_mapping)
+      one_of_mapping.to_h do |key, value|
+        [key, Transformer::METADATA_KEYS.include?(key) ? value : invert_path_mapping(value)]
+      end
     end
 
     # Prepares the parameter mapping for combination schemas (oneOf)
@@ -519,23 +503,18 @@ module Verquest
     #
     # @return [Hash] The frozen inverted mapping for each discriminator value
     def prepare_combination_external_mapping
-      @external_mapping = mapping.each_with_object({}) do |(key, value), result|
-        # Skip metadata keys, only invert variant mapping hashes
-        result[key] = if Transformer::METADATA_KEYS.include?(key)
-          value
-        else
-          value.invert
-        end
-      end.freeze
+      @external_mapping = invert_one_of_mapping(mapping).freeze
     end
 
-    # Returns the discriminator property name for combination schemas
+    # Returns the full paths of this version's properties for the transformer
     #
-    # @return [String, nil] The discriminator property name
-    def combination_discriminator
-      return nil unless combination?
-
-      properties.values.first.send(:discriminator)
+    # @return [Verquest::Transformer::Layout] The layout
+    def transformer_layout
+      Transformer::Layout.new.tap do |layout|
+        all_properties.each_value do |property|
+          property.layout(key_prefix: [], value_prefix: [], layout:, version: name)
+        end
+      end
     end
   end
 end

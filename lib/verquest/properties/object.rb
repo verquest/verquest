@@ -101,6 +101,19 @@ module Verquest
         end
       end
 
+      # Adds this object's properties to a transformer layout
+      #
+      # @param key_prefix [Array<String>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
+      # @param layout [Verquest::Transformer::Layout] The layout to add to
+      # @param version [String, nil] The version to create the layout for
+      # @return [void]
+      def layout(key_prefix:, value_prefix:, layout:, version:)
+        all_properties.each_value do |property|
+          property.layout(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), layout:, version:)
+        end
+      end
+
       private
 
       attr_reader :type, :schema_options, :properties

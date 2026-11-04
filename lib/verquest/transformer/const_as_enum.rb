@@ -11,6 +11,8 @@ module Verquest
     # @example
     #   ConstAsEnum.call({"properties" => {"const" => {"const" => "a"}}})
     #   # => {"properties" => {"const" => {"enum" => ["a"]}}}
+    #
+    # Internal to the transformer, not part of the public API.
     module ConstAsEnum
       # Keywords whose value is a map from names to schemas
       SCHEMA_MAPS = %w[properties patternProperties definitions $defs dependentSchemas].freeze

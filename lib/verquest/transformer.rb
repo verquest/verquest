@@ -1,15 +1,22 @@
 # frozen_string_literal: true
 
 module Verquest
-  # Transforms parameters based on path mappings
+  # Transforms parameters from the external request structure to the internal one
   #
-  # The Transformer class handles the conversion of parameter structures based on
-  # a mapping of source paths to target paths. It supports deep nested structures,
-  # array notations, and complex path expressions using slash notation.
+  # A version builds its transformer from its properties: each property adds
+  # its full source and target paths to a Layout, and Plan groups the layout
+  # into scopes (the params, the items of each collection that holds a oneOf,
+  # and each oneOf variant). Transforming only applies those scopes. The
+  # deprecated mapping constructor turns a mapping hash into a layout through
+  # MappingLayout instead.
   #
-  # At initialization, the mapping is turned into a Plan: the source and
-  # target pairs and oneOfs of the params, and of the items of each
-  # collection that holds a oneOf. Transforming only applies that plan.
+  # @example Transforming a request's params
+  #   OrderRequest.process(params, version: "2025-06")
+  #   # or, without validation:
+  #   OrderRequest.resolve("2025-06").transformer.call(params)
+  #
+  # The examples below show the mapping format with the mapping constructor,
+  # which is deprecated and removed in 1.0.0.
   #
   # @example Basic transformation
   #   mapping = {
@@ -60,14 +67,23 @@ module Verquest
     # Mapping keys that hold oneOf metadata, not property paths or variant names
     METADATA_KEYS = %w[_discriminator _variant_schemas _variant_path _nullable _nullable_path _nullable_target_path _oneOfs].freeze
 
-    # Creates a new Transformer with the specified mapping
+    # Creates a new Transformer
     #
-    # @param mapping [Hash] A hash where keys are source paths and values are target paths,
-    #   or for discriminator-based schemas, keys are discriminator values and values are mapping hashes
-    # @param discriminator [String, Symbol, nil] The discriminator of a root-level oneOf
+    # @param layout [Layout, nil] The full paths of the request; versions pass it, it is not public API
+    # @param mapping [Hash, nil] Deprecated: a mapping hash, read when no layout is given
+    # @param discriminator [String, Symbol, nil] Deprecated: the discriminator of a root-level oneOf in the mapping
     # @return [Transformer] A new transformer instance
-    def initialize(mapping:, discriminator: nil)
-      @root = Plan.new(mapping, discriminator:).root
+    # @raise [ArgumentError] If neither layout nor mapping is given
+    def initialize(layout: nil, mapping: nil, discriminator: nil)
+      raise ArgumentError, "Transformer.new needs layout: (or the deprecated mapping:)" unless layout || mapping
+
+      if layout.nil?
+        warn "Verquest::Transformer.new(mapping:) is deprecated and will be removed in 1.0.0. " \
+          "Use MyRequest.process, or MyRequest.resolve(version).transformer.", category: :deprecated, uplevel: 1
+        layout = MappingLayout.call(mapping, discriminator:)
+      end
+
+      @root = Plan.new(layout).root
       freeze
     end
 

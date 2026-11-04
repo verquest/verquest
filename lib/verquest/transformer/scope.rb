@@ -14,9 +14,11 @@ module Verquest
     # @!attribute [r] pairs
     #   @return [Array<Array(Path, Path)>] The source and target pairs mapped for any input
     # @!attribute [r] one_ofs
-    #   @return [Array<OneOf>] The oneOfs that add the pairs of the variant each input selects
+    #   @return [Array<OneOf>] The oneOfs whose selected variant scope is applied into the result
     # @!attribute [r] collections
     #   @return [Array<Collection>] The collections transformed item by item
+    #
+    # Internal to the transformer, not part of the public API.
     Scope = Data.define(:pairs, :one_ofs, :collections) do
       # Transforms the data
       #
@@ -24,9 +26,21 @@ module Verquest
       # @return [Hash] The transformed data
       # @raise [Verquest::MappingError] If a oneOf matches no variant or more than one
       def call(data)
-        result = {}
+        apply(data, {})
+      end
+
+      # Transforms the data into an existing result
+      #
+      # A oneOf variant is a scope applied into the result of the scope that
+      # holds the oneOf.
+      #
+      # @param data [Object] The params or a collection item
+      # @param result [Hash] The hash to write to
+      # @return [Hash] The result
+      # @raise [Verquest::MappingError] If a oneOf matches no variant or more than one
+      def apply(data, result)
         map(pairs, data, result)
-        one_ofs.each { |one_of| map(one_of.mapping_for(data), data, result) }
+        one_ofs.each { |one_of| one_of.variant_for(data).apply(data, result) }
         collections.each { |collection| collection.call(data, result) }
         result
       end

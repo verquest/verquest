@@ -6,7 +6,7 @@
 
 ### Changed
 - A `one_of` with a `discriminator:` keeps the discriminator in the validation schema. Its variants move into local `definitions` referenced by `$ref`, under a content-hash id written as both `$id` and `id` (`https://verquest.local/one_of/...`). With `json_schema_version = :openapi31` or `:openapi30`, validation errors come only from the variant the discriminator selects, and a missing, unknown or non-object value gets a single `discriminator` error. Under `:openapi30`, valid payloads that were rejected with `oneOf` errors (OpenAPI 3.0 has no `const`, so they matched every variant) now pass. Other versions validate as before, but `to_validation_schema` output changes. If you register these schemas with another validator, note the new ids.
-- The transformer turns every mapping format into one plan built at initialization, and is frozen. `Verquest::NOT_FOUND` moved to `Verquest::Transformer::Path::NOT_FOUND`. In the mapping, `_variant_path` and `_nullable_path` hold the full source path inside collections too (`entries[]/content` instead of `content`).
+- The transformer builds one plan at initialization and is frozen. `Verquest::NOT_FOUND` moved to `Verquest::Transformer::Path::NOT_FOUND`. In the mapping, `_variant_path` and `_nullable_path` hold the full source path inside collections too (`entries[]/content` instead of `content`).
 - A `null` oneOf maps to `null` whether it has a discriminator or not, and inside multiple oneOfs.
 - A oneOf inside a `collection` is listed in the mapping's `_oneOfs` array, like several oneOfs, instead of putting its metadata at the top level.
 - A oneOf variant property moved out of a collection item with `map: "/..."` raises `Verquest::MappingError` when the class is defined. Each item selects its own variant, so it can't be collected outside the items.
@@ -14,6 +14,10 @@
 - A version compiles its validation schema once per configuration instead of on every `process`, which makes `process` with validation up to 4 times faster.
 - Under `json_schema_version` `:draft4` and `:openapi30`, which have no `const`, a `const` property is written as a one-value `enum` in `to_schema` and `to_validation_schema`, so it is enforced.
 - An unnamed `one_of` next to other properties raises `ArgumentError` when it is declared. It was dropped from the schema.
+- Versions build their transformer from their properties instead of from their `mapping` hash, so the transformer no longer depends on the mapping's metadata keys.
+
+### Deprecated
+- `Verquest::Transformer.new(mapping:, discriminator:)`. Use `MyRequest.process`, or `MyRequest.resolve(version).transformer`; versions build their transformer from their properties, and the mapping constructor will be removed in 1.0.0. It warns when deprecation warnings are on (`Warning[:deprecated] = true` or `ruby -W:deprecated`), which Ruby leaves off by default.
 
 ### Fixed
 - A `one_of` inside an `object` mapped a valid payload to an empty hash, and two of them clashed. It also works inside an object in a collection.
@@ -28,6 +32,8 @@
 - A property moved out of collection items with `map: "/..."` writes `null` for items without the value, instead of an internal object. In a collection holding a oneOf, it is collected outside the items again.
 - `external_mapping` inverts the oneOfs nested in objects and collections, which were left as a hash key.
 - A `reference`, or a `collection` with `item:`, to a request holding a oneOf no longer drops its data.
+- A oneOf inside a oneOf variant, inline or referenced, maps its data, and so does a collection of oneOfs inside a variant. The data was dropped. In `mapping` and `external_mapping`, such a nested oneOf is listed in the variant's `_oneOfs` array, where it used to show up as prefixed metadata keys and stringified hashes.
+- In `mapping` and `external_mapping`, an absolute `map:` in a request used as a oneOf reference variant points to the root, as the transformer always mapped it. It was nested under the variant.
 - A `reference` with `property:` to an object, a collection or a oneOf maps its data. Only scalar properties worked.
 - A collection whose only property is a named `one_of` keeps the name in its item schema, so valid items pass validation.
 

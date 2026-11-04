@@ -120,6 +120,31 @@ module Verquest
         store_nullable_metadata(mapping, source_prefix:, target_prefix:) if nullable
       end
 
+      # Adds this oneOf to a transformer layout
+      #
+      # Each variant gets its own layout, so it can hold oneOfs and collections.
+      # Like in the mapping, variant properties sit directly under the oneOf
+      # path, not under the variant name.
+      #
+      # @param key_prefix [Array<String>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
+      # @param layout [Verquest::Transformer::Layout] The layout to add to
+      # @param version [String, nil] The version to create the layout for
+      # @return [void]
+      def layout(key_prefix:, value_prefix:, layout:, version:)
+        freeze_schemas
+        source_prefix = compute_source_prefix(key_prefix)
+        target_prefix = compute_target_prefix(value_prefix)
+
+        layout.add_one_of(Transformer::Layout::OneOfLayout.new(
+          path: source_prefix.join("/"),
+          discriminator: discriminator && join_path(source_prefix, discriminator),
+          variants: schemas.each_value.to_h { |schema| [schema.name, variant_layout(schema, source_prefix, target_prefix, layout, version)] },
+          variant_schemas: (variant_schemas(version:) unless discriminator),
+          null_target: (target_prefix.join("/") if nullable && !source_prefix.empty?)
+        ))
+      end
+
       # Returns validation schemas for all variants
       #
       # Used by the Transformer to infer which variant matches when no discriminator is set.
@@ -194,7 +219,7 @@ module Verquest
       # Builds variant mappings for each schema option
       #
       # Handles both Reference and Object schemas:
-      # - Reference: delegates to the referenced schema's mapping
+      # - Reference: maps the referenced request's properties under the oneOf path
       # - Object: builds mapping from child properties directly
       #
       # @param mapping [Hash] The mapping hash to populate
@@ -214,6 +239,9 @@ module Verquest
 
       # Builds mapping for a Reference variant
       #
+      # Maps the referenced request's properties under the oneOf path, so its
+      # oneOfs land in the variant's `_oneOfs` with full paths.
+      #
       # @param mapping [Hash] The mapping hash to populate
       # @param schema [Verquest::Properties::Reference] The reference schema
       # @param source_prefix [Array<String>] Source path prefix
@@ -221,15 +249,10 @@ module Verquest
       # @param version [String, nil] The version for schema resolution
       # @return [void]
       def build_reference_variant_mapping(mapping, schema, source_prefix, target_prefix, version)
-        reference_mapping = schema.send(:from).mapping(version: version)
-        reference_map = schema.send(:map)
-        variant_target_prefix = compute_reference_target_prefix(reference_map, target_prefix)
+        variant_target_prefix = compute_reference_target_prefix(schema.send(:map), target_prefix)
+        variant_mapping = mapping[schema.name] = {}
 
-        mapping[schema.name] = build_prefixed_mapping(
-          reference_mapping,
-          source_prefix,
-          variant_target_prefix
-        )
+        add_request_mapping(schema.send(:from), key_prefix: source_prefix, value_prefix: variant_target_prefix, mapping: variant_mapping, version:)
       end
 
       # Builds mapping for an inline Object variant
@@ -245,34 +268,34 @@ module Verquest
       # @param version [String, nil] The version for schema resolution
       # @return [void]
       def build_object_variant_mapping(mapping, schema, source_prefix, target_prefix, version)
-        object_mapping = {}
-        object_map = schema.send(:map)
-        variant_target_prefix = compute_reference_target_prefix(object_map, target_prefix)
+        variant_target_prefix = compute_reference_target_prefix(schema.send(:map), target_prefix)
+        variant_mapping = mapping[schema.name] = {}
 
-        # Build mapping from object's child properties
         # Properties are mapped directly under source_prefix (not source_prefix + object_name)
-        # to match how Reference variants work
+        # to match how Reference variants work; a nested oneOf lands in the variant's _oneOfs
         schema.all_properties.each_value do |property|
-          property.mapping(
-            key_prefix: source_prefix,
-            value_prefix: variant_target_prefix,
-            mapping: object_mapping,
-            version: version
-          )
+          add_child_mapping(property, key_prefix: source_prefix, value_prefix: variant_target_prefix, mapping: variant_mapping, version:)
         end
-
-        mapping[schema.name] = object_mapping
       end
 
-      # Builds a mapping hash with prefixes applied to all keys and values
+      # Adds a variant's properties to its layout, directly under the oneOf path
       #
-      # @param base_mapping [Hash] The source mapping from the referenced schema
-      # @param source_prefix [Array<String>] Prefix for source keys
-      # @param target_prefix [Array<String>] Prefix for target values
-      # @return [Hash] The mapping with prefixes applied
-      def build_prefixed_mapping(base_mapping, source_prefix, target_prefix)
-        base_mapping.each_with_object({}) do |(source_key, target_value), result|
-          result[join_path(source_prefix, source_key)] = join_path(target_prefix, target_value)
+      # @param schema [Verquest::Properties::Reference, Verquest::Properties::Object] The variant
+      # @param source_prefix [Array<String>] The oneOf source path
+      # @param target_prefix [Array<String>] The oneOf target path
+      # @param layout [Verquest::Transformer::Layout] The layout holding the oneOf
+      # @param version [String, nil] The version for schema resolution
+      # @return [Verquest::Transformer::Layout] The variant layout
+      def variant_layout(schema, source_prefix, target_prefix, layout, version)
+        variant_target_prefix = compute_reference_target_prefix(schema.send(:map), target_prefix)
+        layout.variant.tap do |variant|
+          if schema.is_a?(Verquest::Properties::Reference)
+            add_request_layout(schema.send(:from), key_prefix: source_prefix, value_prefix: variant_target_prefix, layout: variant, version:)
+          else
+            schema.all_properties.each_value do |property|
+              property.layout(key_prefix: source_prefix, value_prefix: variant_target_prefix, layout: variant, version:)
+            end
+          end
         end
       end
 

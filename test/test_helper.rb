@@ -22,3 +22,5 @@ require "minitest/autorun"
 require "mocha/minitest"
 
 require_relative "support/configuration_test_helper"
+require_relative "support/deprecation_helper"
+require_relative "support/plan_comparison" if ENV["COMPARE_PLANS"]

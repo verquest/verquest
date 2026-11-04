@@ -10,6 +10,8 @@ module Verquest
     #   @return [Path] The collection in the result of the parent scope
     # @!attribute [r] scope
     #   @return [Scope] The mapping of each item, with item-level paths
+    #
+    # Internal to the transformer, not part of the public API.
     Collection = Data.define(:source, :target, :scope) do
       # Transforms the collection items into the result
       #

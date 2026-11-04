@@ -58,6 +58,20 @@ module Verquest
         raise NoMethodError
       end
 
+      # Adds this property to a transformer layout
+      #
+      # This is the layout of a scalar property: one source and target pair.
+      # Objects, collections, references and oneOfs override it.
+      #
+      # @param key_prefix [Array<String>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
+      # @param layout [Verquest::Transformer::Layout] The layout to add to
+      # @param version [String, nil] The version to create the layout for
+      # @return [void]
+      def layout(key_prefix:, value_prefix:, layout:, version:)
+        layout.add_pair((key_prefix + [name]).join("/"), mapping_value_key(value_prefix:))
+      end
+
       # Returns a copy of this property under another name and map:
       #
       # Used by a reference to a single property, so the property maps as if
@@ -166,6 +180,21 @@ module Verquest
         referenced = request.resolve(version)
         referenced.all_properties.each_value do |property|
           add_child_mapping(property, key_prefix:, value_prefix:, mapping:, version: referenced.name)
+        end
+      end
+
+      # Adds a referenced request's properties to a layout under the given prefixes
+      #
+      # @param request [Class<Verquest::Base>] The referenced request
+      # @param key_prefix [Array<String>] Prefix for the source keys
+      # @param value_prefix [Array<String>] Prefix for the target values
+      # @param layout [Verquest::Transformer::Layout] The layout to add to
+      # @param version [String] The version to create the layout for
+      # @return [void]
+      def add_request_layout(request, key_prefix:, value_prefix:, layout:, version:)
+        referenced = request.resolve(version)
+        referenced.all_properties.each_value do |property|
+          property.layout(key_prefix:, value_prefix:, layout:, version: referenced.name)
         end
       end
     end

@@ -74,6 +74,21 @@ module Verquest
         add_child_mapping(referenced.fetch_property(property).renamed(name:, map:), key_prefix:, value_prefix:, mapping:, version: referenced.name)
       end
 
+      # Adds the referenced request's properties, or the referenced property, to a transformer layout
+      #
+      # @param key_prefix [Array<String>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
+      # @param layout [Verquest::Transformer::Layout] The layout to add to
+      # @param version [String, nil] The version to create the layout for
+      # @return [void]
+      # @raise [Verquest::PropertyNotFoundError] If the referenced property doesn't exist
+      def layout(key_prefix:, value_prefix:, layout:, version:)
+        return add_request_layout(from, key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), layout:, version:) unless property
+
+        referenced = from.resolve(version)
+        referenced.fetch_property(property).renamed(name:, map:).layout(key_prefix:, value_prefix:, layout:, version: referenced.name)
+      end
+
       private
 
       attr_reader :from, :property

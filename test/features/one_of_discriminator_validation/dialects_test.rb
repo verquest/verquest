@@ -90,7 +90,9 @@ module Verquest
       params = {"owner" => {"name" => "Ann", "pet" => {"type" => "cat", "name" => "Tom"}}}
 
       with_configuration(json_schema_version: :openapi30, validation_error_handling: :result) do
-        assert_predicate request.process(params, version: "2025-06", validate: true), :success?
+        result = request.process(params, version: "2025-06", validate: true)
+
+        assert_equal({success: true, value: params}, {success: result.success?, value: result.value})
       end
     end
 

@@ -13,6 +13,8 @@ module Verquest
     #   path = Path.new("users[]/name")
     #   path.extract({"users" => [{"name" => "A"}, {}]}) # => ["A", Path::NOT_FOUND]
     #   path.set({}, ["A", Path::NOT_FOUND]) # => {"users" => [{"name" => "A"}, {}]}
+    #
+    # Internal to the transformer, not part of the public API.
     class Path
       # Returned when a key is not in the data, to tell it apart from a null value
       NOT_FOUND = Object.new.freeze

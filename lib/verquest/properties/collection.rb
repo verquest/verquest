@@ -204,6 +204,27 @@ module Verquest
         end
       end
 
+      # Adds this collection and its item properties to a transformer layout
+      #
+      # The collection's source and target paths are added too, so the plan
+      # knows where the items go when they hold a oneOf.
+      #
+      # @param key_prefix [Array<String>] Prefix for the source key
+      # @param value_prefix [Array<String>] Prefix for the target value
+      # @param layout [Verquest::Transformer::Layout] The layout to add to
+      # @param version [String, nil] The version to create the layout for
+      # @return [void]
+      def layout(key_prefix:, value_prefix:, layout:, version:)
+        item_key_prefix = key_prefix + ["#{name}[]"]
+        item_value_prefix = mapping_value_prefix(value_prefix:, collection: true)
+        layout.add_collection(item_key_prefix.join("/"), item_value_prefix.join("/"))
+        return add_request_layout(item, key_prefix: item_key_prefix, value_prefix: item_value_prefix, layout:, version:) if has_item?
+
+        (has_one_of? ? [one_of_property] : all_properties.values).each do |property|
+          property.layout(key_prefix: item_key_prefix, value_prefix: item_value_prefix, layout:, version:)
+        end
+      end
+
       private
 
       attr_reader :item, :schema_options, :properties, :type
