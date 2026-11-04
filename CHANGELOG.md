@@ -6,6 +6,17 @@
 
 ### Changed
 - A `one_of` with a `discriminator:` keeps the discriminator in the validation schema. Its variants move into local `definitions` referenced by `$ref`, under a content-hash id written as both `$id` and `id` (`https://verquest.local/one_of/...`). With `json_schema_version = :openapi31` or `:openapi30`, validation errors come only from the variant the discriminator selects, and a missing, unknown or non-object value gets a single `discriminator` error. Under `:openapi30`, valid payloads that were rejected with `oneOf` errors (OpenAPI 3.0 has no `const`, so they matched every variant) now pass. Other versions validate as before, but `to_validation_schema` output changes. If you register these schemas with another validator, note the new ids.
+- The transformer turns every mapping format into one plan built at initialization, and is frozen. `Verquest::NOT_FOUND` moved to `Verquest::Transformer::Path::NOT_FOUND`. In the mapping, `_variant_path` and `_nullable_path` hold the full source path inside collections too (`entries[]/content` instead of `content`).
+- A `null` oneOf maps to `null` whether it has a discriminator or not, and inside multiple oneOfs.
+
+### Fixed
+- A `one_of` inside an `object` mapped a valid payload to an empty hash, and two of them clashed. It also works inside an object in a collection.
+- Empty collection items are kept (they were dropped, or became `nil` before a later item), and a `null` nested object inside an item stays `null`.
+- A `null` nullable oneOf with a nested `map:` (e.g. `"billing/payment"`) is written as a nested key, not as the literal key `"billing/payment"`.
+- A collection item without its optional oneOf, or with a `null` nullable one, no longer raises "No matching schema found". A nullable oneOf without a discriminator in a collection can be defined (the duplicate-mapping check counted its metadata).
+- Properties whose names start with `_` are mapped next to oneOfs and inverted in `external_mapping`.
+- A collection with `map:` and a oneOf no longer nests every item under the collection name again, also when a variant's first property is moved out with `map: "/..."`.
+- Without validation, a present oneOf without its discriminator raises "Missing discriminator" instead of mapping to an empty hash, and an unknown value raises in collection items too. A value naming a metadata key no longer crashes with `NoMethodError`.
 
 ## [0.6.3] - 2026-09-23
 

@@ -85,6 +85,9 @@ module Verquest
 
       # Create mapping for this object property and all its children
       #
+      # Each nested oneOf gets its own mapping in the `_oneOfs` array, so its
+      # metadata can't clash with another oneOf.
+      #
       # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
@@ -92,7 +95,9 @@ module Verquest
       # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
         all_properties.values.each do |property|
-          property.mapping(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:)
+          target = property.is_a?(OneOf) ? {} : mapping
+          property.mapping(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping: target, version:)
+          (mapping["_oneOfs"] ||= []) << target if property.is_a?(OneOf)
         end
       end
 

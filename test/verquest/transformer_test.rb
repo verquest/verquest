@@ -557,4 +557,38 @@ class Verquest::TransformerTest < Minitest::Test
 
     assert_equal({"title" => "Test", "resource" => nil}, result)
   end
+
+  def test_collection_with_one_of_keeps_a_null_collection
+    mapping = {
+      "_discriminator" => "order/pets[]/type",
+      "dog" => {"order/pets[]/type" => "order/animals[]/type", "order/pets[]/bark" => "order/animals[]/bark"},
+      "cat" => {"order/pets[]/type" => "order/animals[]/type", "order/pets[]/meow" => "order/animals[]/meow"}
+    }
+    transformer = Verquest::Transformer.new(mapping: mapping)
+
+    cases = {
+      {"order" => {"pets" => nil}} => {"order" => {"animals" => nil}},
+      {"order" => nil} => {"order" => nil},
+      {"order" => {}} => {},
+      {"order" => {"pets" => [{"type" => "cat", "meow" => true}]}} => {"order" => {"animals" => [{"type" => "cat", "meow" => true}]}}
+    }
+
+    assert_equal cases, cases.to_h { |input, _| [input, transformer.call(input)] }
+  end
+
+  def test_collection_with_one_of_without_properties_inside_the_collection
+    mapping = {
+      "_discriminator" => "pets[]/type",
+      "dog" => {"pets[]/type" => "dog_type"},
+      "cat" => {"pets[]/type" => "cat_type"}
+    }
+
+    result = Verquest::Transformer.new(mapping: mapping).call({"pets" => [{"type" => "dog"}]})
+
+    assert_equal({"pets" => [{"dog_type" => "dog"}]}, result)
+  end
+
+  def test_transformer_is_frozen
+    assert_predicate Verquest::Transformer.new(mapping: {"a" => "b"}), :frozen?
+  end
 end

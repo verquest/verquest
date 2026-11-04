@@ -355,6 +355,7 @@ module Verquest
       regular_properties.each do |property|
         property.mapping(key_prefix: [], value_prefix: [], mapping: regular_mapping, version: name)
       end
+      return prepare_multiple_nested_one_of_mapping([one_of_property], regular_properties) if regular_mapping.key?("_oneOfs")
 
       # Collect oneOf property mappings
       one_of_mapping = {}
@@ -364,12 +365,12 @@ module Verquest
       @mapping = {}
 
       # Preserve metadata keys
-      %w[_discriminator _variant_schemas _variant_path _nullable _nullable_path _nullable_target_path].each do |metadata_key|
+      Transformer::METADATA_KEYS.each do |metadata_key|
         @mapping[metadata_key] = one_of_mapping[metadata_key] if one_of_mapping.key?(metadata_key)
       end
 
       one_of_mapping.each do |discriminator_value, variant_mapping|
-        next if discriminator_value.start_with?("_") # Skip metadata keys
+        next if Transformer::METADATA_KEYS.include?(discriminator_value)
 
         @mapping[discriminator_value] = regular_mapping.merge(variant_mapping)
       end
@@ -388,8 +389,8 @@ module Verquest
         property.mapping(key_prefix: [], value_prefix: [], mapping: @mapping, version: name)
       end
 
-      # Collect each oneOf's mapping into _oneOfs array
-      @mapping["_oneOfs"] = one_of_properties.map do |one_of_property|
+      # Collect each oneOf's mapping into _oneOfs array, after the ones nested in objects
+      @mapping["_oneOfs"] = @mapping.fetch("_oneOfs", []) + one_of_properties.map do |one_of_property|
         one_of_mapping = {}
         one_of_property.mapping(key_prefix: [], value_prefix: [], mapping: one_of_mapping, version: name)
         one_of_mapping
@@ -407,7 +408,7 @@ module Verquest
       end
 
       seen = Set.new
-      duplicates = mapping.values.select { |v| !seen.add?(v) }
+      duplicates = mapping.except(*Transformer::METADATA_KEYS).values.select { |v| !seen.add?(v) }
       if duplicates.any?
         raise MappingError.new("Mapping must be unique. Found duplicates in version '#{name}': #{duplicates.uniq.join(", ")}")
       end
@@ -440,7 +441,7 @@ module Verquest
     # @return [Hash] The inverted mapping
     def invert_single_one_of_mapping
       mapping.each_with_object({}) do |(key, value), result|
-        result[key] = if key.start_with?("_")
+        result[key] = if Transformer::METADATA_KEYS.include?(key)
           value
         else
           value.invert
@@ -458,14 +459,14 @@ module Verquest
         if key == "_oneOfs"
           result["_oneOfs"] = value.map do |one_of_mapping|
             one_of_mapping.each_with_object({}) do |(k, v), inverted|
-              inverted[k] = if k.start_with?("_")
+              inverted[k] = if Transformer::METADATA_KEYS.include?(k)
                 v
               else
                 v.invert
               end
             end
           end
-        elsif key.start_with?("_")
+        elsif Transformer::METADATA_KEYS.include?(key)
           result[key] = value
         else
           result[value] = key # Invert base properties
@@ -495,7 +496,7 @@ module Verquest
     def prepare_combination_external_mapping
       @external_mapping = mapping.each_with_object({}) do |(key, value), result|
         # Skip metadata keys, only invert variant mapping hashes
-        result[key] = if key.start_with?("_")
+        result[key] = if Transformer::METADATA_KEYS.include?(key)
           value
         else
           value.invert

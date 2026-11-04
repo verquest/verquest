@@ -116,8 +116,8 @@ module Verquest
 
         build_variant_mappings(mapping, source_prefix, target_prefix, version)
         store_discriminator_path(mapping, source_prefix)
-        store_variant_schemas(mapping, version) unless discriminator
-        store_nullable_metadata(mapping, target_prefix:) if nullable
+        store_variant_schemas(mapping, source_prefix, version) unless discriminator
+        store_nullable_metadata(mapping, source_prefix:, target_prefix:) if nullable
       end
 
       # Returns validation schemas for all variants
@@ -298,11 +298,12 @@ module Verquest
       # schemas to determine which variant matches the input data.
       #
       # @param mapping [Hash] The mapping hash to update
+      # @param source_prefix [Array<String>] The source path prefix, ending with the oneOf name
       # @param version [String, nil] The version for schema resolution
       # @return [void]
-      def store_variant_schemas(mapping, version)
+      def store_variant_schemas(mapping, source_prefix, version)
         mapping["_variant_schemas"] = variant_schemas(version: version)
-        mapping["_variant_path"] = name unless root_level?
+        mapping["_variant_path"] = source_prefix.join("/") unless root_level?
       end
 
       # Stores nullable metadata in the mapping
@@ -311,13 +312,14 @@ module Verquest
       # without attempting variant resolution.
       #
       # @param mapping [Hash] The mapping hash to update
+      # @param source_prefix [Array<String>] The source path prefix, ending with the oneOf name
       # @param target_prefix [Array<String>] The target path prefix for the oneOf property
       # @return [void]
-      def store_nullable_metadata(mapping, target_prefix:)
+      def store_nullable_metadata(mapping, source_prefix:, target_prefix:)
         mapping["_nullable"] = true
         return if root_level?
 
-        mapping["_nullable_path"] = name
+        mapping["_nullable_path"] = source_prefix.join("/")
         mapping["_nullable_target_path"] = target_prefix.join("/")
       end
 
