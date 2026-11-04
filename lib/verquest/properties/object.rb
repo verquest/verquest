@@ -12,6 +12,8 @@ module Verquest
     #   address.add(Verquest::Properties::Field.new(name: :street, type: :string))
     #   address.add(Verquest::Properties::Field.new(name: :city, type: :string, required: true))
     class Object < Base
+      include HelperMethods::ConditionalProperties
+
       # Initialize a new Object property
       #
       # @param name [String, Symbol] The name of the property
@@ -21,6 +23,7 @@ module Verquest
       # @param schema_options [Hash] Additional JSON schema options for this property
       def initialize(name:, required: false, nullable: false, map: nil, **schema_options)
         @properties = {}
+        @conditions = []
 
         @name = name.to_s
         @required = required
@@ -55,9 +58,10 @@ module Verquest
           name => {
             "type" => type,
             "required" => required_properties,
-            "properties" => properties.transform_values { |property| property.to_schema[property.name] }
+            "properties" => all_properties.transform_values { |property| property.to_schema[property.name] }
           }.merge(schema_options).tap do |schema|
             schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+            add_conditions(schema)
           end
         }
       end
@@ -71,9 +75,10 @@ module Verquest
           name => {
             "type" => type,
             "required" => required_properties,
-            "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
+            "properties" => all_properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
           }.merge(schema_options).tap do |schema|
             schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+            add_conditions(schema)
           end
         }
       end
@@ -86,7 +91,7 @@ module Verquest
       # @param version [String, nil] The version to create mapping for
       # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
-        properties.values.each do |property|
+        all_properties.values.each do |property|
           property.mapping(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:)
         end
       end

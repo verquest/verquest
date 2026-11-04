@@ -20,6 +20,7 @@ module Verquest
   #   mapping = version.mapping
   class Version
     include HelperMethods::RequiredProperties
+    include HelperMethods::ConditionalProperties
 
     # @!attribute [r] name
     #   @return [String] The name/identifier of the version (e.g., "2023-01")
@@ -58,6 +59,7 @@ module Verquest
       @name = name.to_s
       @schema_options = {}
       @properties = {}
+      @conditions = []
     end
 
     # Add a property to this version
@@ -85,7 +87,17 @@ module Verquest
       properties.key?(property_name.to_s)
     end
 
-    # Copy properties from another version
+    # Returns the regular properties followed by the branch properties
+    #
+    # Stored when the version is prepared, because the version is frozen
+    # afterwards and `process` reads it on every request.
+    #
+    # @return [Hash<String, Verquest::Properties::Base>] All properties listed in the schema
+    def all_properties
+      @all_properties || super
+    end
+
+    # Copy properties and conditions from another version
     #
     # @param version [Verquest::Version] The version to copy properties from
     # @param exclude_properties [Array<Symbol>] Names of properties to not copy
@@ -99,6 +111,8 @@ module Verquest
 
         add(property)
       end
+
+      version.conditions.each { |condition| add_condition(condition) }
     end
 
     # Prepare this version by generating schema and creating transformer
@@ -127,6 +141,7 @@ module Verquest
         @transformer = Transformer.new(mapping: mapping)
       end
 
+      @all_properties = all_properties
       freeze
     end
 
@@ -185,14 +200,14 @@ module Verquest
 
     # Get the mapping for a specific property
     #
-    # @param property [Symbol, String] The property name to get the mapping for
+    # @param property [Symbol, String] The property name (regular or declared in a condition branch)
     # @return [Hash] The mapping for the property
     # @raise [PropertyNotFoundError] If the property doesn't exist
     def mapping_for(property)
-      raise PropertyNotFoundError.new("Property '#{property}' is not defined on '#{name}'") unless has?(property)
+      raise PropertyNotFoundError.new("Property '#{property}' is not defined on '#{name}'") unless all_properties.key?(property.to_s)
 
       {}.tap do |mapping|
-        properties[property.to_s].mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
+        all_properties[property.to_s].mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
       end
     end
 
@@ -256,10 +271,11 @@ module Verquest
       @schema = {
         "type" => "object",
         "required" => required_properties,
-        "properties" => properties.transform_values { |property| property.to_schema[property.name] }
+        "properties" => all_properties.transform_values { |property| property.to_schema[property.name] }
       }.merge(schema_options).tap do |schema|
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
         schema["description"] = description if description
+        add_conditions(schema, documentation: true)
       end.freeze
     end
 
@@ -269,7 +285,10 @@ module Verquest
     # property since it represents the entire request structure.
     #
     # @return [Hash] The schema from the oneOf property
+    # @raise [ArgumentError] If the version also has conditions
     def prepare_combination_schema
+      raise ArgumentError, "Conditions can not be declared next to a root-level one_of" if conditions.any?
+
       @schema = properties.values.first.to_schema
     end
 
@@ -283,10 +302,11 @@ module Verquest
       @validation_schema = {
         "type" => "object",
         "required" => required_properties,
-        "properties" => properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
+        "properties" => all_properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
       }.merge(schema_options).tap do |schema|
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
         schema["description"] = description if description
+        add_conditions(schema)
       end.freeze
     end
 
@@ -312,8 +332,8 @@ module Verquest
     # @raise [MappingError] If duplicate mappings are detected
     def prepare_mapping
       # Separate oneOf properties from regular properties
-      one_of_properties = properties.values.select { |p| p.is_a?(Verquest::Properties::OneOf) }
-      regular_properties = properties.values.reject { |p| p.is_a?(Verquest::Properties::OneOf) }
+      one_of_properties = all_properties.values.select { |p| p.is_a?(Verquest::Properties::OneOf) }
+      regular_properties = all_properties.values.reject { |p| p.is_a?(Verquest::Properties::OneOf) }
 
       if one_of_properties.size == 1
         prepare_single_nested_one_of_mapping(one_of_properties.first, regular_properties)

@@ -33,6 +33,7 @@ module Verquest
   class Base
     extend Base::HelperClassMethods
     extend Base::PrivateClassMethods
+    extend Base::ConditionClassMethods
     extend Base::PublicClassMethods
   end
 end

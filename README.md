@@ -396,6 +396,104 @@ Will produce this validation schema:
 }
 ```
 
+#### Conditional schemas
+
+Use `condition` when a request changes shape depending on the payload. It compiles to JSON Schema `if` / `then` / `else` and works in a version, an `object`, and an inline `collection`:
+
+```ruby
+version "2025-09" do
+  field :effective_from, type: :string, required: true
+  field :credit_card, type: :string
+  field :billing_address, type: :string
+
+  condition :pricing do
+    given { present :percentages }
+    then_apply do
+      object :percentages, required: true, min_properties: 1 do
+        field :unit_types, type: :number, maximum: 9999.99
+      end
+    end
+    else_apply do
+      field :percentage, type: :number, required: true, deprecated: true, not: {const: 0}
+      object :applies_to, deprecated: true do
+        field :unit_types, type: :boolean, map: "/apply_to_unit_types"
+      end
+    end
+  end
+
+  depends_on :credit_card do # condition { given { present :credit_card }; then_apply { ... } }
+    present :billing_address
+  end
+end
+```
+
+- `given` (the `if`) holds rules only. `then_apply` and `else_apply` hold rules and property declarations. A condition needs `given` and at least one branch.
+- Rules: `present :a, :b`, `absent :a`, `equals :kind, "company"`, `value_in :kind, %w[a b]`, `satisfies :age, minimum: 18`, `any { ... }` and `none { ... }`. Rules in one block must all hold. Inside `given`, `equals`, `value_in` and `satisfies` also require their property.
+- Branch properties are listed in the scope's `properties`, so `additionalProperties: false` keeps working and the mapping is the flat union. Each branch gets only rules: its required names, and `false` for properties that only the other branch declares. A missing branch is generated.
+- Several conditions on one scope go into `allOf`, one entry each.
+- `exclude_conditions :pricing` removes an inherited named condition in a later version. A named condition can be declared only once per scope, so exclude an inherited one before redeclaring it.
+- `exclude_properties` only sees regular properties. To drop a branch property, exclude its condition.
+- Conditions need `json_schema_version` `:draft7` or later, or `:openapi31`. Other versions ignore `if` / `then` / `else`, so Verquest raises `ArgumentError` when the version is prepared.
+
+The example gives this schema:
+
+```json
+{
+  "type": "object",
+  "required": ["effective_from"],
+  "properties": {
+    "effective_from": {"type": "string"}, "credit_card": {"type": "string"}, "billing_address": {"type": "string"},
+    "percentages": {"...": "..."}, "percentage": {"...": "..."}, "applies_to": {"...": "..."}
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {"required": ["percentages"]},
+      "then": {"required": ["percentages"], "properties": {"percentage": false, "applies_to": false}},
+      "else": {"required": ["percentage"], "properties": {"percentages": false}}
+    },
+    {"if": {"required": ["credit_card"]}, "then": {"required": ["billing_address"]}}
+  ]
+}
+```
+
+##### Documenting a condition as a oneOf
+
+`document_as: :one_of` keeps `if` / `then` / `else` in the validation schema, but `to_schema` (the documentation) renders a `oneOf` with one variant per branch. `then_apply` and `else_apply` take a `title`, `description` and `deprecated` for their variant:
+
+```ruby
+version "2025-09" do
+  field :effective_from, type: :string, required: true
+
+  condition :pricing, document_as: :one_of do
+    given { present :percentages }
+    then_apply title: "Per-type percentages" do
+      object :percentages, required: true, min_properties: 1 do
+        field :unit_types, type: :number, maximum: 9999.99
+      end
+    end
+    else_apply title: "Shared percentage", deprecated: true do
+      field :percentage, type: :number, required: true
+    end
+  end
+end
+```
+
+```json
+{
+  "oneOf": [
+    {"type": "object", "title": "Per-type percentages", "required": ["effective_from", "percentages"], "properties": {"effective_from": {"...": "..."}, "percentages": {"...": "..."}}, "additionalProperties": false},
+    {"type": "object", "title": "Shared percentage", "deprecated": true, "required": ["effective_from", "percentage"], "properties": {"effective_from": {"...": "..."}, "percentage": {"...": "..."}}, "additionalProperties": false}
+  ]
+}
+```
+
+- Each variant lists the version's properties without the ones only the other branch declares, and adds its branch's rules. The `then` variant also holds the `given` rules, and the `else` variant `not` the `given` rules, unless it already forbids a property `given` requires. Both schemas accept the same payloads. When a rule clashes with a property's own schema (for example `given { absent :note }` against a declared `note`, or `satisfies :age, minimum: 18` against `minimum: 0`), the variant keeps both by adding the rule under `allOf`.
+- Validation still uses the `if` / `then` / `else` schema, so validation errors point at those rules, not at a `oneOf` variant.
+- When `additionalProperties` isn't `false`, the other branch's properties are forbidden with `false` in each variant.
+- Only for a condition in a version, and it must be the only condition in that version. The version's `description` stays at the root of the schema.
+- The schema has no root `properties`, so `to_ref(property:)` can't point into it.
+
 #### oneOf discriminators in validation
 
 A `one_of` with a `discriminator:` keeps the discriminator in the validation schema. Its variants move into local `definitions` that `oneOf` references with `$ref`. An id, written as both `$id` and `id` so every JSON Schema version reads it, makes those references resolve wherever the schema is embedded:

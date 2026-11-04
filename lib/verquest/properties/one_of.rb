@@ -252,7 +252,7 @@ module Verquest
         # Build mapping from object's child properties
         # Properties are mapped directly under source_prefix (not source_prefix + object_name)
         # to match how Reference variants work
-        schema.send(:properties).each_value do |property|
+        schema.all_properties.each_value do |property|
           property.mapping(
             key_prefix: source_prefix,
             value_prefix: variant_target_prefix,

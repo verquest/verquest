@@ -18,6 +18,8 @@ module Verquest
     #     item: ProductRequest
     #   )
     class Collection < Base
+      include HelperMethods::ConditionalProperties
+
       # Initialize a new Collection property
       #
       # @param name [String, Symbol] The name of the property
@@ -31,6 +33,7 @@ module Verquest
         raise ArgumentError, "You can not map collection to the root" if map == "/"
 
         @properties = {}
+        @conditions = []
 
         @name = name.to_s
         @item = item
@@ -54,6 +57,17 @@ module Verquest
         properties[property.name] = property
       end
 
+      # Add a condition to this collection's item definition
+      #
+      # @param condition [Verquest::Conditions::Condition] The condition to add
+      # @return [Array<Verquest::Conditions::Condition>] The conditions
+      # @raise [ArgumentError] If the collection items are defined by `item:`
+      def add_condition(condition)
+        raise ArgumentError, "condition can not be declared in a collection defined by item:" if has_item?
+
+        super
+      end
+
       # Check if this collection references an external item schema
       #
       # @return [Boolean] True if the collection uses an external reference
@@ -71,8 +85,10 @@ module Verquest
       # Returns the oneOf property if this collection contains one
       #
       # @return [Verquest::Properties::OneOf, nil] The oneOf property or nil
+      # @raise [ArgumentError] If the collection also has conditions
       def one_of_property
         return nil unless has_one_of?
+        raise ArgumentError, "Conditions can not be declared next to a one_of in a collection" if conditions.any?
 
         properties.values.first
       end
@@ -104,10 +120,11 @@ module Verquest
               "items" => {
                 "type" => "object",
                 "required" => required_properties,
-                "properties" => properties.transform_values { |property| property.to_schema[property.name] },
+                "properties" => all_properties.transform_values { |property| property.to_schema[property.name] },
                 "additionalProperties" => Verquest.configuration.default_additional_properties
               }.tap do |schema|
                 schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+                add_conditions(schema)
               end
             }.merge(schema_options)
           }
@@ -141,10 +158,11 @@ module Verquest
               "items" => {
                 "type" => "object",
                 "required" => required_properties,
-                "properties" => properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] },
+                "properties" => all_properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] },
                 "additionalProperties" => Verquest.configuration.default_additional_properties
               }.tap do |schema|
                 schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
+                add_conditions(schema)
               end
             }.merge(schema_options)
           }
@@ -186,7 +204,7 @@ module Verquest
           one_of_property.mapping(key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping: one_of_mapping, version:)
           mapping.merge!(one_of_mapping)
         else
-          properties.values.each do |property|
+          all_properties.values.each do |property|
             property.mapping(key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping:, version:)
           end
         end
