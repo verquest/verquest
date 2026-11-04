@@ -94,7 +94,7 @@ module Verquest
     end
 
     # Variants that differ only by `const` must still be inferred under dialects
-    # without `const` (draft 4, OpenAPI 3.0), because inference uses draft 2020-12
+    # without `const` (draft 4, OpenAPI 3.0), because inference reads `const` as a one-value `enum`
     %i[draft4 openapi30].each do |dialect|
       define_method(:"test_#{dialect}_infers_variants_that_differ_only_by_const") do
         request = with_configuration(json_schema_version: dialect) do

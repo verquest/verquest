@@ -199,13 +199,10 @@ module Verquest
           reference_mapping.transform_values! { |v| "#{value_key_prefix}/#{v}" }
 
           mapping.merge!(reference_mapping)
-        elsif has_one_of?
-          one_of_mapping = {}
-          one_of_property.mapping(key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping: one_of_mapping, version:)
-          mapping.merge!(one_of_mapping)
         else
-          all_properties.values.each do |property|
-            property.mapping(key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping:, version:)
+          children = has_one_of? ? [one_of_property] : all_properties.values
+          children.each do |property|
+            add_child_mapping(property, key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping:, version:)
           end
         end
       end

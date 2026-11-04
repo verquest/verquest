@@ -576,16 +576,16 @@ class Verquest::TransformerTest < Minitest::Test
     assert_equal cases, cases.to_h { |input, _| [input, transformer.call(input)] }
   end
 
-  def test_collection_with_one_of_without_properties_inside_the_collection
+  def test_collection_with_one_of_rejects_variant_properties_outside_the_items
     mapping = {
       "_discriminator" => "pets[]/type",
       "dog" => {"pets[]/type" => "dog_type"},
       "cat" => {"pets[]/type" => "cat_type"}
     }
 
-    result = Verquest::Transformer.new(mapping: mapping).call({"pets" => [{"type" => "dog"}]})
+    error = assert_raises(Verquest::MappingError) { Verquest::Transformer.new(mapping: mapping) }
 
-    assert_equal({"pets" => [{"dog_type" => "dog"}]}, result)
+    assert_equal "map: can't move a oneOf variant property out of its collection item (pets[]/type => dog_type)", error.message
   end
 
   def test_transformer_is_frozen

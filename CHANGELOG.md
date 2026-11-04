@@ -8,6 +8,9 @@
 - A `one_of` with a `discriminator:` keeps the discriminator in the validation schema. Its variants move into local `definitions` referenced by `$ref`, under a content-hash id written as both `$id` and `id` (`https://verquest.local/one_of/...`). With `json_schema_version = :openapi31` or `:openapi30`, validation errors come only from the variant the discriminator selects, and a missing, unknown or non-object value gets a single `discriminator` error. Under `:openapi30`, valid payloads that were rejected with `oneOf` errors (OpenAPI 3.0 has no `const`, so they matched every variant) now pass. Other versions validate as before, but `to_validation_schema` output changes. If you register these schemas with another validator, note the new ids.
 - The transformer turns every mapping format into one plan built at initialization, and is frozen. `Verquest::NOT_FOUND` moved to `Verquest::Transformer::Path::NOT_FOUND`. In the mapping, `_variant_path` and `_nullable_path` hold the full source path inside collections too (`entries[]/content` instead of `content`).
 - A `null` oneOf maps to `null` whether it has a discriminator or not, and inside multiple oneOfs.
+- A oneOf inside a `collection` is listed in the mapping's `_oneOfs` array, like several oneOfs, instead of putting its metadata at the top level.
+- A oneOf variant property moved out of a collection item with `map: "/..."` raises `Verquest::MappingError` when the class is defined. Each item selects its own variant, so it can't be collected outside the items.
+- The transformer allocates two to four times fewer objects per call and runs 15–40% faster. `rake bench` measures it.
 
 ### Fixed
 - A `one_of` inside an `object` mapped a valid payload to an empty hash, and two of them clashed. It also works inside an object in a collection.
@@ -17,6 +20,10 @@
 - Properties whose names start with `_` are mapped next to oneOfs and inverted in `external_mapping`.
 - A collection with `map:` and a oneOf no longer nests every item under the collection name again, also when a variant's first property is moved out with `map: "/..."`.
 - Without validation, a present oneOf without its discriminator raises "Missing discriminator" instead of mapping to an empty hash, and an unknown value raises in collection items too. A value naming a metadata key no longer crashes with `NoMethodError`.
+- Variant inference (a oneOf without a discriminator) reads the variant schemas in the configured `json_schema_version`. Under draft 4, a boolean `exclusive_maximum` crashed it. Under draft 4 and OpenAPI 3.0, which have no `const`, it reads `const` as a one-value `enum`, so variants that differ only by a const are still told apart.
+- oneOfs in a collection inside a collection, and in several collections of one version, are mapped. Before, the discriminator read an array of values, and the second collection's oneOf overwrote the first one's.
+- A property moved out of collection items with `map: "/..."` writes `null` for items without the value, instead of an internal object. In a collection holding a oneOf, it is collected outside the items again.
+- `external_mapping` inverts the oneOfs nested in objects and collections, which were left as a hash key.
 
 ## [0.6.3] - 2026-09-23
 

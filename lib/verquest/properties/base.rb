@@ -117,6 +117,23 @@ module Verquest
 
         value_prefix
       end
+
+      # Adds the mapping of a child property
+      #
+      # A oneOf gets its own mapping in the `_oneOfs` array, so its metadata
+      # can't clash with another oneOf in the same mapping.
+      #
+      # @param property [Verquest::Properties::Base] The child property
+      # @param mapping [Hash] The mapping hash to be updated
+      # @param options [Hash] The key_prefix, value_prefix and version for the child mapping
+      # @return [void]
+      def add_child_mapping(property, mapping:, **options)
+        return property.mapping(mapping:, **options) unless property.is_a?(OneOf)
+
+        one_of_mapping = {}
+        property.mapping(mapping: one_of_mapping, **options)
+        (mapping["_oneOfs"] ||= []) << one_of_mapping
+      end
     end
   end
 end

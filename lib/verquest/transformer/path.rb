@@ -122,7 +122,7 @@ module Verquest
 
         part = parts[index]
         if index == last
-          result[part.key] = value
+          result[part.key] = value.is_a?(Array) ? plain(value) : value
         elsif part.array && value.is_a?(Array)
           set_items(result[part.key] ||= [], value, index + 1)
         else
@@ -139,6 +139,27 @@ module Verquest
         values.each_with_index do |value, position|
           item = (items[position] ||= {})
           set_at(item, value, index) unless value.equal?(NOT_FOUND)
+        end
+      end
+
+      # Turns the markers in an array of values into nulls
+      #
+      # An array of values reaches the last part when a property is moved out
+      # of collection items with map: "/...". Items without the value keep
+      # their position as null.
+      #
+      # @param values [Array<Object>] The values, possibly nested
+      # @return [Array<Object>] The values with NOT_FOUND and NullParent as nil
+      def plain(values)
+        # Most arrays are array fields without markers, which are kept as they are
+        return values unless values.any? { |value| value.is_a?(Array) || value.is_a?(NullParent) || value.equal?(NOT_FOUND) }
+
+        values.map do |value|
+          case value
+          when Array then plain(value)
+          when NullParent, NOT_FOUND then nil
+          else value
+          end
         end
       end
 

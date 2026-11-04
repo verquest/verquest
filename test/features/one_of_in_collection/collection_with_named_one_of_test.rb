@@ -68,10 +68,10 @@ class Verquest::CollectionWithNamedOneOfTest < Minitest::Test
   end
 
   def test_mapping_with_named_one_of_in_collection_object
-    mapping = EntriesRequest.mapping(version: "2025-06")
+    one_of_mapping = EntriesRequest.mapping(version: "2025-06")["_oneOfs"].first
 
-    assert mapping.key?("_variant_schemas")
-    assert_equal %w[with_id without_id], mapping["_variant_schemas"].keys.sort
+    assert_equal %w[with_id without_id], one_of_mapping["_variant_schemas"].keys.sort
+    assert_equal "entries[]/content", one_of_mapping["_variant_path"]
   end
 
   def test_process_entries_with_named_one_of

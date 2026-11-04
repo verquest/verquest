@@ -5,9 +5,9 @@ module Verquest
     # A collection whose items are transformed one by one, because they hold a oneOf
     #
     # @!attribute [r] source
-    #   @return [Path] The collection in the params
+    #   @return [Path] The collection in the data of the parent scope
     # @!attribute [r] target
-    #   @return [Path] The collection in the result
+    #   @return [Path] The collection in the result of the parent scope
     # @!attribute [r] scope
     #   @return [Scope] The mapping of each item, with item-level paths
     Collection = Data.define(:source, :target, :scope) do
@@ -15,12 +15,12 @@ module Verquest
       #
       # A null collection, or one below a null parent, stays null.
       #
-      # @param params [Hash] The input parameters
-      # @param result [Hash] The hash to write to
+      # @param data [Object] The data of the parent scope
+      # @param result [Hash] The result of the parent scope
       # @return [Hash] The result
       # @raise [Verquest::MappingError] If an item's oneOf matches no variant or more than one
-      def call(params, result)
-        items = source.extract(params, nulls: true)
+      def call(data, result)
+        items = source.extract(data, nulls: true)
         return result if items.equal?(Path::NOT_FOUND)
 
         target.set(result, items.is_a?(Array) ? items.map { |item| scope.call(item) } : items)

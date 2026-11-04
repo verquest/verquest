@@ -13,6 +13,8 @@ gem "minitest-difftastic", "~> 0.2"
 gem "mocha", "~> 3.0"
 gem "simplecov", "~> 0.22", require: false
 
+gem "benchmark-ips", "~> 2.14", require: false
+
 gem "standard"
 gem "standard-performance"
 gem "rubocop-minitest"

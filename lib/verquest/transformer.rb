@@ -67,9 +67,7 @@ module Verquest
     # @param discriminator [String, Symbol, nil] The discriminator of a root-level oneOf
     # @return [Transformer] A new transformer instance
     def initialize(mapping:, discriminator: nil)
-      plan = Plan.new(mapping, discriminator:)
-      @root = plan.root
-      @collections = plan.collections
+      @root = Plan.new(mapping, discriminator:).root
       freeze
     end
 
@@ -79,15 +77,13 @@ module Verquest
     # @return [Hash] The transformed parameters with string keys
     # @raise [Verquest::MappingError] If a oneOf matches no variant or more than one
     def call(params)
-      collections.each_with_object(root.call(params)) { |collection, result| collection.call(params, result) }
+      root.call(params)
     end
 
     private
 
     # @!attribute [r] root
     #   @return [Scope] The mapping of the params
-    # @!attribute [r] collections
-    #   @return [Array<Collection>] The collections transformed item by item
-    attr_reader :root, :collections
+    attr_reader :root
   end
 end

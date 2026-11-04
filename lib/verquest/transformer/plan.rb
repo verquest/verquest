@@ -6,14 +6,13 @@ module Verquest
     #
     # A mapping is flat, holds a single oneOf (variant mappings that repeat
     # the other properties, plus metadata keys), or several oneOfs (`_oneOfs`).
-    # The plan has one scope for the params and one for the items of each
-    # collection that holds a oneOf, since every item can select a different
-    # variant. Paths in a collection scope are relative to the item.
+    # The plan is a scope for the params, with a nested scope for the items
+    # of each collection that holds a oneOf, since every item can select a
+    # different variant. Paths in a collection scope are relative to the item.
     #
     # @example
     #   plan = Plan.new({"id" => "id", "_discriminator" => "pet/type", "dog" => {...}, "cat" => {...}})
-    #   plan.root        # => Scope with the "id" pair and the "pet" oneOf
-    #   plan.collections # => []
+    #   plan.root # => Scope with the "id" pair and the "pet" oneOf
     class Plan
       # A oneOf mapping with the oneOf source path and its variant mappings
       #
@@ -40,23 +39,17 @@ module Verquest
 
       # @!attribute [r] root
       #   @return [Scope] The mapping of the params
-      # @!attribute [r] collections
-      #   @return [Array<Collection>] The collections transformed item by item
-      attr_reader :root, :collections
+      attr_reader :root
 
       # Builds the plan
       #
       # @param mapping [Hash] The mapping in any of its formats
       # @param discriminator [String, Symbol, nil] The discriminator of a root-level oneOf
+      # @raise [Verquest::MappingError] If map: moves a oneOf variant property out of its collection item
       def initialize(mapping, discriminator: nil)
         @paths = {}
         one_ofs, pairs = split(mapping, discriminator&.to_s)
-        by_collection = one_ofs.group_by { |one_of| collection_of(one_of.path) }
-        prefixes = by_collection.keys - [""]
-        root_pairs = pairs.reject { |source, _| prefixes.any? { |prefix| inside?(source, prefix) } }
-
-        @root = build_scope(root_pairs, by_collection.fetch("", []), ROOT)
-        @collections = prefixes.map { |prefix| build_collection(prefix, by_collection[prefix], pairs) }.freeze
+        @root = build_scope(pairs, one_ofs, ROOT)
       end
 
       private
@@ -77,30 +70,45 @@ module Verquest
         [[one_of], pairs.merge(shared_pairs(one_of))]
       end
 
-      # Builds the plan for a collection whose items hold a oneOf
-      #
-      # @param prefix [String] The collection source path, ending with "[]"
-      # @param one_ofs [Array<OneOfMapping>] The oneOfs in the collection items
-      # @param pairs [Hash] The source and target pairs outside the oneOfs
-      # @return [Collection] The collection plan
-      def build_collection(prefix, one_ofs, pairs)
-        item_prefix = Prefix.new(source: prefix, target: target_collection(prefix, one_ofs, pairs))
-
-        Collection.new(
-          source: path(item_prefix.source.delete_suffix("[]")),
-          target: path(item_prefix.target.delete_suffix("[]")),
-          scope: build_scope(pairs.select { |source, _| inside?(source, prefix) }, one_ofs, item_prefix)
-        )
-      end
-
       # Builds a scope, with paths relative to the prefix
       #
-      # @param pairs [Hash] The source and target pairs
-      # @param one_ofs [Array<OneOfMapping>] The oneOfs
+      # The oneOfs inside a collection of this scope go to a nested scope for
+      # that collection's items, with the pairs mapped into those items. A pair
+      # moved out of the items with map: "/..." stays here.
+      #
+      # @param pairs [Hash] The source and target pairs in this scope
+      # @param one_ofs [Array<OneOfMapping>] The oneOfs in this scope
       # @param prefix [Prefix] The collection prefixes, ROOT for the params
       # @return [Scope] The scope
       def build_scope(pairs, one_ofs, prefix)
-        Scope.new(pairs: relative_pairs(pairs, prefix), one_ofs: one_ofs.map { |one_of| build_one_of(one_of, prefix) }.freeze)
+        by_collection = one_ofs.group_by { |one_of| collection_of(one_of.path, prefix.source) }
+        item_prefixes = (by_collection.keys - [""]).map do |source|
+          Prefix.new(source:, target: target_collection(source, by_collection[source], pairs))
+        end
+        item_pairs = item_prefixes.to_h do |item_prefix|
+          [item_prefix, pairs.select { |source, target| inside?(source, item_prefix.source) && inside?(target, item_prefix.target) }]
+        end
+
+        Scope.new(
+          pairs: relative_pairs(pairs.reject { |source, _| item_pairs.each_value.any? { |inner| inner.key?(source) } }, prefix),
+          one_ofs: by_collection.fetch("", []).map { |one_of| build_one_of(one_of, prefix) }.freeze,
+          collections: item_prefixes.map { |item_prefix| build_collection(item_prefix, by_collection[item_prefix.source], item_pairs[item_prefix], prefix) }.freeze
+        )
+      end
+
+      # Builds a collection whose items hold a oneOf
+      #
+      # @param item_prefix [Prefix] The collection prefixes, ending with "[]"
+      # @param one_ofs [Array<OneOfMapping>] The oneOfs in the collection items
+      # @param pairs [Hash] The source and target pairs mapped into the items
+      # @param prefix [Prefix] The prefixes of the parent scope
+      # @return [Collection] The collection
+      def build_collection(item_prefix, one_ofs, pairs, prefix)
+        Collection.new(
+          source: path(relative(item_prefix.source.delete_suffix("[]"), prefix.source)),
+          target: path(relative(item_prefix.target.delete_suffix("[]"), prefix.target)),
+          scope: build_scope(pairs, one_ofs, item_prefix)
+        )
       end
 
       # Builds a oneOf, with paths relative to the prefix
@@ -108,7 +116,9 @@ module Verquest
       # @param one_of [OneOfMapping] The oneOf mapping
       # @param prefix [Prefix] The collection prefixes, ROOT for the params
       # @return [OneOf] The oneOf
+      # @raise [Verquest::MappingError] If map: moves a variant property out of the collection item
       def build_one_of(one_of, prefix)
+        check_variant_targets(one_of, prefix)
         discriminator = one_of.mapping["_discriminator"]
         null_target = one_of.mapping["_nullable_target_path"]
 
@@ -119,6 +129,22 @@ module Verquest
           variant_schemas: (one_of.mapping["_variant_schemas"] unless discriminator),
           null_target: null_target && path(relative(null_target, prefix.target))
         )
+      end
+
+      # Rejects variant properties moved out of the collection item
+      #
+      # Each item selects its own variant, so its properties can only be
+      # mapped inside the item.
+      #
+      # @param one_of [OneOfMapping] The oneOf mapping
+      # @param prefix [Prefix] The collection prefixes, ROOT for the params
+      # @return [void]
+      # @raise [Verquest::MappingError] If a variant property is mapped out of the item
+      def check_variant_targets(one_of, prefix)
+        one_of.variants.each_value do |pairs|
+          source, target = pairs.find { |_, target_path| !inside?(target_path, prefix.target) }
+          raise MappingError, "map: can't move a oneOf variant property out of its collection item (#{source} => #{target})" if source
+        end
       end
 
       # Wraps a oneOf mapping with its source path and variant mappings
@@ -154,16 +180,21 @@ module Verquest
         return mapping["_variant_path"] || mapping["_nullable_path"] if mapping.key?("_variant_path") || mapping.key?("_nullable_path")
 
         sources = variants.values.flat_map(&:keys)
-        collection = collection_of(sources.first)
+        collection = collection_of(sources.first, "")
         (!collection.empty? && sources.all? { |source| inside?(source, collection) }) ? collection : ""
       end
 
-      # Returns the collection a path starts in
+      # Returns the first collection a path enters below a scope
       #
       # @param path [String] The source path
-      # @return [String] The collection path ending with "[]", empty outside a collection
-      def collection_of(path)
-        path.include?("[]") ? "#{path.split("[]").first}[]" : ""
+      # @param scope_source [String] The source prefix of the scope, empty for the params
+      # @return [String] The collection path ending with "[]", empty when the path enters none
+      def collection_of(path, scope_source)
+        below = relative(path, scope_source)
+        return "" unless below.include?("[]")
+
+        collection = "#{below.split("[]").first}[]"
+        scope_source.empty? ? collection : "#{scope_source}/#{collection}"
       end
 
       # Returns the target path of a collection, which differs when it uses map:
@@ -176,9 +207,10 @@ module Verquest
       # @param pairs [Hash] The source and target pairs outside the oneOfs
       # @return [String] The collection target path, ending with "[]"
       def target_collection(prefix, one_ofs, pairs)
+        depth = prefix.scan("[]").size
         candidates = one_ofs.flat_map { |one_of| one_of.variants.values.flat_map(&:to_a) } + pairs.to_a
-        _, target = candidates.find { |source, target_path| inside?(source, prefix) && target_path.include?("[]/") }
-        target ? "#{target.split("[]/").first}[]" : prefix
+        _, target = candidates.find { |source, target_path| inside?(source, prefix) && target_path.scan("[]/").size >= depth }
+        target ? "#{target.split("[]/").first(depth).join("[]/")}[]" : prefix
       end
 
       # Converts source and target pairs to paths relative to the prefix

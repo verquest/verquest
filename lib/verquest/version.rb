@@ -247,13 +247,13 @@ module Verquest
       nested_one_of_count > 1
     end
 
-    # Returns the count of nested oneOf properties (computed once and cached)
+    # Returns the count of nested oneOf properties
+    #
+    # Not memoized, because the version is frozen once it is prepared.
     #
     # @return [Integer] Number of nested oneOf properties
     def nested_one_of_count
-      return @_nested_one_of_count if defined?(@_nested_one_of_count)
-
-      @_nested_one_of_count = properties.values.count do |p|
+      properties.values.count do |p|
         p.is_a?(Verquest::Properties::OneOf) && !p.name.nil?
       end
     end
@@ -427,7 +427,8 @@ module Verquest
     #   paths and values are the corresponding external schema paths
     # @see #prepare_mapping
     def prepare_external_mapping
-      @external_mapping = if has_multiple_nested_one_of?
+      # Chosen by the mapping shape: oneOfs nested in objects or collections are in _oneOfs too
+      @external_mapping = if mapping.key?("_oneOfs")
         invert_multiple_one_of_mapping
       elsif has_nested_one_of?
         invert_single_one_of_mapping

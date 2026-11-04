@@ -21,9 +21,7 @@ class Verquest::CollectionWithMappedOneOfTest < Minitest::Test
     version "2025-06" do
       collection :pets, map: "animals" do
         one_of discriminator: :type do
-          # A first property moved out of the collection must not be taken for the collection path
           object :dog do
-            field :tag, type: :string, map: "/last_tag"
             const :type, value: "dog"
             field :bark, type: :boolean
           end

@@ -95,9 +95,7 @@ module Verquest
       # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
         all_properties.values.each do |property|
-          target = property.is_a?(OneOf) ? {} : mapping
-          property.mapping(key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping: target, version:)
-          (mapping["_oneOfs"] ||= []) << target if property.is_a?(OneOf)
+          add_child_mapping(property, key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:)
         end
       end
 

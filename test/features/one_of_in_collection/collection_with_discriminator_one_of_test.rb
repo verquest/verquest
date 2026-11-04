@@ -60,12 +60,10 @@ class Verquest::CollectionWithDiscriminatorOneOfTest < Minitest::Test
   end
 
   def test_mapping_with_discriminator_in_collection
-    mapping = PetsRequest.mapping(version: "2025-06")
+    one_of_mapping = PetsRequest.mapping(version: "2025-06")["_oneOfs"].first
 
     # Discriminator-based oneOf in collection has _discriminator for per-item resolution
-    assert mapping.key?("_discriminator")
-    assert mapping.key?("dog")
-    assert mapping.key?("cat")
+    assert_equal({"_discriminator" => true, "dog" => true, "cat" => true}, %w[_discriminator dog cat].to_h { |key| [key, one_of_mapping.key?(key)] })
   end
 
   def test_process_mixed_pets_in_collection

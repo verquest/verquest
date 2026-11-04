@@ -42,7 +42,8 @@ module Verquest
           ["users[]/name", ["A", NOT_FOUND]] => {"users" => [{"name" => "A"}, {}]},
           ["user/site_id", Path::NullParent.new(1)] => {"user" => nil},
           ["user/site/id", Path::NullParent.new(1)] => {"user" => {"site" => nil}},
-          ["site_id", Path::NullParent.new(2)] => {"site_id" => nil}
+          ["site_id", Path::NullParent.new(2)] => {"site_id" => nil},
+          ["tags", ["a", NOT_FOUND, Path::NullParent.new(1), [NOT_FOUND, "b"]]] => {"tags" => ["a", nil, nil, [nil, "b"]]}
         }
 
         assert_equal cases.values, cases.keys.map { |(path, value)| Path.new(path).set({}, value) }

@@ -18,6 +18,9 @@ module Verquest
       # The pairs of an absent oneOf
       NO_PAIRS = [].freeze
 
+      # JSON Schema versions without `const`
+      VERSIONS_WITHOUT_CONST = %i[draft4 openapi30].freeze
+
       # Initialize a new OneOf
       #
       # @param path [Path] The oneOf property, empty for a oneOf at the scope root
@@ -29,7 +32,7 @@ module Verquest
         @path = path
         @variants = variants
         @discriminator = discriminator
-        @schemers = variant_schemas&.transform_values { |schema| JSONSchemer.schema(schema) }
+        @schemers = variant_schemas&.transform_values { |schema| schemer(schema) }
         @null_mapping = path.empty? ? NO_PAIRS : [[path, null_target || path].freeze].freeze
         freeze
       end
@@ -62,6 +65,16 @@ module Verquest
       # @!attribute [r] null_mapping
       #   @return [Array<Array(Path, Path)>] The pairs for a null oneOf
       attr_reader :path, :variants, :discriminator, :schemers, :null_mapping
+
+      # Compiles a variant schema in the configured JSON Schema version, like the validation schema
+      #
+      # @param schema [Hash] The variant validation schema
+      # @return [JSONSchemer::Schema] The schemer
+      def schemer(schema)
+        configuration = Verquest.configuration
+        schema = ConstAsEnum.call(schema) if VERSIONS_WITHOUT_CONST.include?(configuration.json_schema_version)
+        JSONSchemer.schema(schema, meta_schema: configuration.json_schema_uri)
+      end
 
       # @param data [Object] The scope data holding the oneOf
       # @return [String] The variant named by the discriminator value

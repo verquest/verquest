@@ -47,11 +47,10 @@ class Verquest::CollectionWithOneOfTest < Minitest::Test
   end
 
   def test_mapping_with_one_of_in_collection
-    mapping = ItemsRequest.mapping(version: "2025-06")
+    one_of_mapping = ItemsRequest.mapping(version: "2025-06")["_oneOfs"].first
 
     # Should include variant schemas for inference
-    assert mapping.key?("_variant_schemas")
-    assert_equal %w[with_id without_id], mapping["_variant_schemas"].keys.sort
+    assert_equal %w[with_id without_id], one_of_mapping["_variant_schemas"].keys.sort
   end
 
   def test_process_mixed_items_in_collection

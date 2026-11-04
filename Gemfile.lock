@@ -9,6 +9,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.3)
+    benchmark-ips (2.14.0)
     bigdecimal (4.0.1)
     date (3.5.1)
     difftastic (0.8.0)
@@ -125,6 +126,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  benchmark-ips (~> 2.14)
   irb
   minitest (~> 6)
   minitest-difftastic (~> 0.2)

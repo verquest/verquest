@@ -82,6 +82,13 @@ class Verquest::OneOfInObjectTest < Minitest::Test
     assert_equal cases.transform_values(&:last), results
   end
 
+  def test_external_mapping
+    external = WrappedRequest.external_mapping(version: "2025-06")
+
+    assert_equal({"id" => "id", "box/label" => "wrapper/label"}, external.except("_oneOfs"))
+    assert_equal({"box/value/total" => "wrapper/value/amount"}, external["_oneOfs"].first["number"])
+  end
+
   def test_process_in_a_collection
     params = {"entries" => [
       {"entry_id" => "a", "body" => {"kind" => "k", "value" => {"amount" => 1}}},
