@@ -15,6 +15,9 @@ module Verquest
     #   )
     #   one_of.mapping_for({"pet" => {"type" => "dog", "bark" => true}}) # => the "dog" pairs
     class OneOf
+      # The pairs of an absent oneOf
+      NO_PAIRS = [].freeze
+
       # Initialize a new OneOf
       #
       # @param path [Path] The oneOf property, empty for a oneOf at the scope root
@@ -27,7 +30,7 @@ module Verquest
         @variants = variants
         @discriminator = discriminator
         @schemers = variant_schemas&.transform_values { |schema| JSONSchemer.schema(schema) }
-        @null_mapping = path.to_s.empty? ? [] : [[path, null_target || path]]
+        @null_mapping = path.empty? ? NO_PAIRS : [[path, null_target || path].freeze].freeze
         freeze
       end
 
@@ -39,8 +42,8 @@ module Verquest
       # @return [Array<Array(Path, Path)>] The source and target pairs
       # @raise [Verquest::MappingError] If no variant or more than one variant matches
       def mapping_for(data)
-        value = path.to_s.empty? ? data : path.extract(data)
-        return [] if value.equal?(Path::NOT_FOUND)
+        value = path.extract(data)
+        return NO_PAIRS if value.equal?(Path::NOT_FOUND)
         return null_mapping if value.nil?
 
         variants.fetch(discriminator ? discriminated_variant(data) : inferred_variant(value))
@@ -66,7 +69,9 @@ module Verquest
       def discriminated_variant(data)
         value = discriminator.extract(data)
         raise Verquest::MappingError, "Missing discriminator \"#{discriminator}\" for oneOf." if value.nil? || value.equal?(Path::NOT_FOUND)
-        return value.to_s if variants.key?(value.to_s)
+
+        name = value.to_s
+        return name if variants.key?(name)
 
         raise Verquest::MappingError, "Unknown discriminator value \"#{value}\" for oneOf. No matching variant found."
       end
@@ -75,10 +80,12 @@ module Verquest
       # @return [String] The only variant whose schema the value matches
       # @raise [Verquest::MappingError] If no variant or more than one variant matches
       def inferred_variant(value)
-        # Two matches are enough to know the match is ambiguous
-        matches = schemers.each_key.lazy.select { |name| schemers[name].valid?(value) }.first(2)
+        matches = []
+        schemers.each do |name, schemer|
+          matches << name if schemer.valid?(value)
+          break if matches.size == 2 # Two matches are enough to know the input is ambiguous
+        end
         return matches.first if matches.one?
-
         raise Verquest::MappingError, "No matching schema found for oneOf. Input does not match any of the defined schemas." if matches.empty?
 
         raise Verquest::MappingError, "Ambiguous oneOf match. Input matches multiple schemas: #{matches.join(", ")}. " \

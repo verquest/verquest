@@ -49,9 +49,14 @@ module Verquest
       end
 
       def test_set_null_parent_keeps_an_existing_value
-        result = {"user" => {"site" => {"id" => "1"}}}
+        cases = {
+          "existing object" => [{"user" => {"site" => {"id" => "1"}}}, "user/site/name", 1],
+          "existing scalar on the way" => [{"user" => "x"}, "user/site/id", 0]
+        }
 
-        assert_equal({"user" => {"site" => {"id" => "1"}}}, Path.new("user/site/name").set(result, Path::NullParent.new(1)))
+        results = cases.transform_values { |(result, path, depth_below)| Path.new(path).set(Marshal.load(Marshal.dump(result)), Path::NullParent.new(depth_below)) }
+
+        assert_equal cases.transform_values(&:first), results
       end
     end
   end

@@ -5,7 +5,9 @@ module Verquest
     # A parsed slash-separated path, like "user/addresses[]/zip"
     #
     # A part ending with "[]" is an array: reading it reads every item, and
-    # writing it writes every item at its position.
+    # writing it writes every item at its position. Paths are parsed once,
+    # when the transformer is built, and reading or writing allocates only
+    # the values and hashes it returns.
     #
     # @example
     #   path = Path.new("users[]/name")
@@ -22,7 +24,7 @@ module Verquest
       #
       # @!attribute [r] depth_below
       #   @return [Integer] How many path parts are below the null parent
-      NullParent = Struct.new(:depth_below)
+      NullParent = Data.define(:depth_below)
 
       # One part of a path
       #
@@ -40,9 +42,17 @@ module Verquest
 
       # @param path [String] The slash-separated path
       def initialize(path)
-        @to_s = path.freeze
+        @to_s = path.dup.freeze
         @parts = path.split("/").map { |part| Part.new(key: part.delete_suffix("[]"), array: part.end_with?("[]")) }.freeze
+        # One NullParent per part, so reading a null allocates nothing
+        @null_parents = Array.new(parts.length) { |index| NullParent.new(depth_below: parts.length - index - 1) }.freeze
+        @last = parts.length - 1
         freeze
+      end
+
+      # @return [Boolean] True for the empty path, which reads the data itself
+      def empty?
+        parts.empty?
       end
 
       # Reads the value at this path
@@ -69,35 +79,35 @@ module Verquest
 
       private
 
+      # @!attribute [r] null_parents
+      #   @return [Array<NullParent>] The NullParent for a null at each part
+      # @!attribute [r] last
+      #   @return [Integer] The index of the last part
+      attr_reader :null_parents, :last
+
       # @param data [Object] The data to read from
       # @param index [Integer] The current part
       # @param nulls [Boolean] Whether to return a NullParent below an explicit null
       # @return [Object, NullParent, NOT_FOUND] The value
       def extract_at(data, index, nulls)
-        return data if index >= parts.length
+        return data if index > last
 
-        part = parts[index]
         case data
-        when Hash
-          extract_from_hash(data, part, index, nulls)
-        when Array
-          # An array reached by a part without "[]" is read item by item
-          data.map { |item| extract_at(item, index, nulls) }
-        else
-          NOT_FOUND
+        when Hash then extract_from_hash(data, index, nulls)
+        # An array reached by a part without "[]" is read item by item
+        when Array then data.map { |item| extract_at(item, index, nulls) }
+        else NOT_FOUND
         end
       end
 
       # @param data [Hash] The hash to read from
-      # @param part [Part] The current part
-      # @param index [Integer] The current part index
+      # @param index [Integer] The current part
       # @param nulls [Boolean] Whether to return a NullParent below an explicit null
       # @return [Object, NullParent, NOT_FOUND] The value
-      def extract_from_hash(data, part, index, nulls)
-        return NOT_FOUND unless data.key?(part.key)
-
-        value = data[part.key]
-        return NullParent.new(parts.length - index - 1) if nulls && value.nil? && index < parts.length - 1
+      def extract_from_hash(data, index, nulls)
+        part = parts[index]
+        value = data.fetch(part.key) { return NOT_FOUND }
+        return null_parents[index] if value.nil? && nulls && index < last
         return value.map { |item| extract_at(item, index + 1, nulls) } if part.array && value.is_a?(Array)
 
         extract_at(value, index + 1, nulls)
@@ -108,35 +118,46 @@ module Verquest
       # @param index [Integer] The current part
       # @return [Hash] The result
       def set_at(result, value, index)
-        return set_null_parent(result, value, index) if value.is_a?(NullParent)
+        return set_null(result, index, [last - value.depth_below, index].max) if value.is_a?(NullParent)
 
         part = parts[index]
-        if index == parts.length - 1
+        if index == last
           result[part.key] = value
         elsif part.array && value.is_a?(Array)
-          items = (result[part.key] ||= [])
-          value.each_with_index do |item_value, item_index|
-            items[item_index] ||= {}
-            set_at(items[item_index], item_value, index + 1) unless item_value.equal?(NOT_FOUND)
-          end
+          set_items(result[part.key] ||= [], value, index + 1)
         else
           set_at(result[part.key] ||= {}, value, index + 1)
         end
         result
       end
 
-      # Sets the target of a value below an explicit null to null
+      # @param items [Array<Hash>] The array to write to
+      # @param values [Array<Object>] The values, one per item
+      # @param index [Integer] The part below the array
+      # @return [void]
+      def set_items(items, values, index)
+        values.each_with_index do |value, position|
+          item = (items[position] ||= {})
+          set_at(item, value, index) unless value.equal?(NOT_FOUND)
+        end
+      end
+
+      # Sets the part at null_index to null, unless it already has a value
       #
       # The null goes as many parts above the end of this path as it is above
       # the end of the source path, but never above the current part.
       #
       # @param result [Hash] The hash to write to
-      # @param null_parent [NullParent] The null found in the source
       # @param index [Integer] The current part
+      # @param null_index [Integer] The part to set to null
       # @return [Hash] The result
-      def set_null_parent(result, null_parent, index)
-        null_path = Path.new(parts.drop(index).first([parts.length - index - null_parent.depth_below, 1].max).map(&:key).join("/"))
-        null_path.set(result, nil) if null_path.extract(result).equal?(NOT_FOUND)
+      def set_null(result, index, null_index)
+        node = result
+        index.upto(null_index - 1) do |position|
+          node = (node[parts[position].key] ||= {})
+          return result unless node.is_a?(Hash)
+        end
+        node[parts[null_index].key] = nil unless node.key?(parts[null_index].key)
         result
       end
     end
