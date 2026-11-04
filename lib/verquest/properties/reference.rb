@@ -56,32 +56,22 @@ module Verquest
       end
 
       # Create mapping for this reference property
-      # This delegates to the referenced schema's mapping with appropriate key prefixing
+      #
+      # The referenced request's properties map themselves under this
+      # reference's prefixes. A reference to a single property maps that
+      # property as if it were declared here, with this reference's name and map:.
       #
       # @param key_prefix [Array<String>] Prefix for the source key
       # @param value_prefix [Array<String>] Prefix for the target value
       # @param mapping [Hash] The mapping hash to be updated
       # @param version [String] The version to create mapping for
       # @return [void]
+      # @raise [Verquest::PropertyNotFoundError] If the referenced property doesn't exist
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
-        reference_mapping = from.mapping(version:, property:).dup
-        value_key_prefix = mapping_value_key(value_prefix:)
+        return add_request_mapping(from, key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:) unless property
 
-        # Single field mapping
-        if property && reference_mapping.size == 1 && !reference_mapping.keys.first.include?("/")
-          reference_mapping = {
-            (key_prefix + [name]).join("/") => value_key_prefix
-          }
-        else
-          if value_key_prefix != "" && !value_key_prefix.end_with?("/")
-            value_key_prefix = "#{value_key_prefix}/"
-          end
-
-          reference_mapping.transform_keys! { "#{(key_prefix + [name]).join("/")}/#{_1}" }
-          reference_mapping.transform_values! { "#{value_key_prefix}#{_1}" }
-        end
-
-        mapping.merge!(reference_mapping)
+        referenced = from.resolve(version)
+        add_child_mapping(referenced.fetch_property(property).renamed(name:, map:), key_prefix:, value_prefix:, mapping:, version: referenced.name)
       end
 
       private

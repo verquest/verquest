@@ -15,6 +15,9 @@ module Verquest
   class Configuration
     include Base::HelperClassMethods
 
+    # JSON Schema versions without the `const` keyword
+    VERSIONS_WITHOUT_CONST = %i[draft4 openapi30].freeze
+
     # Mapping of supported JSON Schema versions to their implementation classes
     #
     # This constant maps the symbolic names of JSON Schema versions to their
@@ -149,6 +152,15 @@ module Verquest
     # @raise [ArgumentError] If the configured json_schema_version is not supported
     def json_schema
       SCHEMAS[json_schema_version] || raise(ArgumentError, "Unsupported JSON Schema version: #{json_schema_version}")
+    end
+
+    # Checks whether the configured JSON Schema version has the `const` keyword
+    #
+    # Draft 4 and OpenAPI 3.0 don't, so a constant is written as a one-value `enum` there.
+    #
+    # @return [Boolean] False for draft 4 and OpenAPI 3.0
+    def const_keyword?
+      !VERSIONS_WITHOUT_CONST.include?(json_schema_version)
     end
 
     # Gets the JSON Schema URI for the configured schema version

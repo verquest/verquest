@@ -21,6 +21,7 @@ module Verquest
   class Version
     include HelperMethods::RequiredProperties
     include HelperMethods::ConditionalProperties
+    include HelperMethods::UnnamedOneOf
 
     # @!attribute [r] name
     #   @return [String] The name/identifier of the version (e.g., "2023-01")
@@ -60,6 +61,9 @@ module Verquest
       @schema_options = {}
       @properties = {}
       @conditions = []
+      # Filled after the version is frozen, so it is created here; freeze is shallow
+      @validation_schemers = {}
+      @validation_schemers_lock = Mutex.new
     end
 
     # Add a property to this version
@@ -67,6 +71,7 @@ module Verquest
     # @param property [Verquest::Properties::Base] The property to add
     # @return [Verquest::Properties::Base] The added property
     def add(property)
+      check_unnamed_one_of(property)
       properties[property.name] = property
     end
 
@@ -182,13 +187,7 @@ module Verquest
     # @param params [Hash] The request parameters to validate
     # @return [Array<Hash>] An array of validation error details, or empty if valid
     def validate_params(params:)
-      schemer = JSONSchemer.schema(
-        validation_schema,
-        meta_schema: Verquest.configuration.json_schema_uri,
-        insert_property_defaults: Verquest.configuration.insert_property_defaults
-      )
-
-      schemer.validate(params).map do |error|
+      validation_schemer.validate(params).map do |error|
         {
           pointer: error["data_pointer"],
           type: error["type"],
@@ -204,10 +203,19 @@ module Verquest
     # @return [Hash] The mapping for the property
     # @raise [PropertyNotFoundError] If the property doesn't exist
     def mapping_for(property)
-      raise PropertyNotFoundError.new("Property '#{property}' is not defined on '#{name}'") unless all_properties.key?(property.to_s)
-
       {}.tap do |mapping|
-        all_properties[property.to_s].mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
+        fetch_property(property).mapping(key_prefix: [], value_prefix: [], mapping: mapping, version: name)
+      end
+    end
+
+    # Get a property by name
+    #
+    # @param property [Symbol, String] The property name (regular or declared in a condition branch)
+    # @return [Verquest::Properties::Base] The property
+    # @raise [PropertyNotFoundError] If the property doesn't exist
+    def fetch_property(property)
+      all_properties.fetch(property.to_s) do
+        raise PropertyNotFoundError.new("Property '#{property}' is not defined on '#{name}'")
       end
     end
 
@@ -259,6 +267,22 @@ module Verquest
     end
 
     private
+
+    # Returns the compiled validation schema for the current configuration
+    #
+    # Compiling is much slower than validating, so each configuration is
+    # compiled once and reused. The lock keeps threads from compiling at the
+    # same time.
+    #
+    # @return [JSONSchemer::Schema] The compiled validation schema
+    def validation_schemer
+      configuration = Verquest.configuration
+      key = [configuration.json_schema_uri, configuration.insert_property_defaults]
+
+      @validation_schemers_lock.synchronize do
+        @validation_schemers[key] ||= JSONSchemer.schema(validation_schema, meta_schema: key[0], insert_property_defaults: key[1])
+      end
+    end
 
     # Generates the JSON schema for this version
     #

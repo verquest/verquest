@@ -19,6 +19,7 @@ module Verquest
     #   )
     class Collection < Base
       include HelperMethods::ConditionalProperties
+      include HelperMethods::UnnamedOneOf
 
       # Initialize a new Collection property
       #
@@ -54,6 +55,7 @@ module Verquest
       # @param property [Verquest::Properties::Base] The property to add to the collection items
       # @return [Verquest::Properties::Base] The added property
       def add(property)
+        check_unnamed_one_of(property)
         properties[property.name] = property
       end
 
@@ -75,11 +77,12 @@ module Verquest
         !item.nil?
       end
 
-      # Check if this collection contains a oneOf property as its item type
+      # Check if the items are a oneOf: an unnamed oneOf is the collection's only property
       #
-      # @return [Boolean] True if the collection contains a oneOf property
+      # @return [Boolean] True if the item schema is the oneOf itself
       def has_one_of?
-        properties.values.size == 1 && properties.values.first.is_a?(Verquest::Properties::OneOf)
+        # A named oneOf is a property of the item, like any other
+        properties.values.size == 1 && properties.values.first.is_a?(Verquest::Properties::OneOf) && properties.values.first.name.nil?
       end
 
       # Returns the oneOf property if this collection contains one
@@ -192,13 +195,7 @@ module Verquest
       # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
         if has_item?
-          value_key_prefix = mapping_value_key(value_prefix: value_prefix, collection: true)
-
-          reference_mapping = item.mapping(version:).dup
-          reference_mapping.transform_keys! { |k| "#{(key_prefix + [name]).join("/")}[]/#{k}" }
-          reference_mapping.transform_values! { |v| "#{value_key_prefix}/#{v}" }
-
-          mapping.merge!(reference_mapping)
+          add_request_mapping(item, key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping:, version:)
         else
           children = has_one_of? ? [one_of_property] : all_properties.values
           children.each do |property|

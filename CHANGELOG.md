@@ -11,6 +11,9 @@
 - A oneOf inside a `collection` is listed in the mapping's `_oneOfs` array, like several oneOfs, instead of putting its metadata at the top level.
 - A oneOf variant property moved out of a collection item with `map: "/..."` raises `Verquest::MappingError` when the class is defined. Each item selects its own variant, so it can't be collected outside the items.
 - The transformer allocates two to four times fewer objects per call and runs 15–40% faster. `rake bench` measures it.
+- A version compiles its validation schema once per configuration instead of on every `process`, which makes `process` with validation up to 4 times faster.
+- Under `json_schema_version` `:draft4` and `:openapi30`, which have no `const`, a `const` property is written as a one-value `enum` in `to_schema` and `to_validation_schema`, so it is enforced.
+- An unnamed `one_of` next to other properties raises `ArgumentError` when it is declared. It was dropped from the schema.
 
 ### Fixed
 - A `one_of` inside an `object` mapped a valid payload to an empty hash, and two of them clashed. It also works inside an object in a collection.
@@ -24,6 +27,9 @@
 - oneOfs in a collection inside a collection, and in several collections of one version, are mapped. Before, the discriminator read an array of values, and the second collection's oneOf overwrote the first one's.
 - A property moved out of collection items with `map: "/..."` writes `null` for items without the value, instead of an internal object. In a collection holding a oneOf, it is collected outside the items again.
 - `external_mapping` inverts the oneOfs nested in objects and collections, which were left as a hash key.
+- A `reference`, or a `collection` with `item:`, to a request holding a oneOf no longer drops its data.
+- A `reference` with `property:` to an object, a collection or a oneOf maps its data. Only scalar properties worked.
+- A collection whose only property is a named `one_of` keeps the name in its item schema, so valid items pass validation.
 
 ## [0.6.3] - 2026-09-23
 

@@ -17,7 +17,8 @@ module Verquest
       {pointer: "/pet/type", type: "const"},
       {pointer: "/pet/bogus", type: "schema"}
     ].freeze
-    # Draft 4 has no `const` keyword, so the other variant's `type` mismatch is not reported
+    # The variant components are defined under draft 2020-12, so their schemas
+    # use `const`, which draft 4 ignores: the other variant's `type` mismatch is not reported
     ALL_VARIANT_ERRORS_WITHOUT_CONST = [
       {pointer: "/pet/bogus", type: "schema"},
       {pointer: "/pet/bogus", type: "schema"}
@@ -64,8 +65,8 @@ module Verquest
     end
 
     # OpenAPI 3.0 has no `const`, so before the discriminator was kept a valid pet
-    # matched both variants and failed. The transformer also compiles the inferred
-    # variants as draft 2020-12, so the nested `$ref`s must resolve there too.
+    # matched both variants and failed. The transformer compiles the inferred
+    # variants in the configured version, so the nested `$ref`s must resolve there too.
     def test_openapi30_discriminator_one_of_inside_inferred_variant
       request = with_configuration(json_schema_version: :openapi30) do
         Class.new(Verquest::Base) do

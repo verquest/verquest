@@ -18,9 +18,6 @@ module Verquest
       # The pairs of an absent oneOf
       NO_PAIRS = [].freeze
 
-      # JSON Schema versions without `const`
-      VERSIONS_WITHOUT_CONST = %i[draft4 openapi30].freeze
-
       # Initialize a new OneOf
       #
       # @param path [Path] The oneOf property, empty for a oneOf at the scope root
@@ -72,7 +69,7 @@ module Verquest
       # @return [JSONSchemer::Schema] The schemer
       def schemer(schema)
         configuration = Verquest.configuration
-        schema = ConstAsEnum.call(schema) if VERSIONS_WITHOUT_CONST.include?(configuration.json_schema_version)
+        schema = ConstAsEnum.call(schema) unless configuration.const_keyword?
         JSONSchemer.schema(schema, meta_schema: configuration.json_schema_uri)
       end
 

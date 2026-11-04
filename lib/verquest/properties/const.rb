@@ -30,7 +30,8 @@ module Verquest
       # @return [Hash] The schema definition for this constant
       def to_schema
         {
-          name => nullable_schema({"const" => value}.merge(schema_options))
+          # Draft 4 and OpenAPI 3.0 have no const, but a one-value enum means the same
+          name => nullable_schema((Verquest.configuration.const_keyword? ? {"const" => value} : {"enum" => [value]}).merge(schema_options))
         }
       end
 

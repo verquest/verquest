@@ -303,7 +303,8 @@ module Verquest
       # @return [void]
       def store_variant_schemas(mapping, source_prefix, version)
         mapping["_variant_schemas"] = variant_schemas(version: version)
-        mapping["_variant_path"] = source_prefix.join("/") unless root_level?
+        # An unnamed oneOf is only at the root when nothing references it
+        mapping["_variant_path"] = source_prefix.join("/") unless source_prefix.empty?
       end
 
       # Stores nullable metadata in the mapping
@@ -317,7 +318,7 @@ module Verquest
       # @return [void]
       def store_nullable_metadata(mapping, source_prefix:, target_prefix:)
         mapping["_nullable"] = true
-        return if root_level?
+        return if source_prefix.empty?
 
         mapping["_nullable_path"] = source_prefix.join("/")
         mapping["_nullable_target_path"] = target_prefix.join("/")

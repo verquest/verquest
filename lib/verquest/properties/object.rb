@@ -13,6 +13,7 @@ module Verquest
     #   address.add(Verquest::Properties::Field.new(name: :city, type: :string, required: true))
     class Object < Base
       include HelperMethods::ConditionalProperties
+      include HelperMethods::UnnamedOneOf
 
       # Initialize a new Object property
       #
@@ -47,6 +48,7 @@ module Verquest
       # @param property [Verquest::Properties::Base] The property to add to this object
       # @return [Verquest::Properties::Base] The added property
       def add(property)
+        check_unnamed_one_of(property)
         properties[property.name.to_s] = property
       end
 

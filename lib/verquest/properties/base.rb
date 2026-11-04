@@ -58,6 +58,28 @@ module Verquest
         raise NoMethodError
       end
 
+      # Returns a copy of this property under another name and map:
+      #
+      # Used by a reference to a single property, so the property maps as if
+      # it were declared where the reference is.
+      #
+      # @param name [String, Symbol] The new name
+      # @param map [String, nil] The new map: option
+      # @return [Verquest::Properties::Base] The renamed copy
+      def renamed(name:, map:)
+        dup.tap { |copy| copy.rename(name, map) }
+      end
+
+      protected
+
+      # @param name [String, Symbol] The new name
+      # @param map [String, nil] The new map: option
+      # @return [void]
+      def rename(name, map)
+        @name = name.to_s
+        @map = map
+      end
+
       private
 
       # @!attribute [r] nullable
@@ -75,10 +97,9 @@ module Verquest
 
       # Determines the mapping target key based on mapping configuration
       # @param value_prefix [Array<String>] Prefix for the target value
-      # @param collection [Boolean] Whether this is a collection mapping
       # @return [String] The target mapping key
-      def mapping_value_key(value_prefix:, collection: false)
-        value_key = if map.nil?
+      def mapping_value_key(value_prefix:)
+        if map.nil?
           (value_prefix + [name]).join("/")
         elsif map == "/"
           ""
@@ -86,12 +107,6 @@ module Verquest
           map.gsub(%r{^/}, "")
         else
           (value_prefix + map.split("/")).join("/")
-        end
-
-        if collection
-          value_key + "[]"
-        else
-          value_key
         end
       end
 
@@ -133,6 +148,25 @@ module Verquest
         one_of_mapping = {}
         property.mapping(mapping: one_of_mapping, **options)
         (mapping["_oneOfs"] ||= []) << one_of_mapping
+      end
+
+      # Adds the mappings of a referenced request's properties under the given prefixes
+      #
+      # Each property maps itself with the prefixes, instead of the finished
+      # mapping of the request being copied, so its oneOfs keep their
+      # metadata and land in `_oneOfs`.
+      #
+      # @param request [Class<Verquest::Base>] The referenced request
+      # @param key_prefix [Array<String>] Prefix for the source keys
+      # @param value_prefix [Array<String>] Prefix for the target values
+      # @param mapping [Hash] The mapping hash to be updated
+      # @param version [String] The version to create mapping for
+      # @return [void]
+      def add_request_mapping(request, key_prefix:, value_prefix:, mapping:, version:)
+        referenced = request.resolve(version)
+        referenced.all_properties.each_value do |property|
+          add_child_mapping(property, key_prefix:, value_prefix:, mapping:, version: referenced.name)
+        end
       end
     end
   end
