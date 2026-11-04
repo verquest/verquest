@@ -30,6 +30,9 @@ module Verquest
     # @example oneOf without discriminator (pure JSON Schema validation)
     #   one_of = Verquest::Properties::OneOf.new(name: :value)
     #   # Validates that exactly one schema matches
+    #
+    # With a discriminator, the validation schema keeps the discriminator (see DiscriminatedSchema),
+    # so OpenAPI 3.0 and 3.1 validators validate only the variant the discriminator selects.
     class OneOf < Base
       # @return [String, nil] The discriminator property name for schema selection
       attr_reader :discriminator
@@ -369,14 +372,16 @@ module Verquest
 
       # Builds the validation schema structure with inline definitions
       #
-      # Unlike the documentation schema, the validation schema omits the discriminator
-      # since it's an OpenAPI extension that JSON Schema validators ignore.
-      # Validators validate against the oneOf array directly.
+      # Without a discriminator, the variants are inlined in the oneOf array.
+      # With a discriminator, DiscriminatedSchema builds a self-contained schema
+      # that keeps the discriminator.
       #
       # @param version [String, nil] The version to generate validation schema for
-      # @return [Hash] Validation schema with oneOf array (no discriminator)
+      # @return [Hash] Validation schema with oneOf array
       def build_validation_schema(version:)
-        {schema_keyword => collect_inline_schemas(version)}
+        return {schema_keyword => collect_inline_schemas(version)} unless discriminator
+
+        DiscriminatedSchema.new(definitions: collect_inline_definitions(version), discriminator: discriminator).to_h
       end
 
       # Collects $ref schema references for all variants
@@ -391,7 +396,15 @@ module Verquest
       # @param version [String, nil] The version for schema resolution
       # @return [Array<Hash>] Array of inline schema definitions
       def collect_inline_schemas(version)
-        schemas.values.map { |schema| schema.to_validation_schema(version: version)[schema.name] }
+        collect_inline_definitions(version).values
+      end
+
+      # Collects inline schema definitions keyed by variant name
+      #
+      # @param version [String, nil] The version for schema resolution
+      # @return [Hash<String, Hash>] Variant name => inline schema definition
+      def collect_inline_definitions(version)
+        schemas.transform_values { |schema| schema.to_validation_schema(version: version)[schema.name] }
       end
 
       # Adds discriminator information to the schema if present

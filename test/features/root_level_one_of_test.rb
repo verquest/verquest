@@ -31,15 +31,18 @@ class Verquest::RootLevelOneOfTest < Minitest::Test
 
     validation_schema = PetRequest.to_validation_schema(version: "2025-06")
 
-    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
+    # Variants live in definitions so OpenAPI validators can select one through the discriminator
     expected_schema = {
-      "oneOf" => [
-        {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
-        {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-      ]
+      "definitions" => {
+        "dog" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
+        "cat" => {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
+      },
+      "oneOf" => [{"$ref" => "#/definitions/dog"}, {"$ref" => "#/definitions/cat"}],
+      "discriminator" => {"propertyName" => "type", "mapping" => {"dog" => "#/definitions/dog", "cat" => "#/definitions/cat"}}
     }
 
-    assert_equal expected_schema, validation_schema
+    assert_match %r{\Ahttps://verquest\.local/one_of/\h{16}\z}, validation_schema["$id"]
+    assert_equal expected_schema, validation_schema.except("$id", "id")
   end
 
   def test_process_dog

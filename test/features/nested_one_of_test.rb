@@ -56,10 +56,10 @@ class Verquest::NestedOneOfTest < Minitest::Test
   def test_validation_schema_payment
     validation_schema = OrderRequest.to_validation_schema(version: "2025-06")
 
-    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
+    # Variants live in definitions so OpenAPI validators can select one through the discriminator
     expected_payment_schema = {
-      "oneOf" => [
-        {
+      "definitions" => {
+        "card" => {
           "type" => "object",
           "required" => %w[method card_number expiry],
           "properties" => {
@@ -70,7 +70,7 @@ class Verquest::NestedOneOfTest < Minitest::Test
           },
           "additionalProperties" => false
         },
-        {
+        "bank" => {
           "type" => "object",
           "required" => %w[method account_number routing_number],
           "properties" => {
@@ -80,10 +80,12 @@ class Verquest::NestedOneOfTest < Minitest::Test
           },
           "additionalProperties" => false
         }
-      ]
+      },
+      "oneOf" => [{"$ref" => "#/definitions/card"}, {"$ref" => "#/definitions/bank"}],
+      "discriminator" => {"propertyName" => "method", "mapping" => {"card" => "#/definitions/card", "bank" => "#/definitions/bank"}}
     }
 
-    assert_equal expected_payment_schema, validation_schema["properties"]["payment"]
+    assert_equal expected_payment_schema, validation_schema["properties"]["payment"].except("$id", "id")
   end
 
   def test_mapping

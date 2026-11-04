@@ -65,10 +65,10 @@ class Verquest::InlineObjectOneOfTest < Minitest::Test
 
   def test_validation_schema_has_inline_schemas
     validation_schema = ResultRequest.to_validation_schema(version: "2025-06")
-    one_of_array = validation_schema["properties"]["result"]["oneOf"]
+    result_schema = validation_schema["properties"]["result"]
 
-    assert_equal 2, one_of_array.size
-    assert one_of_array.all? { |s| s["type"] == "object" }
+    assert_equal [{"$ref" => "#/definitions/success"}, {"$ref" => "#/definitions/error"}], result_schema["oneOf"]
+    assert result_schema["definitions"].values.all? { |s| s["type"] == "object" }
   end
 
   def test_process_success_result

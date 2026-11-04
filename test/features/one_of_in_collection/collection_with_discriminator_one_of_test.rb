@@ -50,12 +50,13 @@ class Verquest::CollectionWithDiscriminatorOneOfTest < Minitest::Test
     assert_equal 2, items_schema["oneOf"].size
   end
 
-  def test_validation_schema_pets_omits_discriminator
-    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
+  def test_validation_schema_pets_keeps_discriminator
     validation_schema = PetsRequest.to_validation_schema(version: "2025-06")
     items_schema = validation_schema["properties"]["pets"]["items"]
 
-    refute items_schema.key?("discriminator")
+    expected_discriminator = {"propertyName" => "type", "mapping" => {"dog" => "#/definitions/dog", "cat" => "#/definitions/cat"}}
+
+    assert_equal expected_discriminator, items_schema["discriminator"]
   end
 
   def test_mapping_with_discriminator_in_collection

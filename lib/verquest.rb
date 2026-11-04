@@ -2,6 +2,8 @@
 
 require "zeitwerk"
 require "json_schemer"
+require "digest"
+require "json"
 
 require_relative "verquest/gem_version"
 

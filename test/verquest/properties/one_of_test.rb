@@ -6,6 +6,18 @@ require_relative "../../support/examples/dog_component"
 require_relative "../../support/examples/cat_component"
 
 class Verquest::Properties::OneOfTest < Minitest::Test
+  DOG_VALIDATION_SCHEMA = {
+    "type" => "object",
+    "required" => %w[type name],
+    "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}},
+    "additionalProperties" => false
+  }.freeze
+  CAT_VALIDATION_SCHEMA = {
+    "type" => "object",
+    "required" => %w[type name],
+    "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}},
+    "additionalProperties" => false
+  }.freeze
   def test_to_schema_without_name
     one_of_property = Verquest::Properties::OneOf.new(
       name: nil,
@@ -63,47 +75,42 @@ class Verquest::Properties::OneOfTest < Minitest::Test
   end
 
   def test_to_validation_schema_without_name
-    one_of_property = Verquest::Properties::OneOf.new(
-      name: nil,
-      discriminator: "type",
-      required: false
-    )
-
-    one_of_property.add(Verquest::Properties::Reference.new(name: "dog", from: DogComponent))
-    one_of_property.add(Verquest::Properties::Reference.new(name: "cat", from: CatComponent))
-
-    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
     expected_schema = {
-      "oneOf" => [
-        {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
-        {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-      ]
+      "definitions" => {"dog" => DOG_VALIDATION_SCHEMA, "cat" => CAT_VALIDATION_SCHEMA},
+      "oneOf" => [{"$ref" => "#/definitions/dog"}, {"$ref" => "#/definitions/cat"}],
+      "discriminator" => {"propertyName" => "type", "mapping" => {"dog" => "#/definitions/dog", "cat" => "#/definitions/cat"}}
     }
 
-    assert_equal expected_schema, one_of_property.to_validation_schema(version: "2025-06")
+    assert_equal expected_schema, build_pet_one_of(name: nil).to_validation_schema(version: "2025-06").except("$id", "id")
   end
 
   def test_to_validation_schema_with_name
-    one_of_property = Verquest::Properties::OneOf.new(
-      name: "animal",
-      discriminator: "type",
-      required: false
-    )
-
-    one_of_property.add(Verquest::Properties::Reference.new(name: "dog", from: DogComponent))
-    one_of_property.add(Verquest::Properties::Reference.new(name: "cat", from: CatComponent))
-
-    # Validation schema omits discriminator (OpenAPI extension, not used by JSON Schema validators)
     expected_schema = {
-      "animal" => {
-        "oneOf" => [
-          {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "dog"}, "name" => {"type" => "string"}, "bark" => {"type" => "boolean"}}, "additionalProperties" => false},
-          {"type" => "object", "required" => %w[type name], "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}}, "additionalProperties" => false}
-        ]
-      }
+      "definitions" => {"dog" => DOG_VALIDATION_SCHEMA, "cat" => CAT_VALIDATION_SCHEMA},
+      "oneOf" => [{"$ref" => "#/definitions/dog"}, {"$ref" => "#/definitions/cat"}],
+      "discriminator" => {"propertyName" => "type", "mapping" => {"dog" => "#/definitions/dog", "cat" => "#/definitions/cat"}}
     }
 
-    assert_equal expected_schema, one_of_property.to_validation_schema(version: "2025-06")
+    assert_equal expected_schema, build_pet_one_of(name: "animal").to_validation_schema(version: "2025-06")["animal"].except("$id", "id")
+  end
+
+  def test_to_validation_schema_maps_inline_object_variants
+    one_of_property = Verquest::Properties::OneOf.new(name: "result", discriminator: "status")
+    success = Verquest::Properties::Object.new(name: :success)
+    success.add(Verquest::Properties::Const.new(name: :status, value: "success"))
+    one_of_property.add(success)
+
+    schema = one_of_property.to_validation_schema(version: "2025-06")["result"]
+
+    assert_equal({"success" => "#/definitions/success"}, schema["discriminator"]["mapping"])
+    assert_equal "object", schema["definitions"]["success"]["type"]
+  end
+
+  def test_to_validation_schema_nullable_wraps_resource
+    schema = build_pet_one_of(name: "pet", nullable: true).to_validation_schema(version: "2025-06")["pet"]
+
+    assert_equal [{"type" => "null"}], schema["anyOf"].drop(1)
+    assert_equal %w[$id id definitions oneOf discriminator], schema["anyOf"].first.keys
   end
 
   def test_mapping_without_name
@@ -292,5 +299,14 @@ class Verquest::Properties::OneOfTest < Minitest::Test
     end
 
     assert_equal "Must be a Reference or Object property", error.message
+  end
+
+  private
+
+  def build_pet_one_of(name:, nullable: false)
+    Verquest::Properties::OneOf.new(name: name, discriminator: "type", nullable: nullable).tap do |one_of|
+      one_of.add(Verquest::Properties::Reference.new(name: "dog", from: DogComponent))
+      one_of.add(Verquest::Properties::Reference.new(name: "cat", from: CatComponent))
+    end
   end
 end

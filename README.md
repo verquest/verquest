@@ -396,6 +396,29 @@ Will produce this validation schema:
 }
 ```
 
+#### oneOf discriminators in validation
+
+A `one_of` with a `discriminator:` keeps the discriminator in the validation schema. Its variants move into local `definitions` that `oneOf` references with `$ref`. An id, written as both `$id` and `id` so every JSON Schema version reads it, makes those references resolve wherever the schema is embedded:
+
+```ruby
+one_of name: :pet, discriminator: :type do
+  reference :dog, from: DogComponent
+  reference :cat, from: CatComponent
+end
+```
+
+```json
+{
+  "$id": "https://verquest.local/one_of/3f1c9a0b2d4e5f67",
+  "id": "https://verquest.local/one_of/3f1c9a0b2d4e5f67",
+  "definitions": {"dog": {"type": "object", "...": "..."}, "cat": {"type": "object", "...": "..."}},
+  "oneOf": [{"$ref": "#/definitions/dog"}, {"$ref": "#/definitions/cat"}],
+  "discriminator": {"propertyName": "type", "mapping": {"dog": "#/definitions/dog", "cat": "#/definitions/cat"}}
+}
+```
+
+With `json_schema_version = :openapi31` or `:openapi30`, the validator checks only the variant the discriminator selects, so validation errors come from that variant only. A value that isn't an object, or that has no known discriminator value, gets a single `discriminator` error. Other versions ignore `discriminator` and check every variant.
+
 #### Custom Field Types
 
 You can define custom field types that can be used in `field` and `array` in the configuration.
