@@ -29,7 +29,7 @@ Sponsored by [Stora](https://stora.co)
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "verquest", "~> 0.6"
+gem "verquest", "~> 0.7"
 ```
 
 And then execute:

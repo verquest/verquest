@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-05
+
 ### Added
 - Query parameters: `location :query` on a request class converts query strings to the types its schema expects (numbers, booleans, null, comma-separated or repeated arrays, one level of `deepObject`) before `process` validates and maps them. `to_parameters(version:)` returns OpenAPI parameter objects with symbol keys for rswag. Arrays take `explode:`, defaulting to the new `config.query_array_explode` (`true`). `parameter_examples:` on `field`, `enum`, `const`, `array`, `object` and `reference` adds named OpenAPI examples to the parameter without putting them in the JSON schemas. Shapes query strings can't express raise the new `Verquest::DefinitionError` when the version is defined.
 - Path parameters: `location :path` converts and validates path params like query params, and `to_parameters` documents them as `in: :path`. Properties must be required scalars, otherwise the version raises `Verquest::DefinitionError`.
