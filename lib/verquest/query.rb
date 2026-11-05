@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 module Verquest
-  # Support for query requests (`location :query`)
+  # Support for query and path requests (`location :query`, `location :path`)
   #
-  # Query strings carry only strings and flat keys, so a query version converts
-  # its params before validating them ({Query::Coercer}), rejects shapes a query
-  # string can't express ({Query::DefinitionCheck}), and documents its
-  # properties as OpenAPI parameters ({Query::Parameters}).
+  # Query strings and paths carry only strings and flat keys, so these versions
+  # convert their params before validating them ({Query::Coercer}), reject
+  # shapes their location can't express ({Query::DefinitionCheck}), and
+  # document their properties as OpenAPI parameters ({Query::Parameters}).
   #
   # @example
   #   class ListQuery < Verquest::Base

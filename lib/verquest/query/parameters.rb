@@ -2,9 +2,9 @@
 
 module Verquest
   module Query
-    # Builds OpenAPI parameter objects from a query version's validation schema
+    # Builds OpenAPI parameter objects from a query or path version's validation schema
     #
-    # Each property becomes one `in: :query` parameter. Keys are symbols,
+    # Each property becomes one `in: :query` (or `in: :path`) parameter. Keys are symbols,
     # including inside `schema`, because rswag reads them that way
     # (`param[:in]`, `param[:style]`, `param[:schema][:type]`).
     #
@@ -18,9 +18,11 @@ module Verquest
 
       # @param schema [Hash] The version's validation schema
       # @param options [Hash{Array<String> => Hash}] The `explode:` and `examples:` of each property path
-      def initialize(schema:, options:)
+      # @param location [Symbol] `:query` or `:path`, written as `in:`
+      def initialize(schema:, options:, location: :query)
         @schema = schema
         @options = options
+        @location = location
       end
 
       # @return [Array<Hash>] The parameter objects, in property order
@@ -34,11 +36,11 @@ module Verquest
 
       private
 
-      attr_reader :schema, :options
+      attr_reader :schema, :options, :location
 
       # @return [Hash] The parameter object of one property
       def parameter(name, property_schema, required:)
-        {name:, in: :query, required:}
+        {name:, in: location, required:}
           .merge(property_schema.slice(*DOCUMENTATION_KEYS).transform_keys(&:to_sym))
           .merge(serialization(name, property_schema))
           .merge(examples(name))

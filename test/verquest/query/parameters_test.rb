@@ -46,6 +46,14 @@ module Verquest
         assert_equal({"page" => {single: {value: 1}}, "status" => {single: {value: %w[open]}}, "filter" => nil, "contact" => nil, "tags" => nil}, examples)
       end
 
+      def test_path_location
+        schema = {"type" => "object", "required" => %w[id], "properties" => {"id" => {"type" => "string", "pattern" => "^deal_", "description" => "Deal"}}}
+
+        expected = [{name: "id", in: :path, required: true, description: "Deal", schema: {type: "string", pattern: "^deal_"}}]
+
+        assert_equal expected, Parameters.new(schema:, options: {}, location: :path).call
+      end
+
       def test_schema_without_properties
         assert_empty Parameters.new(schema: {"type" => "object"}, options: {}).call
       end

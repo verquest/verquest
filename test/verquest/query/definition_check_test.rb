@@ -81,6 +81,61 @@ module Verquest
         assert_equal :query, klass.location
       end
 
+      PATH_REJECTED = {
+        "optional" => [
+          proc { field :id, type: :string },
+          "Property 'id' in version '2025-06' is optional, but path parameters are always required"
+        ],
+        "array" => [
+          proc { array :id, type: :string, required: true },
+          "Property 'id' in version '2025-06' is an array, which path parameters can't express"
+        ],
+        "object" => [
+          proc { object(:id, required: true) { field :value, type: :string } },
+          "Property 'id' in version '2025-06' is an object, which path parameters can't express"
+        ],
+        "nullable object" => [
+          proc { object(:id, required: true, nullable: true) { field :value, type: :string } },
+          "Property 'id' in version '2025-06' is an object, which path parameters can't express"
+        ],
+        "named one_of" => [
+          proc do
+            one_of name: :pet, required: true do
+              reference :dog, from: DogComponent
+              reference :cat, from: CatComponent
+            end
+          end,
+          "Property 'pet' in version '2025-06' is a one_of, which path parameters can't express"
+        ],
+        "root one_of" => [
+          proc do
+            one_of discriminator: :type do
+              reference :dog, from: DogComponent
+              reference :cat, from: CatComponent
+            end
+          end,
+          "Version '2025-06' has a root-level one_of, which path parameters can't express"
+        ]
+      }.freeze
+
+      def test_rejected_path_definitions
+        PATH_REJECTED.each do |label, (definition, message)|
+          error = assert_raises(DefinitionError, label) { path_class(&definition) }
+
+          assert_equal message, error.message, label
+        end
+      end
+
+      def test_allowed_path_definitions
+        klass = path_class do
+          field :id, type: :string, required: true, pattern: "^deal_"
+          field :number, type: :integer, required: true, nullable: true
+          enum :kind, values: %w[a b], required: true
+        end
+
+        assert_equal :path, klass.location
+      end
+
       def test_body_classes_are_not_checked
         klass = Class.new(Verquest::Base) do
           version("2025-06") { object(:filter) { object(:range) { field :after, type: :string } } }
@@ -94,6 +149,13 @@ module Verquest
       def query_class(&definition)
         Class.new(Verquest::Base) do
           location :query
+          version("2025-06", &definition)
+        end
+      end
+
+      def path_class(&definition)
+        Class.new(Verquest::Base) do
+          location :path
           version("2025-06", &definition)
         end
       end

@@ -15,9 +15,9 @@ module Verquest
     end
 
     def test_invalid_location
-      error = assert_raises(ArgumentError) { Class.new(Verquest::Base) { location :path } }
+      error = assert_raises(ArgumentError) { Class.new(Verquest::Base) { location :header } }
 
-      assert_equal "Location must be one of body, query", error.message
+      assert_equal "Location must be one of body, query, path", error.message
     end
 
     def test_location_after_version
@@ -45,7 +45,7 @@ module Verquest
 
       error = assert_raises(ArgumentError) { klass.to_parameters(version: "2025-06") }
 
-      assert_match(/is not a query request \(location :body\)/, error.message)
+      assert_match(/has no parameters \(location :body\)/, error.message)
     end
 
     def test_body_class_does_not_coerce
@@ -61,6 +61,15 @@ module Verquest
       end
 
       assert_equal({"page" => 1}, klass.process({"page" => "1"}, version: "2025-06"))
+    end
+
+    def test_path_class_coerces
+      klass = Class.new(Verquest::Base) do
+        location :path
+        version("2025-06") { field :id, type: :integer, required: true }
+      end
+
+      assert_equal({"id" => 1}, klass.process({"id" => "1"}, version: "2025-06"))
     end
   end
 end

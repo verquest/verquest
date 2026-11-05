@@ -2,13 +2,14 @@
 
 module Verquest
   module Query
-    # Rejects query versions with shapes query strings can't express
+    # Rejects query and path versions with shapes their location can't express
     #
     # Query parameters are scalars, arrays of scalars, or one level of objects
-    # sent as `deepObject` (`filter[status]=open`). Anything deeper, and oneOf
-    # properties, raise when the version is prepared.
+    # sent as `deepObject` (`filter[status]=open`). Path parameters are required
+    # scalars. Anything else, and oneOf properties, raise when the version is
+    # prepared.
     class DefinitionCheck
-      # @param version [Verquest::Version] The query version to check
+      # @param version [Verquest::Version] The query or path version to check
       def initialize(version)
         @version = version
       end
@@ -16,20 +17,33 @@ module Verquest
       # @return [void]
       # @raise [Verquest::DefinitionError] If the version uses an unsupported shape
       def call
-        raise DefinitionError, "Version '#{version.name}' has a root-level one_of, which query parameters can't express" if version.combination?
+        raise DefinitionError, "Version '#{version.name}' has a root-level one_of, which #{version.location} parameters can't express" if version.combination?
 
         version.all_properties.each_value do |property|
           reject([property.name], "a one_of") if property.is_a?(Properties::OneOf)
         end
 
         version.validation_schema.fetch("properties", {}).each do |name, property_schema|
-          check(property_schema, [name], nested: false)
+          (version.location == :path) ? check_path(property_schema, name) : check(property_schema, [name], nested: false)
         end
       end
 
       private
 
       attr_reader :version
+
+      # Rejects path parameters that aren't required scalars
+      #
+      # @return [void]
+      def check_path(property_schema, name)
+        types = variants(property_schema).flat_map { |variant| Array(variant["type"]) }
+
+        reject([name], "an array") if types.include?("array")
+        reject([name], "an object") if types.include?("object")
+        return if version.validation_schema.fetch("required", []).include?(name)
+
+        raise DefinitionError, "Property '#{name}' in version '#{version.name}' is optional, but path parameters are always required"
+      end
 
       # Checks the objects and arrays of a property schema and its variants
       #
@@ -70,7 +84,7 @@ module Verquest
 
       # @raise [Verquest::DefinitionError] Always
       def reject(path, shape)
-        raise DefinitionError, "Property '#{path.join("/")}' in version '#{version.name}' is #{shape}, which query parameters can't express"
+        raise DefinitionError, "Property '#{path.join("/")}' in version '#{version.name}' is #{shape}, which #{version.location} parameters can't express"
       end
     end
   end

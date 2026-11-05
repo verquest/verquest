@@ -7,7 +7,7 @@ module Verquest
   # and validation functionality for Verquest API request objects.
   module Base::PublicClassMethods
     # Where request params can come from
-    LOCATIONS = %i[body query].freeze
+    LOCATIONS = %i[body query path].freeze
 
     # Maps incoming parameters to the appropriate structure based on version mapping
     #
@@ -58,9 +58,10 @@ module Verquest
 
     # Sets or returns where the request's params come from
     #
-    # A query request (`location :query`) converts query strings to the types
-    # its schema expects before validating them, and documents its properties
-    # with {#to_parameters}. Subclasses inherit the location.
+    # A query request (`location :query`) or path request (`location :path`)
+    # converts strings to the types its schema expects before validating them,
+    # and documents its properties with {#to_parameters}. Subclasses inherit
+    # the location.
     #
     # @example
     #   class ListQuery < Verquest::Base
@@ -71,7 +72,7 @@ module Verquest
     #     end
     #   end
     #
-    # @param value [Symbol, nil] `:body` or `:query` to set the location, nil to return it
+    # @param value [Symbol, nil] `:body`, `:query` or `:path` to set the location, nil to return it
     # @return [Symbol] The location, `:body` unless set on this class or a superclass
     # @raise [ArgumentError] If the value is not a known location, or a version is already defined
     def location(value = nil)
@@ -83,7 +84,7 @@ module Verquest
       @location = value
     end
 
-    # Returns OpenAPI parameter objects for a query request
+    # Returns OpenAPI parameter objects for a query or path request
     #
     # One parameter per property, with symbol keys, ready for rswag's `parameter`.
     # Schemas are inlined, arrays get `style: :form` and their explode value, and
@@ -94,9 +95,9 @@ module Verquest
     #
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @return [Array<Hash>] The OpenAPI parameter objects
-    # @raise [ArgumentError] If the request is not a query request
+    # @raise [ArgumentError] If the request is a body request
     def to_parameters(version: nil)
-      raise ArgumentError, "#{name} is not a query request (location #{location.inspect})" unless location == :query
+      raise ArgumentError, "#{name} has no parameters (location #{location.inspect})" if location == :body
 
       resolve(version).parameters
     end

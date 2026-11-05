@@ -45,7 +45,7 @@ module Verquest
     #   @return [Hash] The mapping from internal attribute paths back to external paths
     #
     # @!attribute [r] location
-    #   @return [Symbol] Where the params come from, `:body` or `:query`
+    #   @return [Symbol] Where the params come from, `:body`, `:query` or `:path`
     attr_reader :name, :properties, :schema, :validation_schema, :mapping, :transformer, :external_mapping, :location
 
     # @!attribute [rw] schema_options
@@ -58,7 +58,7 @@ module Verquest
     # Initialize a new Version instance
     #
     # @param name [String] The name/identifier of the version
-    # @param location [Symbol] Where the params come from, `:body` or `:query`
+    # @param location [Symbol] Where the params come from, `:body`, `:query` or `:path`
     # @return [Version] A new Version instance
     def initialize(name:, location: :body)
       @name = name.to_s
@@ -150,7 +150,7 @@ module Verquest
         prepare_external_mapping
       end
 
-      prepare_query if query?
+      prepare_parameters if parameters?
       @transformer = Transformer.new(layout: transformer_layout)
       freeze
     end
@@ -224,26 +224,26 @@ module Verquest
       end
     end
 
-    # Check if this version reads its params from the query string
+    # Check if this version reads its params from the query string or the path
     #
-    # @return [Boolean] true for a query version
-    def query?
-      location == :query
+    # @return [Boolean] true for a query or path version
+    def parameters?
+      location != :body
     end
 
-    # Converts query strings to the types the validation schema expects
+    # Converts query or path strings to the types the validation schema expects
     #
     # @param params [Hash] The parsed request parameters
-    # @return [Hash] Converted params for a query version, the same params otherwise
+    # @return [Hash] Converted params for a query or path version, the same params otherwise
     def coerce_params(params)
-      query? ? query_coercer.call(params) : params
+      parameters? ? query_coercer.call(params) : params
     end
 
-    # Returns OpenAPI parameter objects for this query version
+    # Returns OpenAPI parameter objects for this query or path version
     #
     # @return [Array<Hash>] A new array of parameter objects on each call
     def parameters
-      Query::Parameters.new(schema: validation_schema, options: query_options).call
+      Query::Parameters.new(schema: validation_schema, options: query_options, location:).call
     end
 
     # Map request parameters to internal representation using the transformer
@@ -295,17 +295,17 @@ module Verquest
 
     private
 
-    # @return [Verquest::Query::Coercer, nil] The coercer of a query version
+    # @return [Verquest::Query::Coercer, nil] The coercer of a query or path version
     attr_reader :query_coercer
 
-    # @return [Hash{Array<String> => Hash}, nil] The parameter options of each property path of a query version
+    # @return [Hash{Array<String> => Hash}, nil] The parameter options of each property path of a query or path version
     attr_reader :query_options
 
-    # Checks a query version and builds its coercer
+    # Checks a query or path version and builds its coercer
     #
     # @return [void]
-    # @raise [Verquest::DefinitionError] If the version uses a shape query strings can't express
-    def prepare_query
+    # @raise [Verquest::DefinitionError] If the version uses a shape its location can't express
+    def prepare_parameters
       Query::DefinitionCheck.new(self).call
 
       @query_options = all_properties.each_value.with_object({}) do |property, options|

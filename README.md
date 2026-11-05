@@ -760,6 +760,26 @@ array :status, type: :string, explode: false, item_schema_options: {enum: %w[ope
 
 A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
 
+### Path parameters
+
+`location :path` works like `location :query`, but documents `in: :path` parameters. Path parameters must be required scalars; arrays, objects, one_of and optional properties raise `Verquest::DefinitionError`.
+
+```ruby
+class DealPath < Verquest::Base
+  location :path
+
+  version "2025-06" do
+    field :id, type: :string, required: true, pattern: "^deal_", description: "The ID of the deal"
+  end
+end
+
+DealPath.process({"id" => params[:id]}) # raises Verquest::InvalidParamsError for "con_123"
+DealPath.to_parameters(version: "2025-06")
+# => [{name: "id", in: :path, required: true, description: "The ID of the deal", schema: {type: "string", pattern: "^deal_"}}]
+```
+
+The parameter name comes from the property. When a route uses another name (`/deals/{deal_id}/win`), rename the key before `process` and the `name` of the parameter object.
+
 ### Component Generation for OpenAPI
 
 Generate JSON Schema, component name and reference for OpenAPI documentation:
