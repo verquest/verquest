@@ -60,11 +60,14 @@ module Verquest
       # Object properties define inline schemas directly within the oneOf.
       #
       # @param schema [Verquest::Properties::Reference, Verquest::Properties::Object] The schema to add
-      # @raise [ArgumentError] If schema is neither a Reference nor an Object
+      # @raise [ArgumentError] If schema is neither a Reference nor an Object, or references a schema-only class
       # @return [Verquest::Properties::Base] The added schema
       def add(schema)
         unless schema.is_a?(Verquest::Properties::Reference) || schema.is_a?(Verquest::Properties::Object)
           raise ArgumentError, "Must be a Reference or Object property"
+        end
+        if schema.is_a?(Verquest::Properties::Reference) && schema.schema_only?
+          raise ArgumentError, "one_of variants must reference Verquest::Base subclasses"
         end
 
         schemas[schema.name] = schema

@@ -194,7 +194,9 @@ module Verquest
       # @param version [String, nil] The version to create mapping for
       # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
-        if has_item?
+        if schema_only_item?
+          mapping[(key_prefix + [name]).join("/")] = mapping_value_key(value_prefix:)
+        elsif has_item?
           add_request_mapping(item, key_prefix: key_prefix + ["#{name}[]"], value_prefix: mapping_value_prefix(value_prefix: value_prefix, collection: true), mapping:, version:)
         else
           children = has_one_of? ? [one_of_property] : all_properties.values
@@ -215,6 +217,8 @@ module Verquest
       # @param version [String, nil] The version to create the layout for
       # @return [void]
       def layout(key_prefix:, value_prefix:, layout:, version:)
+        return super if schema_only_item?
+
         item_key_prefix = key_prefix + ["#{name}[]"]
         item_value_prefix = mapping_value_prefix(value_prefix:, collection: true)
         layout.add_collection(item_key_prefix.join("/"), item_value_prefix.join("/"))
@@ -228,6 +232,13 @@ module Verquest
       private
 
       attr_reader :item, :schema_options, :properties, :type
+
+      # Whether item only provides a schema (not a Verquest::Base subclass), so items pass through unchanged
+      #
+      # @return [Boolean]
+      def schema_only_item?
+        has_item? && !(item.is_a?(Class) && item <= Verquest::Base)
+      end
     end
   end
 end

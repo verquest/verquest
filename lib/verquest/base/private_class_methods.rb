@@ -222,11 +222,12 @@ module Verquest
     # @param schema_options [Hash] Additional schema options for the collection
     # @yield Block executed in the context of the new collection definition
     # @return [void]
+    # @raise [ArgumentError] without item: or a block, or when item does not respond to to_ref
     def collection(name, item: nil, required: nil, nullable: nil, map: nil, **schema_options, &block)
       if item.nil? && !block_given?
         raise ArgumentError, "item must be provided or a block must be given to define the collection"
-      elsif !item.nil? && !block_given? && !(item <= Verquest::Base)
-        raise ArgumentError, "item must be a child of Verquest::Base class or nil" unless type.is_a?(Verquest::Properties::Base)
+      elsif !item.nil? && !item.respond_to?(:to_ref)
+        raise ArgumentError, "item must be a Verquest::Base subclass or respond to to_ref and to_validation_schema"
       end
 
       camelize(schema_options)

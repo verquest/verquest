@@ -68,6 +68,7 @@ module Verquest
       # @return [void]
       # @raise [Verquest::PropertyNotFoundError] If the referenced property doesn't exist
       def mapping(key_prefix:, value_prefix:, mapping:, version:)
+        return mapping[(key_prefix + [name]).join("/")] = mapping_value_key(value_prefix:) if schema_only?
         return add_request_mapping(from, key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), mapping:, version:) unless property
 
         referenced = from.resolve(version)
@@ -83,6 +84,7 @@ module Verquest
       # @return [void]
       # @raise [Verquest::PropertyNotFoundError] If the referenced property doesn't exist
       def layout(key_prefix:, value_prefix:, layout:, version:)
+        return super if schema_only?
         return add_request_layout(from, key_prefix: key_prefix + [name], value_prefix: mapping_value_prefix(value_prefix:), layout:, version:) unless property
 
         referenced = from.resolve(version)
@@ -99,12 +101,23 @@ module Verquest
       # @return [Hash{Array<String> => Hash}] The options of each property path
       # @raise [Verquest::PropertyNotFoundError] If the referenced property doesn't exist
       def query_options(prefix:, version:)
+        return super if schema_only?
+
         referenced = from.resolve(version)
         return referenced_property_options(referenced, prefix:) if property
 
         referenced.all_properties.each_value.with_object(super) do |child, options|
           options.merge!(child.query_options(prefix: prefix + [name], version: referenced.name))
         end
+      end
+
+      # Whether the referenced class only provides a schema (not a Verquest::Base subclass),
+      # so its value passes through unchanged
+      #
+      # @return [Boolean]
+      # @api private
+      def schema_only?
+        !(from.is_a?(Class) && from <= Verquest::Base)
       end
 
       private

@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Added
+- `reference from:` and `collection item:` accept classes that only implement `to_ref` and `to_validation_schema` (such as versponse responses). Their schema is referenced and their value passes through unchanged. They can't be `one_of` variants.
+
+### Fixed
+- `collection item:` validation referenced an undefined `type` variable.
+
 ## [0.7.0] - 2026-11-05
 
 ### Added
