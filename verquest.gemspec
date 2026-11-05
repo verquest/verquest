@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["Petr Hlavicka"]
   spec.email = ["yes@petr.codes"]
 
-  spec.summary = "Verquest is a Ruby gem that offers an elegant solution for versioning API requests"
-  spec.description = "Verquest helps you version API requests, simplifying the management of changes, handling the mapping for internal versus external names and structures, validating parameters, and exporting your requests to JSON Schema components for OpenAPI."
+  spec.summary = "Versioned API request definitions with JSON Schema validation, mapping and OpenAPI output"
+  spec.description = "Verquest describes API request bodies, query strings and path parameters with a Ruby DSL, one definition per API version. It validates params against JSON Schema, maps them from your public API structure to your internal one, and generates JSON Schema components and OpenAPI parameters for documentation tools like rswag."
   spec.homepage = "https://github.com/verquest/verquest"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2"

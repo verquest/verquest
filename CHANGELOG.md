@@ -4,6 +4,7 @@
 - Query parameters: `location :query` on a request class converts query strings to the types its schema expects (numbers, booleans, null, comma-separated or repeated arrays, one level of `deepObject`) before `process` validates and maps them. `to_parameters(version:)` returns OpenAPI parameter objects with symbol keys for rswag. Arrays take `explode:`, defaulting to the new `config.query_array_explode` (`true`). `parameter_examples:` on `field`, `enum`, `const`, `array`, `object` and `reference` adds named OpenAPI examples to the parameter without putting them in the JSON schemas. Shapes query strings can't express raise the new `Verquest::DefinitionError` when the version is defined.
 - Path parameters: `location :path` converts and validates path params like query params, and `to_parameters` documents them as `in: :path`. Properties must be required scalars, otherwise the version raises `Verquest::DefinitionError`.
 - Conditional schemas: `condition` with `given`, `then_apply` and `else_apply` compiles to JSON Schema `if` / `then` / `else` in a version, an `object` or an inline `collection`. Rules: `present`, `absent`, `equals`, `value_in`, `satisfies`, `any` and `none`. Branch properties are listed in the scope's `properties` (so `additionalProperties: false` keeps working and the mapping stays flat), and each branch forbids the properties only the other branch declares, which gives one validation error per problem. Also adds the `depends_on` shorthand and `exclude_conditions` for later versions. Conditions need `json_schema_version` `:draft7` or later, or `:openapi31`; other versions raise `ArgumentError`.
+- [Rails and rswag guide](docs/rails.md): a controller concern for body, query and path classes, and an rswag shared context.
 - `condition ..., document_as: :one_of` documents a condition in a version as a `oneOf` of its branches in `to_schema`, while the validation schema keeps `if` / `then` / `else`. `then_apply` and `else_apply` take `title`, `description` and `deprecated` for their variant.
 
 ### Changed
@@ -39,7 +40,7 @@
 - A `reference` with `property:` to an object, a collection or a oneOf maps its data. Only scalar properties worked.
 - A collection whose only property is a named `one_of` keeps the name in its item schema, so valid items pass validation.
 
-## [0.6.3] - 2026-09-23
+## [0.6.4] - 2026-09-23
 
 ### Fixed
 - Handling `nullable: true` ([#18](https://github.com/verquest/verquest/pull/18), [@CiTroNaK](https://github.com/CiTroNaK))

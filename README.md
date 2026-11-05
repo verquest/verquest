@@ -3,18 +3,26 @@
 [![Gem Version](https://badge.fury.io/rb/verquest.svg)](https://badge.fury.io/rb/verquest)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
 
-Verquest is a Ruby gem that offers an elegant solution for versioning API requests. It simplifies the process of defining and evolving your API schema over time, with robust support for:
+Verquest describes your API's requests (bodies, query strings and path parameters) with a small Ruby DSL, one definition per API version. From that definition you get:
 
-- Defining versioned request structures
-- Gracefully handling API versioning
-- Mapping between external and internal parameter structures
-- Validating parameters against [JSON Schema](https://json-schema.org/)
-- Generating components for OpenAPI documentation
-- Mapping error keys back to the external API structure
+- validation of incoming params against [JSON Schema](https://json-schema.org/), with errors that point at the invalid value (`/address/city`);
+- mapping from your public API structure to the structure your app uses (`full_name` → `name`);
+- JSON Schema components and OpenAPI parameters for your docs, ready for [rswag](https://github.com/rswag/rswag);
+- version resolution: ask for `2025-07` and get the closest earlier definition, so unchanged requests need no new version.
+
+It works in any Ruby app and has no Rails dependency. [Rails and rswag](docs/rails.md) shows how to plug it into controllers and request specs.
 
 Sponsored by [Stora](https://stora.co)
 
-> The gem is still in development. Until version 1.0, the API may change. There are some features like `oneOf`, `anyOf`, `allOf` that are not implemented yet. See open [issues](https://github.com/verquest/verquest/issues?q=sort:updated-desc%20is:issue%20is:open%20label:enhancement).
+> Verquest is not 1.0 yet, so minor releases can change the API; the [changelog](CHANGELOG.md) lists every change. `anyOf` and `allOf` aren't in the DSL yet, see the open [issues](https://github.com/verquest/verquest/issues?q=sort:updated-desc%20is:issue%20is:open%20label:enhancement).
+
+## Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Core Features](#core-features): [schema definition](#schema-definition-and-validation), [oneOf](#oneof), [conditional schemas](#conditional-schemas), [custom field types](#custom-field-types), [versioning](#versioning), [mapping](#mapping-request-structure), [query parameters](#query-parameters), [path parameters](#path-parameters), [OpenAPI components](#component-generation-for-openapi)
+- [Rails and rswag](docs/rails.md)
+- [Configuration](#configuration)
 
 ## Installation
 
@@ -32,9 +40,10 @@ bundle install
 
 ## Quick Start
 
-### Define a versioned API requests
+### Define a request
 
-Address Create Request
+A request class inherits from `Verquest::Base` and describes each version in a `version` block. An address, reused below:
+
 ```ruby
 class AddressCreateRequest < Verquest::Base
   description "Address Create Request"
@@ -49,9 +58,10 @@ class AddressCreateRequest < Verquest::Base
     end
   end
 end
-````
+```
 
-User Create Request that uses the `AddressCreateRequest`
+A user request that uses the address:
+
 ```ruby
 class UserCreateRequest < Verquest::Base
   description "User Create Request"
@@ -97,30 +107,31 @@ class UserCreateRequest < Verquest::Base
 end
 ```
 
-### Example usage in Rails Controller
+### Process params in a Rails controller
+
+`process` validates the params and returns them mapped to your internal structure. It takes `ActionController::Parameters` as they are, so it replaces strong parameters:
 
 ```ruby
-
 class UsersController < ApplicationController
-  rescue_from Verquest::InvalidParamsError, with: :handle_invalid_params
-  
-  def create
-    result = Users::Create.call(params: user_params) # service object to handle the creation logic
-
-    if result.success?
-      # render success response
-    else
-      # render error response
-    end
+  rescue_from Verquest::InvalidParamsError do |error|
+    render json: {errors: error.errors}, status: :unprocessable_content
   end
 
-  private
-
-  def user_params
-    UserCreateRequest.process(params, version: params[:api_version])
+  def create
+    user = Users::Create.call(params: UserCreateRequest.process(params, version: params[:api_version]))
+    render json: user, status: :created
   end
 end
 ```
+
+Each error points at the invalid value:
+
+```ruby
+error.errors
+# => [{pointer: "/email", type: "format", message: "value at `/email` does not match format: email", details: nil}]
+```
+
+Set `config.current_version` to drop the `version:` argument, or `config.validation_error_handling = :result` to get a `Verquest::Result` instead of an exception (see [Configuration](#configuration)). For query and path parameters in controllers, see [Rails and rswag](docs/rails.md).
 
 ### JSON schema for OpenAPI
 You can generate JSON Schema for your versioned requests, which can be used for API documentation:
@@ -268,19 +279,22 @@ The JSON schema can be used for both validation of incoming parameters and for g
 
 #### Component types
 
-- `field`: Represents a scalar value (string, integer, boolean, etc.).
-- `enum`: Represents a property with a limited set of values (enumeration).
-- `object`: Represents a JSON object with properties.
-- `array`: Represents a JSON array with scalar items.
-- `collection`: Represents a array of objects defined manually or by a reference to another request.
-- `reference`: Represents a reference to another request, allowing you to reuse existing request structures.
-- `const`: Represents a [constant](https://json-schema.org/understanding-json-schema/reference/const#constant-values) value that is always present in the request.
+- `field`: a scalar value (string, integer, boolean, etc.).
+- `enum`: a value from a fixed list.
+- `object`: a JSON object with its own properties.
+- `array`: a JSON array of scalar items.
+- `collection`: a JSON array of objects, defined inline or with `item:` pointing at another request.
+- `reference`: another request reused in place, or one of its properties with `property:`.
+- `const`: a [constant](https://json-schema.org/understanding-json-schema/reference/const#constant-values) value.
+- `one_of`: exactly one of several request shapes, see [oneOf](#oneof).
 
 #### Helper methods
 
-- `description`: Adds a description to the request or per version.
-- `schema_options`: Allows you to set additional options for the JSON Schema, such as `additional_properties` for request or per version. All fields (except `reference`) can be defined with options like `required`, `format`, `min_lenght`, `max_length`, etc. all in snake case.
-- `with_options`: Allows you to define multiple fields with the same options, reducing repetition.
+- `description`: a description for the request, or for one version.
+- `schema_options`: extra JSON Schema keywords for the request or one version, such as `additional_properties: false`.
+- `with_options`: shared options for every property in the block.
+
+Properties (except `reference`) take JSON Schema keywords in snake case, such as `format`, `min_length` or `max_length`, and Verquest writes them in camel case (`minLength`).
 
 #### Required properties
 
@@ -494,6 +508,45 @@ end
 - Only for a condition in a version, and it must be the only condition in that version. The version's `description` stays at the root of the schema.
 - The schema has no root `properties`, so `to_ref(property:)` can't point into it.
 
+#### oneOf
+
+`one_of` accepts exactly one of several shapes. Each variant is a `reference` to another request, and `discriminator:` names the property that tells them apart:
+
+```ruby
+class CardPaymentComponent < Verquest::Base
+  version "2025-06" do
+    const :method, value: "card", required: true
+    field :card_number, type: :string, required: true
+    field :expiry, type: :string, required: true
+  end
+end
+
+class OrderRequest < Verquest::Base
+  version "2025-06" do
+    field :order_id, type: :string, required: true
+
+    one_of name: :payment, discriminator: :method, required: true do
+      reference :card, from: CardPaymentComponent
+      reference :bank, from: BankPaymentComponent
+    end
+  end
+end
+
+OrderRequest.process({"order_id" => "o1", "payment" => {"method" => "card", "card_number" => "4242", "expiry" => "12/30"}})
+# => {"order_id" => "o1", "payment" => {"method" => "card", "card_number" => "4242", "expiry" => "12/30"}}
+```
+
+`to_schema` documents it as an OpenAPI `oneOf` with a `discriminator` mapping to the variants' components:
+
+```ruby
+{"oneOf" => [{"$ref" => "#/components/schemas/CardPaymentComponent"}, {"$ref" => "#/components/schemas/BankPaymentComponent"}],
+ "discriminator" => {"propertyName" => "method", "mapping" => {"card" => "#/components/schemas/CardPaymentComponent", "bank" => "#/components/schemas/BankPaymentComponent"}}}
+```
+
+- Without `name:`, the whole request is one of the variants (`one_of discriminator: :type do ... end` as the only property of a version).
+- Without `discriminator:`, the value must match exactly one variant's schema. Validation rejects it otherwise; with validation off, mapping raises `Verquest::MappingError`.
+- `one_of` works inside objects, collections and other variants, and with `nullable: true` and `map:`.
+
 #### oneOf discriminators in validation
 
 A `one_of` with a `discriminator:` keeps the discriminator in the validation schema. Its variants move into local `definitions` that `oneOf` references with `$ref`. An id, written as both `$id` and `id` so every JSON Schema version reads it, makes those references resolve wherever the schema is embedded:
@@ -680,7 +733,7 @@ Will be transformed to:
   "address_city": "Springfield",
   "address_zip": "12345"
 }
-````
+```
 
 What you can use:
 - `/` to reference the root of the request structure
@@ -706,9 +759,7 @@ Will produce the following mapping:
 }
 ```
 
-There are some limitations and the implementation can be improved, but it should works for most common use cases.
-
-See the mapping test (in `test/verquest/base_test.rb`) for more examples of mapping.
+The mapping tests in [`test/verquest/base_test.rb`](test/verquest/base_test.rb) have more examples.
 
 ### Query parameters
 
@@ -778,7 +829,11 @@ DealPath.to_parameters(version: "2025-06")
 # => [{name: "id", in: :path, required: true, description: "The ID of the deal", schema: {type: "string", pattern: "^deal_"}}]
 ```
 
-The parameter name comes from the property. When a route uses another name (`/deals/{deal_id}/win`), rename the key before `process` and the `name` of the parameter object.
+The parameter name comes from the property. When a route uses another name (`/deals/{deal_id}/win`), rename the key before `process` and the `name` of the parameter object, as the [Rails and rswag](docs/rails.md) example does.
+
+### Rails and rswag
+
+See [Rails and rswag](docs/rails.md) for a controller concern that processes body, query and path classes, and an rswag shared context that documents them.
 
 ### Component Generation for OpenAPI
 
@@ -812,23 +867,28 @@ Verquest.configure do |config|
   config.remove_extra_root_keys = true # default
   
   # Set custom version resolver
-  config.version_resolver = CustomeVersionResolver # default is `Verquest::VersionResolver`
+  config.version_resolver = CustomVersionResolver # default is `Verquest::VersionResolver`
   
   # Set default value for additional properties
   config.default_additional_properties = false # default
 
   # Default explode value of query arrays (true: status[]=a&status[]=b, false: status=a,b)
   config.query_array_explode = true # default
+
+  # Reusable field types, see Custom Field Types
+  config.custom_field_types = {} # default
 end
 ```
 
 ## Documentation
 
-For detailed documentation, please visit the [YARD documentation](https://www.rubydoc.info/gems/verquest/0.6.0/).
+The API reference is on [RubyDoc](https://www.rubydoc.info/gems/verquest). Guides:
+
+- [Rails and rswag](docs/rails.md): controllers and request specs for body, query and path parameters.
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. `bundle exec rake` runs the tests, RuboCop and the YARD documentation check; `COVERAGE=1 bundle exec rake` adds a coverage report. `bin/console` opens an interactive prompt with the gem loaded.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `gem_version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
