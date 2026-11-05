@@ -685,6 +685,31 @@ This is used across all referenced requests, so if you have a `UserRequest` that
 
 The goal here is to avoid redefining the same request structure in multiple versions when there are no changes, and to facilitate the easy evolution of API requests over time. When a new API version is created and there are no changes to the requests, you don't need to update anything.
 
+#### Supported versions
+
+`supported_versions` limits the versions a request serves. Both bounds are inclusive and optional:
+
+```ruby
+class OverlockRequest < Verquest::Base
+  supported_versions min: "2025-09", max: "2026-03"
+
+  version "2025-09" do
+    field :reason, type: :string, required: true
+  end
+end
+
+OverlockRequest.process(params, version: "2025-12") # => uses the defined version "2025-09"
+OverlockRequest.process(params, version: "2026-06") # => raises Verquest::VersionNotFoundError
+```
+
+- `min` defaults to the first declared version. Set it when the request should appear later than its first `version` block. The range applies to the requested version, not to the blocks: with `supported_versions min: "preview"` and a single `version "2025-09"` block, `"preview"` is served by the 2025-09 block and `"2025-09"` raises.
+- `max` defaults to no upper bound.
+- A version outside the range raises `Verquest::VersionNotFoundError`, the same error as a version older than every declared one. `process`, `to_schema`, `to_validation_schema`, `mapping` and references from other requests all respect it. A request that references `OverlockRequest` from a version outside its range raises when that version is defined.
+- Known limit: references are checked against the referencing class's declared version, not the requested one. If `ParentRequest` declares only `version "2025-06"` with `reference :overlock, from: OverlockRequest`, then `ParentRequest.process(params, version: "2026-06")` resolves to the 2025-06 block and still serves the reference. To stop serving a retired reference, the parent must declare a later block without it, or its own `supported_versions`.
+- Versions are compared with `config.version_resolver`. With the default resolver they compare as strings, so `"preview"` sorts after dated versions.
+- `min` after `max` raises `Verquest::DefinitionError` when declared. A `max` before the first declared version would leave nothing to serve, so it raises `Verquest::DefinitionError` the first time the request resolves a version.
+- Declare it before the first `version` block. Subclasses inherit the range and can declare their own. `supported_versions` with no arguments removes an inherited range.
+
 ### Mapping request structure
 
 Verquest's mapping system allows transforming external API request structures into your internal application data structures.

@@ -14,6 +14,8 @@ module Verquest
     # @param version [String, nil] The specific version to resolve
     # @return [Verquest::Version] The resolved version object
     # @raise [ArgumentError] If no version is provided and no current_version is configured
+    # @raise [Verquest::VersionNotFoundError] If no version matches, or supported_versions leaves the version out
+    # @raise [Verquest::DefinitionError] If supported_versions max sorts before every declared version
     def resolve(version)
       if version.nil? && Verquest.configuration.current_version
         version = instance_exec(&Verquest.configuration.current_version)
@@ -21,7 +23,17 @@ module Verquest
         raise ArgumentError, "Version must be provided or set by Verquest.configuration.current_version"
       end
 
+      check_supported_version!(version)
       versions.resolve(version)
+    end
+
+    # Returns the range declared with supported_versions on this class or its closest superclass
+    #
+    # @return [Verquest::SupportedVersions, nil] The range, or nil when the request serves every declared version
+    def supported_version_range
+      return @supported_versions if defined?(@supported_versions)
+
+      superclass.supported_version_range if superclass.respond_to?(:supported_version_range)
     end
 
     private
@@ -38,6 +50,41 @@ module Verquest
     # @return [Verquest::Versions] The versions container
     def versions
       @versions ||= Versions.new
+    end
+
+    # Limits the versions this request serves
+    #
+    # Resolving a version outside the range raises {Verquest::VersionNotFoundError}. Subclasses
+    # inherit the range; calling it without arguments removes an inherited one.
+    #
+    # @example
+    #   supported_versions min: "2025-09", max: "2026-03"
+    #
+    # @param min [String, nil] The first supported version (inclusive), defaults to the first declared version
+    # @param max [String, nil] The last supported version (inclusive), defaults to no upper bound
+    # @return [void]
+    # @raise [Verquest::DefinitionError] If min sorts after max, or a version is already defined
+    def supported_versions(min: nil, max: nil)
+      raise DefinitionError, "supported_versions must be set before the first version" if current_scope
+
+      @supported_versions = (min.nil? && max.nil?) ? nil : SupportedVersions.new(min:, max:)
+    end
+
+    # Raises unless supported_versions covers the requested version (declared blocks may lie outside it)
+    #
+    # @param version [String] The requested version
+    # @return [void]
+    # @raise [Verquest::VersionNotFoundError] If the version is outside the range
+    # @raise [Verquest::DefinitionError] If max sorts before every declared version
+    def check_supported_version!(version)
+      range = supported_version_range
+      return unless range
+
+      declared = versions.names
+      range.check!(declared, name || inspect)
+      return if declared.empty? || range.covers?(version.to_s)
+
+      raise VersionNotFoundError, "Version '#{version}' is outside supported_versions (#{range}) of #{name || inspect}"
     end
 
     # Defines a new version with optional inheritance from another version

@@ -2,6 +2,7 @@
 
 ### Added
 - `reference from:` and `collection item:` accept classes that only implement `to_ref` and `to_validation_schema` (such as versponse responses). Their schema is referenced and their value passes through unchanged. They can't be `one_of` variants.
+- `supported_versions min:, max:` limits the versions a request serves (both inclusive, both optional; `min` defaults to the first declared version). Resolving a version outside the range raises `Verquest::VersionNotFoundError`, so `process`, schemas, mappings and references respect it. Only the requested version is checked, so `min: "preview"` can be served by an earlier block. `min` after `max`, or a `max` before the first declared version, raises `Verquest::DefinitionError`. Versions are compared with `config.version_resolver`, and subclasses inherit the range. Known limit: references are checked against the referencing class's declared version, not the requested one, so a parent must declare a later block, or its own range, to stop serving a retired reference.
 
 ### Fixed
 - `collection item:` validation referenced an undefined `type` variable.

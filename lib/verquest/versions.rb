@@ -56,6 +56,13 @@ module Verquest
       versions[resolved_version_name] || raise(Verquest::VersionNotFoundError, "Version '#{version_name}' not found")
     end
 
+    # Returns the declared version names in string order
+    #
+    # @return [Array<String>] The version names, sorted as strings
+    def names
+      versions.keys.sort
+    end
+
     private
 
     # @!attribute [r] versions
