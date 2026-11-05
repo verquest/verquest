@@ -710,6 +710,56 @@ There are some limitations and the implementation can be improved, but it should
 
 See the mapping test (in `test/verquest/base_test.rb`) for more examples of mapping.
 
+### Query parameters
+
+A request class with `location :query` describes query parameters. `process` converts the query strings to the types the schema expects before it validates and maps them, and `to_parameters` documents them as OpenAPI parameters.
+
+```ruby
+class DealsIndexQuery < Verquest::Base
+  location :query # inherited, so it can be set once on a base class
+
+  version "2025-06" do
+    field :page, type: :integer, minimum: 1, default: 1
+    field :archived, type: :boolean
+    enum :sort_direction, values: %w[ASC DESC], default: "DESC"
+    array :status, type: :string, explode: false, item_schema_options: {enum: %w[open won lost]}
+
+    object :created do # sent as created[after]=...
+      field :after, type: :string, format: "date-time", map: "/created_after"
+    end
+  end
+end
+
+DealsIndexQuery.process(request.query_parameters, version: "2025-06")
+# ?page=2&archived=true&status=open,won&created[after]=2025-01-01T00:00:00Z
+# => {"page" => 2, "archived" => true, "sort_direction" => "DESC", "status" => ["open", "won"], "created_after" => "2025-01-01T00:00:00Z"}
+```
+
+Conversion follows the validation schema:
+- `integer` and `number` from digits (`"2"`, `"-1.5"`), `boolean` from `"true"` and `"false"`, `null` from an empty string when the schema allows it;
+- arrays split on commas with `explode: false` (`status=open,won`), or come from repeated keys with `explode: true` (`status[]=open&status[]=won`; Rails keeps only the last value of a plain repeated key). `config.query_array_explode` sets the default (`true`);
+- objects (`deepObject`, one level deep) convert each property.
+
+A value that can't be converted is left as it is, so the validation reports it. Shapes a query string can't express (`one_of` properties, arrays of objects, objects inside objects) raise `Verquest::DefinitionError` when the version is defined.
+
+`to_parameters` returns one parameter object per property, with symbol keys and the schema inlined, ready for rswag:
+
+```ruby
+DealsIndexQuery.to_parameters(version: "2025-06").each { |p| parameter(p) }
+# {name: "status", in: :query, required: false, style: :form, explode: false,
+#  schema: {type: "array", items: {type: "string", enum: ["open", "won", "lost"]}}}
+```
+
+Named OpenAPI examples go on the parameter with `parameter_examples:`. They are left out of the JSON schemas, because JSON Schema `examples` is an array:
+
+```ruby
+array :status, type: :string, explode: false, item_schema_options: {enum: %w[open won lost]},
+  parameter_examples: {single: {value: %w[open]}, multiple: {value: %w[open won]}}
+# => {name: "status", ..., examples: {single: {value: ["open"]}, multiple: {value: ["open", "won"]}}, schema: {...}}
+```
+
+A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
+
 ### Component Generation for OpenAPI
 
 Generate JSON Schema, component name and reference for OpenAPI documentation:
@@ -746,6 +796,9 @@ Verquest.configure do |config|
   
   # Set default value for additional properties
   config.default_additional_properties = false # default
+
+  # Default explode value of query arrays (true: status[]=a&status[]=b, false: status=a,b)
+  config.query_array_explode = true # default
 end
 ```
 

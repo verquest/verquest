@@ -8,6 +8,7 @@ if ENV["COVERAGE"]
 
     add_group "Core", %w[lib/verquest.rb lib/verquest/base.rb]
     add_group "Properties", "lib/verquest/properties"
+    add_group "Query", "lib/verquest/query"
     add_group "Support", %w[
       lib/verquest/configuration.rb lib/verquest/result.rb lib/verquest/transformer.rb
       lib/verquest/version.rb lib/verquest/version_resolver.rb lib/verquest/versions.rb

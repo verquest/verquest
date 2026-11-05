@@ -89,9 +89,35 @@ module Verquest
         referenced.fetch_property(property).renamed(name:, map:).layout(key_prefix:, value_prefix:, layout:, version: referenced.name)
       end
 
+      # Returns the query parameter options of the referenced request, or of
+      # the referenced property renamed to this reference
+      #
+      # This reference's own parameter examples replace the referenced ones.
+      #
+      # @param prefix [Array<String>] Path of the parent property
+      # @param version [String] The version to resolve references with
+      # @return [Hash{Array<String> => Hash}] The options of each property path
+      # @raise [Verquest::PropertyNotFoundError] If the referenced property doesn't exist
+      def query_options(prefix:, version:)
+        referenced = from.resolve(version)
+        return referenced_property_options(referenced, prefix:) if property
+
+        referenced.all_properties.each_value.with_object(super) do |child, options|
+          options.merge!(child.query_options(prefix: prefix + [name], version: referenced.name))
+        end
+      end
+
       private
 
       attr_reader :from, :property
+
+      # @return [Hash{Array<String> => Hash}] The options of the referenced property under this reference's name
+      def referenced_property_options(referenced, prefix:)
+        copy = referenced.fetch_property(property).renamed(name:, map:)
+        copy.parameter_examples = parameter_examples if parameter_examples
+
+        copy.query_options(prefix:, version: referenced.name)
+      end
     end
   end
 end

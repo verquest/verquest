@@ -16,6 +16,7 @@ module Verquest
         remove_extra_root_keys: true,
         insert_property_defaults: true,
         default_additional_properties: false,
+        query_array_explode: true,
         custom_field_types: {},
         version_resolver: VersionResolver,
         current_version: nil
@@ -28,6 +29,7 @@ module Verquest
         remove_extra_root_keys: config.remove_extra_root_keys,
         insert_property_defaults: config.insert_property_defaults,
         default_additional_properties: config.default_additional_properties,
+        query_array_explode: config.query_array_explode,
         custom_field_types: config.custom_field_types,
         version_resolver: config.version_resolver,
         current_version: config.current_version

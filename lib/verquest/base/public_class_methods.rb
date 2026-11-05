@@ -6,6 +6,9 @@ module Verquest
   # This module contains class methods that handle parameter mapping, schema generation,
   # and validation functionality for Verquest API request objects.
   module Base::PublicClassMethods
+    # Where request params can come from
+    LOCATIONS = %i[body query].freeze
+
     # Maps incoming parameters to the appropriate structure based on version mapping
     #
     # @param params [Hash] The parameters to be mapped
@@ -23,6 +26,7 @@ module Verquest
       params = params.dup
       params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
       params = params.slice(*version_class.all_properties.keys) if remove_extra_root_keys && !version_class.combination?
+      params = version_class.coerce_params(params)
 
       if validate && (validation_result = version_class.validate_params(params: params)) && validation_result.any?
         case Verquest.configuration.validation_error_handling
@@ -50,6 +54,51 @@ module Verquest
           end
         end
       end
+    end
+
+    # Sets or returns where the request's params come from
+    #
+    # A query request (`location :query`) converts query strings to the types
+    # its schema expects before validating them, and documents its properties
+    # with {#to_parameters}. Subclasses inherit the location.
+    #
+    # @example
+    #   class ListQuery < Verquest::Base
+    #     location :query
+    #
+    #     version "2025-06" do
+    #       field :page, type: :integer
+    #     end
+    #   end
+    #
+    # @param value [Symbol, nil] `:body` or `:query` to set the location, nil to return it
+    # @return [Symbol] The location, `:body` unless set on this class or a superclass
+    # @raise [ArgumentError] If the value is not a known location, or a version is already defined
+    def location(value = nil)
+      return @location || (superclass.respond_to?(:location) ? superclass.location : :body) if value.nil?
+
+      raise ArgumentError, "Location must be one of #{LOCATIONS.join(", ")}" unless LOCATIONS.include?(value)
+      raise ArgumentError, "Location must be set before the first version" if current_scope
+
+      @location = value
+    end
+
+    # Returns OpenAPI parameter objects for a query request
+    #
+    # One parameter per property, with symbol keys, ready for rswag's `parameter`.
+    # Schemas are inlined, arrays get `style: :form` and their explode value, and
+    # objects get `style: :deepObject`.
+    #
+    # @example
+    #   ListQuery.to_parameters(version: "2025-06").each { |p| parameter(p) }
+    #
+    # @param version [String, nil] Specific version to use, defaults to configuration setting
+    # @return [Array<Hash>] The OpenAPI parameter objects
+    # @raise [ArgumentError] If the request is not a query request
+    def to_parameters(version: nil)
+      raise ArgumentError, "#{name} is not a query request (location #{location.inspect})" unless location == :query
+
+      resolve(version).parameters
     end
 
     # Returns the JSON schema for the request

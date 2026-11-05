@@ -48,7 +48,7 @@ module Verquest
     # @yield Block defining the version's structure and properties
     # @return [void]
     def version(name, inherit: true, exclude_properties: [], &block)
-      version = Version.new(name:)
+      version = Version.new(name:, location:)
       versions.add(version)
 
       if inherit && @current_scope
@@ -125,8 +125,9 @@ module Verquest
     # @param required [Boolean, Array<Symbol>] Whether the field is required
     # @param nullable [Boolean] Whether the field can be null
     # @param schema_options [Hash] Additional schema options for the field
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
     # @return [void]
-    def field(name, type: nil, map: nil, required: nil, nullable: nil, **schema_options)
+    def field(name, type: nil, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
@@ -135,7 +136,7 @@ module Verquest
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       field = Properties::Field.new(name:, type:, map:, required:, nullable:, **schema_options)
-      current_scope.add(field)
+      add_property(field, parameter_examples)
     end
 
     # Defines a new enum property for the current version scope
@@ -146,8 +147,9 @@ module Verquest
     # @param required [Boolean, Array<Symbol>] Whether the enum is required
     # @param nullable [Boolean] Whether the enum can be null
     # @param schema_options [Hash] Additional schema options for the enum
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
     # @return [void]
-    def enum(name, values:, map: nil, required: nil, nullable: nil, **schema_options)
+    def enum(name, values:, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options)
       camelize(schema_options)
 
       required = default_options.fetch(:required, false) if required.nil?
@@ -155,7 +157,7 @@ module Verquest
       schema_options = default_options.except(:required, :nullable).merge(schema_options)
 
       enum_property = Properties::Enum.new(name:, values:, map:, required:, nullable:, **schema_options)
-      current_scope.add(enum_property)
+      add_property(enum_property, parameter_examples)
     end
 
     # Defines a new constant property for the current version scope
@@ -166,14 +168,15 @@ module Verquest
     # @param required [Boolean, Array<Symbol>] Whether the constant is required
     # @param nullable [Boolean] Whether the constant can be null
     # @param schema_options [Hash] Additional schema options for the constant
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
     # @return [void]
-    def const(name, value:, map: nil, required: nil, nullable: nil, **schema_options)
+    def const(name, value:, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options)
       camelize(schema_options)
       required = default_options.fetch(:required, false) if required.nil?
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
 
       const = Properties::Const.new(name:, value:, map:, required:, nullable:, **schema_options)
-      current_scope.add(const)
+      add_property(const, parameter_examples)
     end
 
     # Defines a new object for the current version scope
@@ -183,9 +186,10 @@ module Verquest
     # @param required [Boolean, Array<Symbol>] Whether the object is required
     # @param nullable [Boolean] Whether the object can be null
     # @param schema_options [Hash] Additional schema options for the object
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
     # @yield Block executed in the context of the new object definition
     # @return [void]
-    def object(name, map: nil, required: nil, nullable: nil, **schema_options, &block)
+    def object(name, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options, &block)
       unless block_given?
         raise ArgumentError, "a block must be given to define the object"
       end
@@ -196,7 +200,7 @@ module Verquest
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       object = Properties::Object.new(name:, map:, required:, nullable:, **schema_options)
-      current_scope.add(object)
+      add_property(object, parameter_examples)
 
       if block_given?
         previous_scope = current_scope
@@ -251,13 +255,14 @@ module Verquest
     # @param map [String, nil] An optional mapping to another reference
     # @param required [Boolean, Array<Symbol>] Whether the reference is required
     # @param nullable [Boolean] Whether this reference can be null
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
     # @return [void]
-    def reference(name, from:, property: nil, map: nil, required: nil, nullable: nil)
+    def reference(name, from:, property: nil, map: nil, required: nil, nullable: nil, parameter_examples: nil)
       required = default_options.fetch(:required, false) if required.nil?
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
 
       reference = Properties::Reference.new(name:, from:, property:, map:, required:, nullable:)
-      current_scope.add(reference)
+      add_property(reference, parameter_examples)
     end
 
     # Defines a new array property for the current version scope
@@ -267,10 +272,12 @@ module Verquest
     # @param required [Boolean, Array<Symbol>] Whether the array property is required
     # @param nullable [Boolean] Whether this array can be null
     # @param map [String, nil] An optional mapping to another array property
+    # @param explode [Boolean, nil] In query requests, whether items are sent as repeated keys (true) or comma-separated (false); nil uses the configuration
     # @param item_schema_options [Hash] Additional JSON schema options for the array items (merged with custom type options)
     # @param schema_options [Hash] Additional schema options for the array property
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
     # @return [void]
-    def array(name, type:, required: nil, nullable: nil, map: nil, item_schema_options: {}, **schema_options)
+    def array(name, type:, required: nil, nullable: nil, map: nil, explode: nil, parameter_examples: nil, item_schema_options: {}, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
@@ -278,8 +285,8 @@ module Verquest
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
-      array = Properties::Array.new(name:, type:, required:, nullable:, map:, item_schema_options:, **schema_options)
-      current_scope.add(array)
+      array = Properties::Array.new(name:, type:, required:, nullable:, map:, explode:, item_schema_options:, **schema_options)
+      add_property(array, parameter_examples)
     end
 
     # Defines a oneOf property for polymorphic schemas
@@ -310,6 +317,16 @@ module Verquest
       end
     ensure
       @current_scope = previous_scope if block_given?
+    end
+
+    # Adds a property to the current scope
+    #
+    # @param property [Verquest::Properties::Base] The property to add
+    # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter
+    # @return [void]
+    def add_property(property, parameter_examples)
+      property.parameter_examples = parameter_examples
+      current_scope.add(property)
     end
 
     # Excludes specified properties from the current scope by removing them

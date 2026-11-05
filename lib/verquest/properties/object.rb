@@ -114,6 +114,17 @@ module Verquest
         end
       end
 
+      # Returns the query parameter options of this object and its properties
+      #
+      # @param prefix [Array<String>] Path of the parent property
+      # @param version [String] The version to resolve references with
+      # @return [Hash{Array<String> => Hash}] The options of each property path
+      def query_options(prefix:, version:)
+        all_properties.each_value.with_object(super) do |property, options|
+          options.merge!(property.query_options(prefix: prefix + [name], version:))
+        end
+      end
+
       private
 
       attr_reader :type, :schema_options, :properties

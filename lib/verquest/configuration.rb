@@ -61,8 +61,13 @@ module Verquest
     # @!attribute [rw] default_additional_properties
     #   Controls the default behavior for handling properties not defined in the schema
     #   @return [Boolean] false to disallow additional properties (default), true to allow them
+    #
+    # @!attribute [rw] query_array_explode
+    #   Default explode value of array properties in query requests (`location :query`)
+    #   @return [Boolean] true for repeated keys like `status[]=a&status[]=b` (default), false for comma-separated values like `status=a,b`
     attr_accessor :validate_params, :json_schema_version, :validation_error_handling,
-      :remove_extra_root_keys, :insert_property_defaults, :default_additional_properties
+      :remove_extra_root_keys, :insert_property_defaults, :default_additional_properties,
+      :query_array_explode
 
     # @!attribute [r] current_version
     #   A callable object that returns the current API version to use when not explicitly specified
@@ -89,6 +94,7 @@ module Verquest
       @insert_property_defaults = true
       @custom_field_types = {}
       @default_additional_properties = false
+      @query_array_explode = true
     end
 
     # Sets the current version strategy using a callable object

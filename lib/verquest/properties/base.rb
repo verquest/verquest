@@ -21,7 +21,9 @@ module Verquest
       #   @return [Boolean] Whether this property is required
       # @!attribute [rw] map
       #   @return [String, nil] The mapping path for this property
-      attr_accessor :name, :required, :map
+      # @!attribute [rw] parameter_examples
+      #   @return [Hash, nil] Named OpenAPI Example Objects for this property's query parameter, kept out of the JSON schemas
+      attr_accessor :name, :required, :map, :parameter_examples
 
       # Adds a child property to this property
       # @abstract
@@ -70,6 +72,18 @@ module Verquest
       # @return [void]
       def layout(key_prefix:, value_prefix:, layout:, version:)
         layout.add_pair((key_prefix + [name]).join("/"), mapping_value_key(value_prefix:))
+      end
+
+      # Returns the query parameter options under this property, by path
+      #
+      # Options are `explode:` for arrays and `examples:` for properties with
+      # parameter examples. Paths without options are left out.
+      #
+      # @param prefix [Array<String>] Path of the parent property
+      # @param version [String] The version to resolve references with
+      # @return [Hash{Array<String> => Hash}] The options of each property path
+      def query_options(prefix:, version:)
+        parameter_examples ? {prefix + [name] => {examples: parameter_examples}} : {}
       end
 
       # Returns a copy of this property under another name and map:

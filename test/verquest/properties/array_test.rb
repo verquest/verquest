@@ -186,6 +186,22 @@ module Verquest
 
         assert_equal "You can not map array to the root", error.message
       end
+
+      def test_explode_defaults_to_configuration
+        with_configuration(query_array_explode: false) do
+          refute Verquest::Properties::Array.new(name: :tags, type: :string).explode
+        end
+      end
+
+      def test_explode_given
+        assert Verquest::Properties::Array.new(name: :tags, type: :string, explode: true).explode
+      end
+
+      def test_explode_is_not_in_schema
+        array = Verquest::Properties::Array.new(name: :tags, type: :string, explode: false)
+
+        assert_equal({"tags" => {"type" => "array", "items" => {"type" => "string"}}}, array.to_schema)
+      end
     end
   end
 end

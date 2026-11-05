@@ -68,6 +68,10 @@ module Verquest
   # @api public
   MappingError = Class.new(Verquest::Error)
 
+  # Error raised when a request definition uses a shape its location can't express
+  # @api public
+  DefinitionError = Class.new(Verquest::Error)
+
   # Error raised when parameters do not match the expected schema
   # @api public
   InvalidParamsError = Class.new(Verquest::Error) do

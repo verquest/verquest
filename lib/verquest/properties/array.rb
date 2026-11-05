@@ -15,6 +15,9 @@ module Verquest
     #     required: true
     #   )
     class Array < Base
+      # @return [Boolean] In query requests, whether items are sent as repeated keys (true) or comma-separated (false)
+      attr_reader :explode
+
       # Initialize a new Array property
       #
       # @param name [String, Symbol] The name of the property
@@ -22,11 +25,12 @@ module Verquest
       # @param map [String, nil] The mapping path for this property (nil for no explicit mapping)
       # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
+      # @param explode [Boolean, nil] In query requests, whether items are sent as repeated keys (true) or comma-separated (false); nil uses the configuration
       # @param item_schema_options [Hash] Additional JSON schema options for the array items (merged with custom type options)
       # @param schema_options [Hash] Additional JSON schema options for the array property itself
       # @raise [ArgumentError] If type is not one of the allowed types (default or custom)
       # @raise [ArgumentError] If attempting to map an array to the root
-      def initialize(name:, type:, map: nil, required: false, nullable: false, item_schema_options: {}, **schema_options)
+      def initialize(name:, type:, map: nil, required: false, nullable: false, explode: nil, item_schema_options: {}, **schema_options)
         raise ArgumentError, "Type must be one of #{allowed_types.join(", ")}" unless allowed_types.include?(type.to_s)
         raise ArgumentError, "You can not map array to the root" if map == "/"
 
@@ -46,6 +50,7 @@ module Verquest
         @map = map
         @required = required
         @nullable = nullable
+        @explode = explode.nil? ? Verquest.configuration.query_array_explode : explode
         @schema_options = schema_options&.transform_keys(&:to_s)
 
         @type = if nullable
@@ -76,6 +81,15 @@ module Verquest
       # @return [void]
       def mapping(key_prefix:, value_prefix:, mapping:, version: nil)
         mapping[(key_prefix + [name]).join("/")] = mapping_value_key(value_prefix:)
+      end
+
+      # Returns this array's explode value and parameter examples
+      #
+      # @param prefix [Array<String>] Path of the parent property
+      # @param version [String] The version to resolve references with
+      # @return [Hash{Array<String> => Hash}] The options of this array, by path
+      def query_options(prefix:, version:)
+        {prefix + [name] => {explode:, examples: parameter_examples}.compact}
       end
 
       private
