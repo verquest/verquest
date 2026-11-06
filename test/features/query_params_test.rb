@@ -50,6 +50,17 @@ module Verquest
       end
     end
 
+    def test_openapi30_parameters_use_nullable
+      with_configuration(json_schema_version: :openapi30) do
+        query = Class.new(Verquest::Base) do
+          location :query
+          version("2025-06") { enum :sort, values: %w[asc desc], nullable: true }
+        end
+
+        assert_equal({type: "string", enum: ["asc", "desc", nil], nullable: true}, query.to_parameters(version: "2025-06").first[:schema])
+      end
+    end
+
     def test_invalid_values
       error = assert_raises(InvalidParamsError) do
         ListQuery.process({"page" => "x", "status" => "open,closed"}, version: "2025-06")

@@ -169,6 +169,15 @@ module Verquest
       !VERSIONS_WITHOUT_CONST.include?(json_schema_version)
     end
 
+    # Checks whether documents write nullable as a keyword
+    #
+    # OpenAPI 3.0 has no "null" type, so its documents use `nullable: true` (see {Verquest::Openapi30}).
+    #
+    # @return [Boolean] True for OpenAPI 3.0
+    def nullable_keyword?
+      json_schema_version == :openapi30
+    end
+
     # Gets the JSON Schema URI for the configured schema version
     #
     # @return [String] The base URI for the configured JSON Schema version

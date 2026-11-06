@@ -35,7 +35,7 @@ class Verquest::ConstJsonSchemaVersionTest < Minitest::Test
   def test_nullable_const
     request = build_request(:openapi30, nullable: true)
 
-    assert_equal({"anyOf" => [{"enum" => ["dog"]}, {"type" => "null"}]}, request.to_schema(version: "2025-06")["properties"]["kind"])
+    assert_equal({"enum" => ["dog", nil], "nullable" => true}, request.to_schema(version: "2025-06")["properties"]["kind"])
   end
 
   private

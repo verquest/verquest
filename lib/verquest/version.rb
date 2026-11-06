@@ -239,11 +239,11 @@ module Verquest
       parameters? ? query_coercer.call(params) : params
     end
 
-    # Returns OpenAPI parameter objects for this query or path version
+    # Returns OpenAPI parameter objects for this query or path version, in OpenAPI 3.0 forms under :openapi30
     #
     # @return [Array<Hash>] A new array of parameter objects on each call
     def parameters
-      Query::Parameters.new(schema: validation_schema, options: query_options, location:).call
+      Query::Parameters.new(schema: document_schema(validation_schema), options: query_options, location:).call
     end
 
     # Map request parameters to internal representation using the transformer
@@ -347,7 +347,8 @@ module Verquest
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
         schema["description"] = description if description
         add_conditions(schema, documentation: true)
-      end.freeze
+      end
+      @schema = document_schema(@schema).freeze
     end
 
     # Generates the JSON schema for combination schemas (oneOf at root level)
@@ -360,7 +361,15 @@ module Verquest
     def prepare_combination_schema
       raise ArgumentError, "Conditions can not be declared next to a root-level one_of" if conditions.any?
 
-      @schema = properties.values.first.to_schema
+      @schema = document_schema(properties.values.first.to_schema)
+    end
+
+    # Converts a document to OpenAPI 3.0 forms when the configured version needs them
+    #
+    # @param schema [Hash] The schema in JSON Schema forms
+    # @return [Hash] The schema for documents
+    def document_schema(schema)
+      Verquest.configuration.nullable_keyword? ? Openapi30.document(schema) : schema
     end
 
     # Generates the validation schema for this version
