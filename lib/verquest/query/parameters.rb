@@ -9,7 +9,7 @@ module Verquest
     # (`param[:in]`, `param[:style]`, `param[:schema][:type]`).
     #
     # @example
-    #   schema = {"type" => "object", "required" => [], "properties" => {"page" => {"type" => "integer"}}}
+    #   schema = {"type" => "object", "properties" => {"page" => {"type" => "integer"}}}
     #   Verquest::Query::Parameters.new(schema:, options: {}).call
     #   # => [{name: "page", in: :query, required: false, schema: {type: "integer"}}]
     class Parameters

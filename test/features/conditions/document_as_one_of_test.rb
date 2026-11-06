@@ -85,7 +85,6 @@ module Verquest
               "effective_from" => {"type" => "string"},
               "percentages" => {
                 "type" => "object",
-                "required" => [],
                 "properties" => {"unit_types" => {"type" => "number", "maximum" => 9999.99}},
                 "additionalProperties" => false,
                 "minProperties" => 1
@@ -104,7 +103,6 @@ module Verquest
               "percentage" => {"type" => "number", "not" => {"const" => 0}},
               "applies_to" => {
                 "type" => "object",
-                "required" => [],
                 "properties" => {"unit_types" => {"type" => "boolean"}},
                 "additionalProperties" => false
               }
@@ -162,7 +160,7 @@ module Verquest
       schema = request.to_schema(version: "2025-09")
 
       assert_equal({"type" => "object", "required" => %w[vat_id kind], "properties" => {"kind" => {"type" => "string", "const" => "company"}, "vat_id" => {"type" => "string"}}, "additionalProperties" => false}, schema["oneOf"][0])
-      assert_equal({"type" => "object", "required" => [], "properties" => {"kind" => {"type" => "string"}}, "additionalProperties" => false, "not" => {"required" => %w[kind], "properties" => {"kind" => {"const" => "company"}}}}, schema["oneOf"][1])
+      assert_equal({"type" => "object", "properties" => {"kind" => {"type" => "string"}}, "additionalProperties" => false, "not" => {"required" => %w[kind], "properties" => {"kind" => {"const" => "company"}}}}, schema["oneOf"][1])
 
       payloads = [{"kind" => "company", "vat_id" => "1"}, {"kind" => "company"}, {"kind" => "person"}, {"kind" => "person", "vat_id" => "1"}, {}]
       validation = request.to_validation_schema(version: "2025-09")

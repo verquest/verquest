@@ -122,7 +122,7 @@ module Verquest
               "type" => type,
               "items" => {
                 "type" => "object",
-                "required" => required_properties,
+                **required_keyword,
                 "properties" => all_properties.transform_values { |property| property.to_schema[property.name] },
                 "additionalProperties" => Verquest.configuration.default_additional_properties
               }.tap do |schema|
@@ -160,7 +160,7 @@ module Verquest
               "type" => type,
               "items" => {
                 "type" => "object",
-                "required" => required_properties,
+                **required_keyword,
                 "properties" => all_properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] },
                 "additionalProperties" => Verquest.configuration.default_additional_properties
               }.tap do |schema|

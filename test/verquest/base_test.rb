@@ -20,7 +20,6 @@ module Verquest
           "field_root_integer_unmapped" => {"type" => "integer"},
           "root_object_unmapped" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "item_mapped" => {"type" => "string"},
               "item_mapped_nested" => {"type" => "string"},
@@ -29,7 +28,6 @@ module Verquest
               "item_mapped_outside_nested" => {"type" => "string"},
               "object_nested_unmapped" => {
                 "type" => "object",
-                "required" => [],
                 "properties" => {
                   "item_mapped" => {"type" => "string"},
                   "item_mapped_nested" => {"type" => "string"},
@@ -45,14 +43,12 @@ module Verquest
           },
           "root_object_mapped" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "item_mapped" => {"type" => "string"},
               "item_mapped_nested" => {"type" => "string"},
               "item_unmapped" => {"type" => "string"},
               "object_nested_unmapped" => {
                 "type" => "object",
-                "required" => [],
                 "properties" => {
                   "item_mapped" => {"type" => "string"},
                   "item_mapped_nested" => {"type" => "string"},
@@ -67,7 +63,6 @@ module Verquest
           },
           "root_object_mapped_to_root" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "item_mapped" => {"type" => "string"},
               "item_mapped_nested" => {"type" => "string"},
@@ -91,7 +86,6 @@ module Verquest
             "type" => "array",
             "items" => {
               "type" => "object",
-              "required" => [],
               "properties" => {
                 "item_mapped" => {"type" => "string"},
                 "item_mapped_nested" => {"type" => "string"},
@@ -102,7 +96,6 @@ module Verquest
           },
           "collection_in_object" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "collection_unmapped" => {
                 "type" => "array",
@@ -161,7 +154,6 @@ module Verquest
           "field_root_integer_unmapped" => {"type" => "integer"},
           "root_object_unmapped" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "item_mapped" => {"type" => "string"},
               "item_mapped_nested" => {"type" => "string"},
@@ -170,7 +162,6 @@ module Verquest
               "item_mapped_outside_nested" => {"type" => "string"},
               "object_nested_unmapped" => {
                 "type" => "object",
-                "required" => [],
                 "properties" => {
                   "item_mapped" => {"type" => "string"},
                   "item_mapped_nested" => {"type" => "string"},
@@ -186,14 +177,12 @@ module Verquest
           },
           "root_object_mapped" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "item_mapped" => {"type" => "string"},
               "item_mapped_nested" => {"type" => "string"},
               "item_unmapped" => {"type" => "string"},
               "object_nested_unmapped" => {
                 "type" => "object",
-                "required" => [],
                 "properties" => {
                   "item_mapped" => {"type" => "string"},
                   "item_mapped_nested" => {"type" => "string"},
@@ -208,7 +197,6 @@ module Verquest
           },
           "root_object_mapped_to_root" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "item_mapped" => {"type" => "string"},
               "item_mapped_nested" => {"type" => "string"},
@@ -232,7 +220,6 @@ module Verquest
             "type" => "array",
             "items" => {
               "type" => "object",
-              "required" => [],
               "properties" => {
                 "item_mapped" => {"type" => "string"},
                 "item_mapped_nested" => {"type" => "string"},
@@ -243,7 +230,6 @@ module Verquest
           },
           "collection_in_object" => {
             "type" => "object",
-            "required" => [],
             "properties" => {
               "collection_unmapped" => {
                 "type" => "array",

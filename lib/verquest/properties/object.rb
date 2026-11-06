@@ -59,7 +59,7 @@ module Verquest
         {
           name => {
             "type" => type,
-            "required" => required_properties,
+            **required_keyword,
             "properties" => all_properties.transform_values { |property| property.to_schema[property.name] }
           }.merge(schema_options).tap do |schema|
             schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
@@ -76,7 +76,7 @@ module Verquest
         {
           name => {
             "type" => type,
-            "required" => required_properties,
+            **required_keyword,
             "properties" => all_properties.transform_values { |property| property.to_validation_schema(version: version)[property.name] }
           }.merge(schema_options).tap do |schema|
             schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?

@@ -12,15 +12,13 @@ module Verquest
       expected_schema = {
         "type" => "object",
         "description" => "This is a simple request with nullable properties for testing purposes.",
-        "required" => [],
         "properties" => {
           "array" => {"type" => %w[array null], "items" => {"type" => "string"}},
           "collection_with_item" => {"type" => %w[array null], "items" => {"$ref" => "#/components/schemas/ReferencedRequest"}},
-          "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "required" => [], "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
+          "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
           "field" => {"type" => %w[string null]},
           "object" => {
             "type" => %w[object null],
-            "required" => [],
             "properties" => {
               "field" => {"type" => "string"}
             },
@@ -43,15 +41,13 @@ module Verquest
       expected_validation_schema = {
         "type" => "object",
         "description" => "This is a simple request with nullable properties for testing purposes.",
-        "required" => [],
         "properties" => {
           "array" => {"type" => %w[array null], "items" => {"type" => "string"}},
           "collection_with_item" => {"type" => %w[array null], "items" => {"type" => "object", "description" => "This is an another example for testing purposes.", "required" => %w[simple_field nested], "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}}, "additionalProperties" => false}},
-          "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "required" => [], "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
+          "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
           "field" => {"type" => %w[string null]},
           "object" => {
             "type" => %w[object null],
-            "required" => [],
             "properties" => {
               "field" => {"type" => "string"}
             },

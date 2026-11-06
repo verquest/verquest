@@ -341,7 +341,7 @@ module Verquest
     def prepare_schema
       @schema = {
         "type" => "object",
-        "required" => required_properties,
+        **required_keyword,
         "properties" => all_properties.transform_values { |property| property.to_schema[property.name] }
       }.merge(schema_options).tap do |schema|
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
@@ -381,7 +381,7 @@ module Verquest
     def prepare_validation_schema
       @validation_schema = {
         "type" => "object",
-        "required" => required_properties,
+        **required_keyword,
         "properties" => all_properties.transform_values { |property| property.to_validation_schema(version: name)[property.name] }
       }.merge(schema_options).tap do |schema|
         schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?

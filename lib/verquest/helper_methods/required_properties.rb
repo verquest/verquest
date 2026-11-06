@@ -25,6 +25,15 @@ module Verquest
         @_required_properties ||= properties.values.select { _1.required == true }.map(&:name)
       end
 
+      # Returns the `required` keyword for a schema, left out when nothing is required
+      #
+      # Draft 4 and OpenAPI 3.0 forbid an empty `required` array, and later drafts treat it like no `required`.
+      #
+      # @return [Hash] `{"required" => names}`, or an empty Hash when no property is required
+      def required_keyword
+        required_properties.any? ? {"required" => required_properties} : {}
+      end
+
       # Returns properties that are conditionally required based on other properties
       #
       # This method identifies properties that are required only when certain other

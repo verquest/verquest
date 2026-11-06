@@ -21,6 +21,12 @@ module Verquest
         assert_equal({"properties" => {"a" => false, "b" => false}}, rule.to_schema(in_given: true))
       end
 
+      def test_rules_need_a_name
+        errors = [Rules::Present, Rules::Absent].map { |rule| assert_raises(ArgumentError) { rule.new([]) }.message }
+
+        assert_equal ["Name at least one property"] * 2, errors
+      end
+
       def test_equals
         rule = Rules::Equals.new(:kind, "company")
 

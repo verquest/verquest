@@ -80,8 +80,7 @@ module Verquest
       #
       # @return [Hash] The `required` and `dependentRequired` fragment
       def required_schema
-        {}.tap do |schema|
-          schema["required"] = required_properties if required_properties.any?
+        required_keyword.tap do |schema|
           schema["dependentRequired"] = dependent_required_properties if dependent_required_properties.any?
         end
       end

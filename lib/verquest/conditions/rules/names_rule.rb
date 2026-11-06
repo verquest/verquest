@@ -14,7 +14,10 @@ module Verquest
         # Initialize a new rule
         #
         # @param names [Array<Symbol, String>] The properties the rule names
+        # @raise [ArgumentError] If no property is named
         def initialize(names)
+          raise ArgumentError, "Name at least one property" if names.empty?
+
           @property_names = names.map(&:to_s)
         end
       end
