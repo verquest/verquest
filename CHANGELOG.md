@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-06
+
 ### Changed
 - **Breaking:** `enum` writes a `type` next to its values and checks the values when the request is defined. Without `type:`, the type is inferred: Strings are `string`, Integers `integer`, other Numerics `number`, `true`/`false` `boolean`, Hashes `object`; Integers next to other Numerics are `number`, and other mixes a type array. These now raise `ArgumentError`:
   - a value of another class, such as a Symbol (Symbols never matched JSON values) or an Array;
