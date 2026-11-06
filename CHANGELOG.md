@@ -5,11 +5,15 @@
   - a value of another class, such as a Symbol (Symbols never matched JSON values) or an Array;
   - `nil` in the values without `nullable: true`;
   - a `type:` other than the five above, or one a value doesn't fit;
-  - values equal in JSON, such as `1` and `1.0`;
-  - NaN or Infinity.
+  - values equal in JSON, such as `1` and `1.0` (also inside Hashes);
+  - NaN or Infinity;
+  - `values:` that isn't an Array;
+  - a Hash value with a key that isn't a String, or with something inside that isn't JSON (such as a Symbol).
 
   `nullable: true` adds `"null"` to the type, inferred or given. `with_options(type:)` no longer applies to enums.
-- With `json_schema_version = :openapi30`, documents (`to_schema` and `to_parameters`) use OpenAPI 3.0 forms: `nullable: true` instead of a `"null"` type, an `anyOf` of single types (each nullable) instead of a type array, a nullable constant as an `enum` with `null`, and an `allOf` around a nullable `$ref`. Validation schemas keep the JSON Schema forms validators honour.
+- With `json_schema_version = :openapi30`, documents (`to_schema` and `to_parameters`) use OpenAPI 3.0 forms: `nullable: true` instead of a `"null"` type, an `anyOf` of single types (each nullable) instead of a type array, a nullable constant as an `enum` with `null`, an `allOf` around a nullable `$ref` or discriminated `one_of`, and `x-dependentRequired` instead of `dependentRequired`. Validation schemas keep the JSON Schema forms validators honour.
+- Under `:openapi30`, `valid_schema?` and `validate_schema` check the document (`to_schema`) instead of the validation schema, whose JSON Schema forms made the check fail for any nullable request.
+- Schemas leave out `required` when nothing is required, instead of an empty array, which draft 4 and OpenAPI 3.0 forbid. Validation is unchanged. `present` and `absent` without a property name raise `ArgumentError`.
 
 ### Fixed
 - Query params convert `""` to `nil` in nullable string and mixed enums, and in nullable fields with `enum:`.

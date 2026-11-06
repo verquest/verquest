@@ -173,13 +173,11 @@ Output:
     },
     "profile_details" => {
       "type" => "object",
-      "required" => [],
       "properties" => {
         "bio" => {"type" => "string", "description" => "Short biography of the user"},
         "hobbies" => {"type" => "array", "items" => {"type" => "string"}, "description" => "Tags associated with the user"},
         "social_links" => {
           "type" => "object",
-          "required" => [],
           "properties" => {
             "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"},
             "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
@@ -244,13 +242,11 @@ Output:
       "description" => "Role of the user"
     },
     "profile_details" => {"type" => "object",
-      "required" => [],
       "properties" => {
         "bio" => {"type" => "string", "description" => "Short biography of the user"},
         "hobbies" => {"type" => "array", "items" => {"type" => "string"}, "description" => "Tags associated with the user"},
         "social_links" => {
           "type" => "object", 
-          "required" => [], 
           "properties" => {
             "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"}, 
             "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
@@ -264,7 +260,7 @@ Output:
 }
 ```
 
-You can also validate it to ensure it meets the JSON Schema standards:
+You can also validate it to ensure it meets the JSON Schema standards. Under `:openapi30` this checks the document from `to_schema` against the OpenAPI 3.0 meta-schema, since validation schemas keep JSON Schema forms OpenAPI 3.0 forbids:
 
 ```ruby
 UserCreateRequest.valid_schema?(version: "2025-06") # => true/false
@@ -350,12 +346,14 @@ Nullable constants and references use `anyOf` with a null alternative in both ex
 
 OpenAPI 3.0 has no `null` type, so with `json_schema_version = :openapi30` documents (`to_schema` and `to_parameters`) write `nullable: true` instead:
 - next to the type;
-- merged into a nullable constant (with `null` in its `enum`) or `one_of`;
-- next to an `allOf` around a nullable reference (`{"allOf" => [{"$ref" => "..."}], "nullable" => true}`).
+- merged into a nullable constant (with `null` in its `enum`) or a `one_of` without a discriminator;
+- next to an `allOf` around a nullable reference (`{"allOf" => [{"$ref" => "..."}], "nullable" => true}`) or a nullable `one_of` with a discriminator, which keeps null outside the discriminated `oneOf`, as versponse does.
+
+OpenAPI 3.0 also has no `dependentRequired` (from `required: [:other]`), so documents write it as the `x-dependentRequired` extension. Validation still enforces it.
 
 Mixed types become an `anyOf` of single types, each nullable when the property is. Strict OpenAPI 3.0.3 tools honour `nullable` only next to `type`, so they may still treat a nullable reference or `one_of` as not nullable. Validation schemas keep the forms above, which validators honour.
 
-Enum values must be JSON values: Strings, Numerics, booleans or Hashes. A BigDecimal or Rational value is a `number`, but Ruby's JSON generator writes it as a string, so prefer Integers and Floats in documented enums.
+Enum values must be JSON values: Strings, Numerics, booleans or Hashes, given as an Array. Hash values need String keys, and everything inside them must be JSON too (Strings, finite numbers, booleans, `nil`, Arrays and Hashes). A BigDecimal or Rational value is a `number`, but Ruby's JSON generator writes it as a string, so prefer Integers and Floats in documented enums.
 
 `required: true` still requires the key to be present; `nullable: true` only permits its value to be null. Defaults stay on the outer nullable schema so missing properties still receive them when default insertion is enabled. Explicit null values are not replaced by defaults.
 
@@ -390,15 +388,13 @@ Will produce this validation schema:
 {
   "type" => "object",
   "description" => "This is a simple request with nullable properties for testing purposes.",
-  "required" => [],
   "properties" => {
     "array" => {"type" => %w[array null], "items" => {"type" => "string"}},
     "collection_with_item" => {"type" => %w[array null], "items" => {"type" => "object", "description" => "This is an another example for testing purposes.", "required" => %w[simple_field nested], "properties" => {"simple_field" => {"type" => "string", "description" => "The simple field"}, "nested" => {"type" => "object", "required" => %w[nested_field_1 nested_field_2], "properties" => {"nested_field_1" => {"type" => "string", "description" => "This is a nested field"}, "nested_field_2" => {"type" => "string", "description" => "This is another nested field"}}, "additionalProperties" => false}}, "additionalProperties" => false}},
-    "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "required" => [], "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
+    "collection_with_object" => {"type" => %w[array null], "items" => {"type" => "object", "properties" => {"field" => {"type" => "string"}}, "additionalProperties" => false}},
     "field" => {"type" => %w[string null]},
     "object" => {
       "type" => %w[object null],
-      "required" => [],
       "properties" => {
         "field" => {"type" => "string"}
       },
