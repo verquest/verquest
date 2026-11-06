@@ -282,7 +282,7 @@ The JSON schema can be used for both validation of incoming parameters and for g
 #### Component types
 
 - `field`: a scalar value (string, integer, boolean, etc.).
-- `enum`: a value from a fixed list. Its `type` is inferred from the values (`string`, `integer`, `number`, `boolean`, or a type array for mixed values) unless you pass `type:`.
+- `enum`: a value from a fixed list. Its `type` is inferred from the values (`string`, `integer`, `number`, `boolean`, `object`, or a type array for mixed values) unless you pass `type:`, and every value must fit it. A value of another class (such as a Symbol), `nil` without `nullable: true`, or values equal in JSON (`1` and `1.0`) raise `ArgumentError`.
 - `object`: a JSON object with its own properties.
 - `array`: a JSON array of scalar items.
 - `collection`: a JSON array of objects, defined inline or with `item:` pointing at another request.
@@ -335,7 +335,7 @@ Will produce this validation schema:
 
 You can define nullable properties in your request schema by setting the `nullable` option to `true`. This feature is based on the latest JSON Schema specification, which is also used in OpenAPI 3.1.
 
-Nullable enums include Ruby `nil` in their allowed values, which exports as JSON `null`, not the string `"null"`. This also applies to fields with an `enum:` constraint (including custom field types). The supplied values array is not modified.
+Nullable enums include Ruby `nil` in their allowed values, which exports as JSON `null`, not the string `"null"`, and add `"null"` to the type, inferred or given. An enum that lists `nil` itself needs `nullable: true`. This also applies to fields with an `enum:` constraint (including custom field types). The supplied values array is not modified.
 
 ```ruby
 enum :role, values: %w[member admin], nullable: true
@@ -346,7 +346,16 @@ const :kind, value: "user", nullable: true
 # => {"kind" => {"anyOf" => [{"const" => "user"}, {"type" => "null"}]}}
 ```
 
-Nullable constants and references use `anyOf` with a null alternative in both exported and validation schemas. Nullable `one_of` uses an outer `anyOf` around the original `oneOf` and the null alternative. This allows null even when a referenced schema or multiple variants already accept it, while preserving all restrictions on non-null values. A discriminator, when present, stays alongside the inner `oneOf`.
+Nullable constants and references use `anyOf` with a null alternative in both exported and validation schemas (except `:openapi30` documents, see below). Nullable `one_of` uses an outer `anyOf` around the original `oneOf` and the null alternative. This allows null even when a referenced schema or multiple variants already accept it, while preserving all restrictions on non-null values. A discriminator, when present, stays alongside the inner `oneOf`.
+
+OpenAPI 3.0 has no `null` type, so with `json_schema_version = :openapi30` documents (`to_schema` and `to_parameters`) write `nullable: true` instead:
+- next to the type;
+- merged into a nullable constant (with `null` in its `enum`) or `one_of`;
+- next to an `allOf` around a nullable reference (`{"allOf" => [{"$ref" => "..."}], "nullable" => true}`).
+
+Mixed types become an `anyOf` of single types, each nullable when the property is. Strict OpenAPI 3.0.3 tools honour `nullable` only next to `type`, so they may still treat a nullable reference or `one_of` as not nullable. Validation schemas keep the forms above, which validators honour.
+
+Enum values must be JSON values: Strings, Numerics, booleans or Hashes. A BigDecimal or Rational value is a `number`, but Ruby's JSON generator writes it as a string, so prefer Integers and Floats in documented enums.
 
 `required: true` still requires the key to be present; `nullable: true` only permits its value to be null. Defaults stay on the outer nullable schema so missing properties still receive them when default insertion is enabled. Explicit null values are not replaced by defaults.
 
@@ -816,7 +825,7 @@ DealsIndexQuery.process(request.query_parameters, version: "2025-06")
 ```
 
 Conversion follows the validation schema:
-- `integer` and `number` from digits (`"2"`, `"-1.5"`), `boolean` from `"true"` and `"false"`, `null` from an empty string when the schema allows it;
+- `integer` and `number` from digits (`"2"`, `"-1.5"`), `boolean` from `"true"` and `"false"`, `null` from an empty string when the schema allows it (a string outside an enum's values tries the next type, so `""` is `nil` in a nullable string enum);
 - arrays split on commas with `explode: false` (`status=open,won`), or come from repeated keys with `explode: true` (`status[]=open&status[]=won`; Rails keeps only the last value of a plain repeated key). `config.query_array_explode` sets the default (`true`);
 - objects (`deepObject`, one level deep) convert each property.
 

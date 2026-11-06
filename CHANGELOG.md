@@ -1,8 +1,18 @@
 ## [Unreleased]
 
 ### Changed
-- `enum` writes a `type` next to its values, inferred from them when the schema options don't set one: Strings are `string`, Integers `integer`, Integers with Floats `number`, `true`/`false` `boolean`, and mixed values a type array. `nullable: true` adds `"null"` to the type, or writes `nullable: true` under `:openapi30`, which has no type arrays (so mixed values stay untyped there). Values without a JSON type, such as Symbols, get no type, as before. The schemas accept the same payloads, and documents and code generators now see the enum's type.
-- Query params honour `nullable: true` next to a `type` (OpenAPI 3.0), so `""` converts to `nil`.
+- **Breaking:** `enum` writes a `type` next to its values and checks the values when the request is defined. Without `type:`, the type is inferred: Strings are `string`, Integers `integer`, other Numerics `number`, `true`/`false` `boolean`, Hashes `object`; Integers next to other Numerics are `number`, and other mixes a type array. These now raise `ArgumentError`:
+  - a value of another class, such as a Symbol (Symbols never matched JSON values) or an Array;
+  - `nil` in the values without `nullable: true`;
+  - a `type:` other than the five above, or one a value doesn't fit;
+  - values equal in JSON, such as `1` and `1.0`;
+  - NaN or Infinity.
+
+  `nullable: true` adds `"null"` to the type, inferred or given. `with_options(type:)` no longer applies to enums.
+- With `json_schema_version = :openapi30`, documents (`to_schema` and `to_parameters`) use OpenAPI 3.0 forms: `nullable: true` instead of a `"null"` type, an `anyOf` of single types (each nullable) instead of a type array, a nullable constant as an `enum` with `null`, and an `allOf` around a nullable `$ref`. Validation schemas keep the JSON Schema forms validators honour.
+
+### Fixed
+- Query params convert `""` to `nil` in nullable string and mixed enums, and in nullable fields with `enum:`.
 
 ## [0.7.1] - 2026-11-06
 
