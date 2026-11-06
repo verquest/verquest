@@ -89,8 +89,7 @@ module Verquest
       # @return [Array<String>] The schema's types, inferred from enum and const values without a type
       def types(value_schema)
         if value_schema.key?("type")
-          types = Array(value_schema["type"])
-          value_schema["nullable"] ? [*types, "null"] : types
+          Array(value_schema["type"])
         elsif value_schema.key?("enum")
           value_schema["enum"].filter_map { |value| JSON_TYPES[value.class] }.uniq
         elsif value_schema.key?("const")
@@ -107,7 +106,7 @@ module Verquest
         when "number" then coerce_number(value)
         when "boolean" then coerce_boolean(value)
         when "null" then (value.nil? || value == "") ? nil : NO_MATCH
-        when "string" then value.is_a?(::String) ? value : NO_MATCH
+        when "string" then coerce_string(value, value_schema)
         when "array" then coerce_array(value, value_schema, path)
         when "object" then value.is_a?(::Hash) ? coerce_properties(value, value_schema, path) : NO_MATCH
         else NO_MATCH
@@ -135,6 +134,16 @@ module Verquest
         return value if value == true || value == false
 
         BOOLEANS.fetch(value, NO_MATCH)
+      end
+
+      # A string outside the schema's enum tries the next type, so "" can still map to nil
+      #
+      # @return [String, Object] The string or NO_MATCH
+      def coerce_string(value, value_schema)
+        return NO_MATCH unless value.is_a?(::String)
+        return NO_MATCH if value_schema.key?("enum") && !value_schema["enum"].include?(value)
+
+        value
       end
 
       # Splits a string by the array's explode value and converts each item;

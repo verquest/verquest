@@ -61,6 +61,26 @@ module Verquest
       end
     end
 
+    # A string outside the enum tries the next type, so "" maps to nil in string and mixed enums too
+    def test_empty_string_is_nil_in_nullable_string_and_mixed_enums
+      %i[draft2020_12 openapi30].each do |json_schema_version|
+        with_configuration(json_schema_version:) do
+          query = Class.new(Verquest::Base) do
+            location :query
+            version("2025-06") do
+              enum :sort, values: %w[asc desc], nullable: true
+              enum :limit, values: [10, "all"], nullable: true
+              field :state, type: :string, enum: %w[open closed], nullable: true
+            end
+          end
+
+          assert_equal({"sort" => nil, "limit" => nil, "state" => nil}, query.process({"sort" => "", "limit" => "", "state" => ""}, version: "2025-06"))
+          assert_equal({"sort" => "asc", "limit" => "all", "state" => "open"}, query.process({"sort" => "asc", "limit" => "all", "state" => "open"}, version: "2025-06"))
+          assert_raises(InvalidParamsError) { query.process({"sort" => "up"}, version: "2025-06") }
+        end
+      end
+    end
+
     def test_invalid_values
       error = assert_raises(InvalidParamsError) do
         ListQuery.process({"page" => "x", "status" => "open,closed"}, version: "2025-06")
