@@ -8,7 +8,9 @@ module Verquest
   # - "null" in a type array becomes `nullable: true`
   # - several types become an `anyOf` of single types, each nullable when the schema is
   # - an `anyOf` with a single null alternative becomes `nullable: true`, with an `allOf` around a `$ref`
-  #   (OpenAPI 3.0 ignores keywords next to `$ref`) and `null` added to an `enum`
+  #   (OpenAPI 3.0 ignores keywords next to `$ref`) or a discriminated `oneOf` (which would reject null),
+  #   and `null` added to an `enum`
+  # - `dependentRequired` becomes the `x-dependentRequired` extension
   #
   # Only schema positions are visited, so a property named "type" is never read as the keyword.
   #
@@ -20,13 +22,19 @@ module Verquest
     NULL_SCHEMA = {"type" => "null"}.freeze
 
     # Keywords whose value is a map from names to schemas
-    SCHEMA_MAPS = %w[properties patternProperties dependentSchemas $defs definitions].freeze
+    SCHEMA_MAPS = %w[properties patternProperties dependentSchemas dependencies $defs definitions].freeze
 
     # Keywords whose value is a list of schemas
     SCHEMA_LISTS = %w[prefixItems anyOf oneOf allOf].freeze
 
     # Keywords whose value is a schema (`items` can also be a list)
-    SCHEMAS = %w[items additionalProperties not if then else].freeze
+    SCHEMAS = %w[
+      items additionalProperties not if then else
+      contains propertyNames unevaluatedProperties unevaluatedItems additionalItems
+    ].freeze
+
+    # Keywords OpenAPI 3.0 lacks, written as extensions
+    RENAMED = {"dependentRequired" => "x-dependentRequired"}.freeze
 
     module_function
 
@@ -35,7 +43,8 @@ module Verquest
     def document(schema)
       return schema unless schema.is_a?(::Hash)
 
-      type_union(nullable_any_of(schema.to_h { |keyword, value| [keyword, child(keyword, value)] }))
+      # The null alternative goes first, so a merged alternative's type array meets nullable in type_union
+      type_union(nullable_any_of(schema).to_h { |keyword, value| [RENAMED.fetch(keyword, keyword), child(keyword, value)] })
     end
 
     # @param keyword [String] The schema keyword
@@ -53,7 +62,8 @@ module Verquest
       end
     end
 
-    # OpenAPI 3.0 honours nullable only next to type, so each branch of a union carries it
+    # OpenAPI 3.0 honours nullable only next to type, so each branch of a union carries it, also when a merged
+    # nullable alternative has the type array
     #
     # @param schema [Hash] A schema with converted children
     # @return [Hash] The schema without a type array
@@ -64,7 +74,7 @@ module Verquest
       others = types - ["null"]
       return schema if others.empty?
 
-      nullable = types.include?("null") ? {"nullable" => true} : {}
+      nullable = (types.include?("null") || schema["nullable"]) ? {"nullable" => true} : {}
       return schema.merge("type" => others.first).merge(nullable) if others.one?
 
       any_of(schema.except("type"), others.map { |type| {"type" => type}.merge(nullable) })
@@ -79,7 +89,7 @@ module Verquest
       schema.except("anyOf").merge("allOf" => [*schema["allOf"], {"anyOf" => variants}, {"anyOf" => schema["anyOf"]}])
     end
 
-    # @param schema [Hash] A schema with converted children
+    # @param schema [Hash] A schema whose children are not converted yet
     # @return [Hash] The schema without a null alternative in its anyOf
     def nullable_any_of(schema)
       variants = schema["anyOf"]
@@ -92,14 +102,15 @@ module Verquest
       others.one? ? nullable_alternative(others.first, siblings) : siblings.merge("anyOf" => others)
     end
 
-    # OpenAPI 3.0 ignores keywords next to $ref, so a nullable $ref goes into an allOf
+    # OpenAPI 3.0 ignores keywords next to $ref, so a nullable $ref goes into an allOf. So does a discriminated
+    # oneOf, keeping null outside it as versponse does.
     #
     # @param alternative [Object] The only non-null alternative
     # @param siblings [Hash] The other keywords of the schema, with nullable
     # @return [Hash] The nullable schema
     def nullable_alternative(alternative, siblings)
       return siblings.merge("anyOf" => [alternative]) unless alternative.is_a?(::Hash)
-      return {"allOf" => [alternative]}.merge(siblings) if alternative.key?("$ref")
+      return {"allOf" => [alternative]}.merge(siblings) if alternative.key?("$ref") || alternative.key?("discriminator")
 
       nullable_enum(alternative).merge(siblings)
     end

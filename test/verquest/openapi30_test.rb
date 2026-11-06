@@ -61,6 +61,47 @@ class Verquest::Openapi30Test < Minitest::Test
     assert_equal({"anyOf" => [true], "nullable" => true}, document({"anyOf" => [true, {"type" => "null"}]}))
   end
 
+  # Null stays outside the discriminated oneOf, as in versponse
+  def test_nullable_discriminated_one_of_is_wrapped_in_all_of
+    one_of = {"oneOf" => [{"$ref" => "#/components/schemas/A"}], "discriminator" => {"propertyName" => "type"}}
+
+    assert_equal({"allOf" => [one_of], "nullable" => true}, document({"anyOf" => [one_of, {"type" => "null"}]}))
+  end
+
+  def test_nullable_alternative_with_a_type_union
+    schema = {"anyOf" => [{"type" => %w[integer string], "enum" => [1, "a"]}, {"type" => "null"}]}
+    expected = {
+      "enum" => [1, "a", nil],
+      "nullable" => true,
+      "anyOf" => [{"type" => "integer", "nullable" => true}, {"type" => "string", "nullable" => true}]
+    }
+
+    assert_equal expected, document(schema)
+  end
+
+  def test_more_schema_positions_are_converted
+    nullable = {"type" => %w[string null]}
+    converted = {"type" => "string", "nullable" => true}
+    cases = %w[contains propertyNames unevaluatedProperties unevaluatedItems additionalItems].to_h { |keyword| [{keyword => nullable}, {keyword => converted}] }
+    cases[{"dependencies" => {"a" => nullable, "b" => ["c"]}}] = {"dependencies" => {"a" => converted, "b" => ["c"]}}
+
+    assert_equal cases, cases.to_h { |schema, _| [schema, document(schema)] }
+  end
+
+  # OpenAPI 3.0 has no dependentRequired and allows only x- extensions next to its keywords
+  def test_dependent_required_becomes_an_extension
+    schema = {
+      "dependentRequired" => {"a" => ["b"]},
+      "properties" => {"dependentRequired" => {"type" => "string"}, "o" => {"dependentRequired" => {"c" => ["d"]}}}
+    }
+    expected = {
+      "x-dependentRequired" => {"a" => ["b"]},
+      "properties" => {"dependentRequired" => {"type" => "string"}, "o" => {"x-dependentRequired" => {"c" => ["d"]}}}
+    }
+
+    assert_equal expected, document(schema)
+  end
+
   def test_nested_schemas_are_converted
     schema = {
       "type" => "object",
