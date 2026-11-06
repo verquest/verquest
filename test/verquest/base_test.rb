@@ -119,8 +119,8 @@ module Verquest
           "reference_mapped_with_property" => {"$ref" => "#/components/schemas/ReferencedRequest/properties/simple_field"},
           "const_unmapped" => {"const" => 1},
           "const_mapped" => {"const" => true},
-          "enum_unmapped" => {"enum" => %w[one two three]},
-          "enum_mapped" => {"enum" => [1, "a", 2, "b", nil]}
+          "enum_unmapped" => {"type" => "string", "enum" => %w[one two three]},
+          "enum_mapped" => {"type" => %w[integer string null], "enum" => [1, "a", 2, "b", nil]}
         },
         "additionalProperties" => false
       }
@@ -260,8 +260,8 @@ module Verquest
           "reference_mapped_with_property" => {"type" => "string", "description" => "The simple field"},
           "const_unmapped" => {"const" => 1},
           "const_mapped" => {"const" => true},
-          "enum_unmapped" => {"enum" => %w[one two three]},
-          "enum_mapped" => {"enum" => [1, "a", 2, "b", nil]}
+          "enum_unmapped" => {"type" => "string", "enum" => %w[one two three]},
+          "enum_mapped" => {"type" => %w[integer string null], "enum" => [1, "a", 2, "b", nil]}
         },
         "additionalProperties" => false
       }

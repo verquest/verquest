@@ -89,7 +89,8 @@ module Verquest
       # @return [Array<String>] The schema's types, inferred from enum and const values without a type
       def types(value_schema)
         if value_schema.key?("type")
-          Array(value_schema["type"])
+          types = Array(value_schema["type"])
+          value_schema["nullable"] ? [*types, "null"] : types
         elsif value_schema.key?("enum")
           value_schema["enum"].filter_map { |value| JSON_TYPES[value.class] }.uniq
         elsif value_schema.key?("const")

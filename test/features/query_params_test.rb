@@ -35,6 +35,21 @@ module Verquest
       assert_equal({"page" => 1, "sort_direction" => "DESC"}, ListQuery.process({}, version: "2025-06"))
     end
 
+    # The inferred enum type converts query strings, and nullable still maps "" to nil under OpenAPI 3.0
+    def test_enum_values_are_converted_by_their_inferred_type
+      %i[draft2020_12 openapi30].each do |json_schema_version|
+        with_configuration(json_schema_version:) do
+          query = Class.new(Verquest::Base) do
+            location :query
+            version("2025-06") { enum :limit, values: [10, 50], nullable: true }
+          end
+
+          assert_equal({"limit" => 10}, query.process({"limit" => "10"}, version: "2025-06"))
+          assert_equal({"limit" => nil}, query.process({"limit" => ""}, version: "2025-06"))
+        end
+      end
+    end
+
     def test_invalid_values
       error = assert_raises(InvalidParamsError) do
         ListQuery.process({"page" => "x", "status" => "open,closed"}, version: "2025-06")

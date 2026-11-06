@@ -33,12 +33,13 @@ module Verquest
         @schema_options = schema_options&.transform_keys(&:to_s)
       end
 
-      # Generate JSON schema definition for this enum
+      # Generate JSON schema definition for this enum. Without a type in the schema options, the type is
+      # inferred from the values, as the query coercer does.
       #
       # @return [Hash] The schema definition for this enum
       def to_schema
         {
-          name => {"enum" => values}.merge(schema_options)
+          name => inferred_type.merge("enum" => values).merge(schema_options)
         }
       end
 
@@ -54,6 +55,30 @@ module Verquest
       end
 
       private
+
+      # @return [Hash] "type" (and "nullable" under OpenAPI 3.0) for the values, empty when a value has no JSON type
+      def inferred_type
+        return {} if schema_options.key?("type")
+
+        types = values.compact.map { |value| Query::Coercer::JSON_TYPES[value.class] }
+        return {} if types.empty? || types.include?(nil)
+
+        types = types.uniq
+        types.delete("integer") if types.include?("number")
+        typed(types)
+      end
+
+      # OpenAPI 3.0 has no type arrays, so nullable is a keyword there and mixed values stay untyped
+      def typed(types)
+        if Verquest.configuration.json_schema_version == :openapi30
+          return {} if types.size > 1
+
+          nullable ? {"type" => types.first, "nullable" => true} : {"type" => types.first}
+        else
+          types += ["null"] if nullable
+          {"type" => (types.size == 1) ? types.first : types}
+        end
+      end
 
       attr_reader :values, :schema_options
     end

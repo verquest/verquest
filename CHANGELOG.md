@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Changed
+- `enum` writes a `type` next to its values, inferred from them when the schema options don't set one: Strings are `string`, Integers `integer`, Integers with Floats `number`, `true`/`false` `boolean`, and mixed values a type array. `nullable: true` adds `"null"` to the type, or writes `nullable: true` under `:openapi30`, which has no type arrays (so mixed values stay untyped there). Values without a JSON type, such as Symbols, get no type, as before. The schemas accept the same payloads, and documents and code generators now see the enum's type.
+- Query params honour `nullable: true` next to a `type` (OpenAPI 3.0), so `""` converts to `nil`.
+
 ## [0.7.1] - 2026-11-06
 
 ### Added

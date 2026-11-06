@@ -166,6 +166,7 @@ Output:
       "description" => "Permissions associated with the user"
     },
     "role" => {
+      "type" => "string",
       "enum" => ["member", "manager"], 
       "default" => "member", 
       "description" => "Role of the user"
@@ -237,6 +238,7 @@ Output:
       "description" => "Permissions associated with the user"
     },
     "role" => {
+      "type" => "string",
       "enum" => ["member", "manager"],
       "default" => "member",
       "description" => "Role of the user"
@@ -280,7 +282,7 @@ The JSON schema can be used for both validation of incoming parameters and for g
 #### Component types
 
 - `field`: a scalar value (string, integer, boolean, etc.).
-- `enum`: a value from a fixed list.
+- `enum`: a value from a fixed list. Its `type` is inferred from the values (`string`, `integer`, `number`, `boolean`, or a type array for mixed values) unless you pass `type:`.
 - `object`: a JSON object with its own properties.
 - `array`: a JSON array of scalar items.
 - `collection`: a JSON array of objects, defined inline or with `item:` pointing at another request.
@@ -337,7 +339,8 @@ Nullable enums include Ruby `nil` in their allowed values, which exports as JSON
 
 ```ruby
 enum :role, values: %w[member admin], nullable: true
-# => {"role" => {"enum" => ["member", "admin", nil]}}
+# => {"role" => {"type" => ["string", "null"], "enum" => ["member", "admin", nil]}}
+# under :openapi30: {"type" => "string", "nullable" => true, "enum" => ["member", "admin", nil]}
 
 const :kind, value: "user", nullable: true
 # => {"kind" => {"anyOf" => [{"const" => "user"}, {"type" => "null"}]}}

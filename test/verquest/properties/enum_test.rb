@@ -3,6 +3,10 @@
 require "test_helper"
 
 class Verquest::Properties::EnumTest < Minitest::Test
+  include Verquest::ConfigurationTestHelper
+
+  def schema(values, **options) = Verquest::Properties::Enum.new(name: :e, values:, **options).to_schema["e"]
+
   def test_to_schema
     enum = Verquest::Properties::Enum.new(
       name: :user_type,
@@ -11,6 +15,7 @@ class Verquest::Properties::EnumTest < Minitest::Test
 
     expected_schema = {
       "user_type" => {
+        "type" => "string",
         "enum" => %w[member admin]
       }
     }
@@ -26,6 +31,7 @@ class Verquest::Properties::EnumTest < Minitest::Test
 
     expected_schema = {
       "user_type" => {
+        "type" => "string",
         "enum" => %w[member admin]
       }
     }
@@ -35,10 +41,37 @@ class Verquest::Properties::EnumTest < Minitest::Test
 
   def test_nullable_schema_contains_null_value
     enum = Verquest::Properties::Enum.new(name: :user_type, values: %w[member admin], nullable: true)
-    expected_schema = {"user_type" => {"enum" => ["member", "admin", nil]}}
+    expected_schema = {"user_type" => {"type" => %w[string null], "enum" => ["member", "admin", nil]}}
 
     assert_equal expected_schema, enum.to_schema
     assert_equal expected_schema, enum.to_validation_schema(version: "2025-06")
+  end
+
+  def test_type_is_inferred_from_the_values
+    assert_equal({"type" => "integer", "enum" => [1, 2]}, schema([1, 2]))
+    assert_equal({"type" => "number", "enum" => [1, 2.5]}, schema([1, 2.5]))
+    assert_equal({"type" => "boolean", "enum" => [true, false]}, schema([true, false]))
+  end
+
+  def test_mixed_values_infer_a_type_union
+    assert_equal({"type" => %w[integer string], "enum" => [7, "never"]}, schema([7, "never"]))
+  end
+
+  def test_explicit_type_is_kept
+    assert_equal({"enum" => [1, 2], "type" => "number"}, schema([1, 2], type: "number"))
+  end
+
+  # Values without a JSON type would make an inferred type reject them, so no type is written
+  def test_no_type_for_values_without_a_json_type
+    assert_equal({"enum" => %i[a b]}, schema(%i[a b]))
+  end
+
+  # OpenAPI 3.0 has no type arrays: nullable is a keyword, and mixed values get no type
+  def test_openapi30
+    with_configuration(json_schema_version: :openapi30) do
+      assert_equal({"type" => "string", "nullable" => true, "enum" => ["a", "b", nil]}, schema(%w[a b], nullable: true))
+      assert_equal({"enum" => [7, "never"]}, schema([7, "never"]))
+    end
   end
 
   def test_nullable_enum_does_not_mutate_supplied_values
