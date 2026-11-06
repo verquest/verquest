@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "bigdecimal"
 
 class Verquest::Properties::EnumTest < Minitest::Test
   include Verquest::ConfigurationTestHelper
@@ -48,30 +49,115 @@ class Verquest::Properties::EnumTest < Minitest::Test
   end
 
   def test_type_is_inferred_from_the_values
-    assert_equal({"type" => "integer", "enum" => [1, 2]}, schema([1, 2]))
-    assert_equal({"type" => "number", "enum" => [1, 2.5]}, schema([1, 2.5]))
-    assert_equal({"type" => "boolean", "enum" => [true, false]}, schema([true, false]))
+    cases = {
+      [1, 2] => "integer",
+      [1, 2.5] => "number",
+      [BigDecimal("1.5"), 2] => "number",
+      [true, false] => "boolean",
+      [{"a" => 1}, {"b" => 2}] => "object",
+      [7, "never"] => %w[integer string]
+    }
+
+    assert_equal cases, cases.to_h { |values, _| [values, schema(values)["type"]] }
   end
 
-  def test_mixed_values_infer_a_type_union
-    assert_equal({"type" => %w[integer string], "enum" => [7, "never"]}, schema([7, "never"]))
+  def test_type_is_written_before_the_values
+    assert_equal({"type" => "string", "enum" => %w[a b]}, schema(%w[a b]))
   end
 
-  def test_explicit_type_is_kept
-    assert_equal({"enum" => [1, 2], "type" => "number"}, schema([1, 2], type: "number"))
+  def test_explicit_type
+    cases = {
+      [[1, 2], "number"] => "number",
+      [%w[a b], :string] => "string",
+      [%w[a b], %w[string string]] => "string",
+      [[1, "b"], %i[integer string]] => %w[integer string]
+    }
+
+    assert_equal cases, cases.to_h { |(values, type), _| [[values, type], schema(values, type:)["type"]] }
   end
 
-  # Values without a JSON type would make an inferred type reject them, so no type is written
-  def test_no_type_for_values_without_a_json_type
-    assert_equal({"enum" => %i[a b]}, schema(%i[a b]))
+  def test_nullable_adds_null_to_the_type
+    assert_equal({"type" => %w[string null], "enum" => ["a", "b", nil]}, schema(%w[a b], nullable: true))
+    assert_equal({"type" => %w[string null], "enum" => ["a", "b", nil]}, schema(%w[a b], type: "string", nullable: true))
+    assert_equal({"type" => %w[integer string null], "enum" => [1, "b", nil]}, schema([1, "b"], type: %w[integer string], nullable: true))
   end
 
-  # OpenAPI 3.0 has no type arrays: nullable is a keyword, and mixed values get no type
-  def test_openapi30
+  # The enum writes JSON Schema forms; Version converts documents for OpenAPI 3.0
+  def test_schema_ignores_the_json_schema_version
     with_configuration(json_schema_version: :openapi30) do
-      assert_equal({"type" => "string", "nullable" => true, "enum" => ["a", "b", nil]}, schema(%w[a b], nullable: true))
-      assert_equal({"enum" => [7, "never"]}, schema([7, "never"]))
+      assert_equal({"type" => %w[string null], "enum" => ["a", "b", nil]}, schema(%w[a b], nullable: true))
     end
+  end
+
+  def test_values_without_a_json_type_raise
+    cases = {
+      %i[a b] => "Enum value :a is not a String, Numeric, boolean or Hash (Symbols never match JSON values, use Strings)",
+      [[1], [2]] => "Enum value [1] is not a String, Numeric, boolean or Hash"
+    }
+
+    assert_equal cases, cases.to_h { |values, _| [values, assert_raises(ArgumentError) { schema(values) }.message] }
+  end
+
+  # JSON has no NaN or Infinity, so they can't be generated
+  def test_non_finite_numbers_raise
+    cases = {[Float::NAN, 1.0] => "Enum values must be finite numbers", [Float::INFINITY, 1] => "Enum values must be finite numbers"}
+
+    assert_equal cases.values, cases.keys.map { |values| assert_raises(ArgumentError) { schema(values) }.message }
+  end
+
+  def test_nil_without_nullable_raises
+    error = assert_raises(ArgumentError) { schema(["a", nil]) }
+
+    assert_equal "Values include nil, which needs nullable: true", error.message
+  end
+
+  def test_values_must_fit_the_explicit_type
+    cases = {
+      [[1, 2.5], :integer] => "Enum value 2.5 is not of type integer",
+      [%i[a b], :string] => "Enum value :a is not of type string",
+      [[true, false], %w[string integer]] => "Enum value true is not of type string or integer"
+    }
+
+    assert_equal cases, cases.to_h { |(values, type), _| [[values, type], assert_raises(ArgumentError) { schema(values, type:) }.message] }
+  end
+
+  def test_unknown_explicit_type_raises
+    cases = {
+      :uuid => "Unknown enum type :uuid, use one of string, integer, number, boolean, object",
+      [] => "Unknown enum type [], use one of string, integer, number, boolean, object"
+    }
+
+    assert_equal cases, cases.to_h { |type, _| [type, assert_raises(ArgumentError) { schema(%w[a b], type:) }.message] }
+  end
+
+  def test_values_must_be_unique_as_json
+    cases = [[1, 1.0], [1, BigDecimal(1)]]
+
+    assert_equal ["Values must be unique"] * 2, cases.map { |values| assert_raises(ArgumentError) { schema(values) }.message }
+  end
+
+  def test_invalid_definitions_raise
+    cases = {
+      {values: []} => "Values must not be empty",
+      {values: %w[a]} => "Use const for a single value",
+      {values: %w[a b], map: "/"} => "You can not map enums to the root without a name"
+    }
+
+    assert_equal cases, cases.to_h { |options, _| [options, assert_raises(ArgumentError) { Verquest::Properties::Enum.new(name: :e, **options) }.message] }
+  end
+
+  # The type of with_options is meant for fields; the enum infers its own
+  def test_with_options_type_does_not_reach_enums
+    request = Class.new(Verquest::Base) do
+      version("2025-06") do
+        with_options(type: :string) do
+          field :name
+          enum :size, values: [1, 2]
+        end
+      end
+    end
+
+    assert_equal({"type" => "integer", "enum" => [1, 2]}, request.to_schema(version: "2025-06")["properties"]["size"])
   end
 
   def test_nullable_enum_does_not_mutate_supplied_values

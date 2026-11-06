@@ -200,7 +200,7 @@ module Verquest
 
       required = default_options.fetch(:required, false) if required.nil?
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
-      schema_options = default_options.except(:required, :nullable).merge(schema_options)
+      schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       enum_property = Properties::Enum.new(name:, values:, map:, required:, nullable:, **schema_options)
       add_property(enum_property, parameter_examples)
