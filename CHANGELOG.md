@@ -6,6 +6,8 @@
 
 ### Fixed
 - `collection item:` validation referenced an undefined `type` variable.
+- `version ..., inherit: "<version>"` copied the previous version instead of the named one.
+- `config.custom_field_types=` no longer modifies the Hash it is given.
 
 ## [0.7.0] - 2026-11-05
 

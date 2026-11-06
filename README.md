@@ -709,6 +709,7 @@ OverlockRequest.process(params, version: "2026-06") # => raises Verquest::Versio
 - Versions are compared with `config.version_resolver`. With the default resolver they compare as strings, so `"preview"` sorts after dated versions.
 - `min` after `max` raises `Verquest::DefinitionError` when declared. A `max` before the first declared version would leave nothing to serve, so it raises `Verquest::DefinitionError` the first time the request resolves a version.
 - Declare it before the first `version` block. Subclasses inherit the range and can declare their own. `supported_versions` with no arguments removes an inherited range.
+- `inherit: "<version>"` copies any declared version, even one outside the range.
 
 ### Mapping request structure
 

@@ -144,12 +144,12 @@ module Verquest
     def custom_field_types=(custom_field_types)
       raise ArgumentError, "Custom field types must be a Hash" unless custom_field_types.is_a?(Hash)
 
-      custom_field_types.delete_if { |k, _| Properties::Field::DEFAULT_TYPES.include?(k.to_s) }
-      custom_field_types.each do |_, value|
-        value[:schema_options] = camelize(value[:schema_options]) if value[:schema_options]
-      end
+      @custom_field_types = custom_field_types.each_with_object({}) do |(name, definition), types|
+        next if Properties::Field::DEFAULT_TYPES.include?(name.to_s)
 
-      @custom_field_types = custom_field_types.transform_keys(&:to_sym)
+        definition = definition.merge(schema_options: camelize(definition[:schema_options].dup)) if definition[:schema_options]
+        types[name.to_sym] = definition
+      end
     end
 
     # Gets the JSON Schema class based on the configured version

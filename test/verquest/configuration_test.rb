@@ -89,6 +89,20 @@ module Verquest
       assert_equal :format, config.custom_field_types[:email][:schema_options].keys.first
     end
 
+    def test_custom_field_types_does_not_mutate_the_given_hash
+      config = Configuration.new
+      custom_types = {
+        string: {type: "custom_string"},
+        id: {type: "string", schema_options: {min_length: 1}}
+      }
+
+      config.custom_field_types = custom_types
+
+      assert_equal({type: "custom_string"}, custom_types[:string])
+      assert_equal({min_length: 1}, custom_types[:id][:schema_options])
+      assert_equal({minLength: 1}, config.custom_field_types[:id][:schema_options])
+    end
+
     def test_custom_field_types_with_invalid_value
       config = Configuration.new
 
