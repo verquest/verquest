@@ -49,6 +49,26 @@ module Verquest
       assert schema["properties"].key?("new_field")
     end
 
+    def test_version_inherits_the_named_version
+      test_class = Class.new(Verquest::Base) do
+        version "2025-01" do
+          field :first_field, type: :string
+        end
+
+        version "2025-06" do
+          field :second_field, type: :string
+        end
+
+        version "2025-09", inherit: "2025-01" do
+          field :third_field, type: :string
+        end
+      end
+
+      schema = test_class.to_schema(version: "2025-09")
+
+      assert_equal %w[first_field third_field], schema["properties"].keys.sort
+    end
+
     def test_resolve_with_current_version_from_config
       test_class = Class.new(Verquest::Base) do
         version "2025-06" do

@@ -98,11 +98,10 @@ module Verquest
       version = Version.new(name:, location:)
       versions.add(version)
 
-      if inherit && @current_scope
+      if inherit.is_a?(String)
+        version.copy_from(versions.resolve(inherit), exclude_properties:)
+      elsif inherit && @current_scope
         version.copy_from(@current_scope, exclude_properties:)
-      elsif inherit.is_a?(String)
-        inherit_version = versions.resolve(inherit)
-        version.copy_from(inherit_version, exclude_properties:)
       end
 
       @default_options = {}
