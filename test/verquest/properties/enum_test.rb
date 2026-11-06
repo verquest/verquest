@@ -136,6 +136,44 @@ class Verquest::Properties::EnumTest < Minitest::Test
     assert_equal ["Values must be unique"] * 2, cases.map { |values| assert_raises(ArgumentError) { schema(values) }.message }
   end
 
+  def test_values_must_be_an_array
+    cases = {"ab" => "Values must be an Array", nil => "Values must be an Array"}
+
+    assert_equal cases, cases.to_h { |values, _| [values, assert_raises(ArgumentError) { schema(values) }.message] }
+  end
+
+  def test_hash_values_must_be_json
+    hint = " (Symbols never match JSON values, use Strings)"
+    cases = {
+      [{a: 1}, {"b" => 2}] => "Enum value #{{a: 1}.inspect} has key :a, which is not a String#{hint}",
+      [{1 => 1}, {"b" => 2}] => "Enum value #{{1 => 1}.inspect} has key 1, which is not a String",
+      [{"a" => [:x]}, {"b" => 2}] => "Enum value #{{"a" => [:x]}.inspect} contains :x, which is not a JSON value#{hint}",
+      [{"a" => Float::NAN}, {"b" => 2}] => "Enum values must be finite numbers"
+    }
+
+    assert_equal cases, cases.to_h { |values, _| [values, assert_raises(ArgumentError) { schema(values) }.message] }
+  end
+
+  def test_hash_values_are_checked_with_an_explicit_type
+    object = Object.new
+    cases = {
+      [{a: 1}, {"b" => 2}] => "Enum value #{{a: 1}.inspect} has key :a, which is not a String (Symbols never match JSON values, use Strings)",
+      [{"a" => object}, {"b" => 2}] => "Enum value #{{"a" => object}.inspect} contains #{object.inspect}, which is not a JSON value"
+    }
+
+    assert_equal cases, cases.to_h { |values, _| [values, assert_raises(ArgumentError) { schema(values, type: :object) }.message] }
+  end
+
+  def test_hash_values_must_be_unique_as_json
+    assert_equal "Values must be unique", assert_raises(ArgumentError) { schema([{"a" => 1}, {"a" => 1.0}]) }.message
+  end
+
+  def test_nested_json_hash_values
+    values = [{"a" => [1, nil, "x"], "b" => {}}, {"a" => {"c" => true}}]
+
+    assert_equal({"type" => "object", "enum" => values}, schema(values))
+  end
+
   def test_invalid_definitions_raise
     cases = {
       {values: []} => "Values must not be empty",

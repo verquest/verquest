@@ -19,6 +19,12 @@ module Verquest
         "object" => [::Hash]
       }.freeze
 
+      # Classes of the JSON values that need no further check inside a Hash
+      JSON_SCALARS = [::String, ::TrueClass, ::FalseClass, ::NilClass].freeze
+
+      # Added to errors about Symbols
+      SYMBOL_HINT = " (Symbols never match JSON values, use Strings)"
+
       # Initialize a new Enum property
       #
       # @param name [String, Symbol] The name of the property
@@ -29,11 +35,12 @@ module Verquest
       # @param type [String, Symbol, Array<String, Symbol>, nil] The JSON type of the values, inferred from them when nil
       # @param schema_options [Hash] Additional JSON schema options for this property
       # @raise [ArgumentError] If attempting to map an enum to root without a name
-      # @raise [ArgumentError] If values is empty
+      # @raise [ArgumentError] If values is not an Array, or is empty
       # @raise [ArgumentError] If values are not unique, comparing them as JSON (1 and 1.0 are the same)
       # @raise [ArgumentError] If only one value is provided (should use const instead)
       # @raise [ArgumentError] If values include nil without nullable, or a number that isn't finite
       # @raise [ArgumentError] If a value has no JSON type, the type is unknown, or a value isn't of the type
+      # @raise [ArgumentError] If a Hash value has a key that isn't a String, or contains a value that isn't JSON
       def initialize(name:, values:, required: false, nullable: false, map: nil, type: nil, **schema_options)
         raise ArgumentError, "You can not map enums to the root without a name" if map == "/"
 
@@ -74,13 +81,55 @@ module Verquest
 
       # @param values [Array] The given values
       # @param nullable [Boolean] Whether the enum can be null
-      # @raise [ArgumentError] If the values are empty, a single value, not unique, not finite, or include nil without nullable
+      # @raise [ArgumentError] If the values are not an Array, empty, not JSON, not unique, a single value, or include nil
+      #   without nullable
       def check_values!(values, nullable)
+        raise ArgumentError, "Values must be an Array" unless values.is_a?(::Array)
         raise ArgumentError, "Values must not be empty" if values.empty?
-        raise ArgumentError, "Enum values must be finite numbers" if values.any? { |value| value.is_a?(::Numeric) && !(value.real? && value.finite?) }
+
+        values.each { |value| check_json!(value, value) }
         raise ArgumentError, "Values must be unique" if values.uniq { |value| json_value(value) }.length != values.length
         raise ArgumentError, "Use const for a single value" if values.length == 1
         raise ArgumentError, "Values include nil, which needs nullable: true" if values.include?(nil) && !nullable
+      end
+
+      # Checks numbers and walks Hashes; top-level Arrays and other classes are left to the type check
+      #
+      # @param value [Object] An enum value, or a part of a Hash value
+      # @param enum_value [Object] The enum value, for errors
+      # @param nested [Boolean] Whether the value is inside a Hash
+      # @raise [ArgumentError] If a number isn't finite, or a Hash value has a key or part that isn't JSON
+      def check_json!(value, enum_value, nested: false)
+        case value
+        when ::Numeric then raise ArgumentError, "Enum values must be finite numbers" unless finite?(value)
+        when ::Hash then value.each { |key, item| check_key!(key, enum_value) || check_json!(item, enum_value, nested: true) }
+        when ::Array then value.each { |item| check_json!(item, enum_value, nested: true) } if nested
+        when *JSON_SCALARS then nil
+        else
+          raise ArgumentError, "Enum value #{enum_value.inspect} contains #{value.inspect}, which is not a JSON value#{symbol_hint(value)}" if nested
+        end
+      end
+
+      # @param key [Object] A key of a Hash value
+      # @param enum_value [Object] The enum value, for errors
+      # @return [nil]
+      # @raise [ArgumentError] If the key isn't a String
+      def check_key!(key, enum_value)
+        return if key.is_a?(::String)
+
+        raise ArgumentError, "Enum value #{enum_value.inspect} has key #{key.inspect}, which is not a String#{symbol_hint(key)}"
+      end
+
+      # @param value [Numeric] A number
+      # @return [Boolean] Whether JSON can represent the number
+      def finite?(value)
+        value.real? && value.finite?
+      end
+
+      # @param value [Object] The value an error is about
+      # @return [String, nil] The hint for a Symbol
+      def symbol_hint(value)
+        SYMBOL_HINT if value.is_a?(::Symbol)
       end
 
       # @return [String, Array<String>] The type, with "null" when nullable
@@ -105,8 +154,7 @@ module Verquest
         type = VALUE_CLASSES.keys.find { |name| of_type?(value, name) }
         return type if type
 
-        hint = " (Symbols never match JSON values, use Strings)" if value.is_a?(::Symbol)
-        raise ArgumentError, "Enum value #{value.inspect} is not a String, Numeric, boolean or Hash#{hint}"
+        raise ArgumentError, "Enum value #{value.inspect} is not a String, Numeric, boolean or Hash#{symbol_hint(value)}"
       end
 
       # @param type [String, Symbol, Array<String, Symbol>] The given type
@@ -131,13 +179,15 @@ module Verquest
         VALUE_CLASSES.fetch(name).any? { |klass| value.is_a?(klass) }
       end
 
-      # @param value [Object] An enum value
-      # Runs after the finiteness check, so to_i is safe
-      #
-      # @param value [Object] An enum value
-      # @return [Object] The value as JSON compares it: a whole number as an Integer
+      # @param value [Object] An enum value, or a part of a Hash value
+      # @return [Object] The value as JSON compares it: whole numbers as Integers, also inside Hashes and Arrays
       def json_value(value)
-        (value.is_a?(::Numeric) && value == value.to_i) ? value.to_i : value
+        case value
+        when ::Hash then value.transform_values { |item| json_value(item) }
+        when ::Array then value.map { |item| json_value(item) }
+        when ::Numeric then (finite?(value) && value == value.to_i) ? value.to_i : value
+        else value
+        end
       end
     end
   end
