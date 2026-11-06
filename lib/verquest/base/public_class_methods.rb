@@ -127,6 +127,8 @@ module Verquest
 
     # Validates the generated JSON schema structure
     #
+    # Under `:openapi30` it checks the document from `to_schema`, otherwise the validation schema.
+    #
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @return [Boolean] True if schema is valid
     def valid_schema?(version: nil)
@@ -137,7 +139,8 @@ module Verquest
     #
     # This method validates the schema against the configured JSON Schema metaschema
     # and returns detailed validation errors if any are found. It's useful for debugging
-    # schema issues during development and testing.
+    # schema issues during development and testing. Under `:openapi30` it checks the document from `to_schema`, so
+    # the pointers refer to it.
     #
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @return [Array<Hash>] An array of validation error details, empty if schema is valid

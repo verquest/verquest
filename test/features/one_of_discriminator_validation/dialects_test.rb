@@ -46,9 +46,7 @@ module Verquest
       end
     end
 
-    # Draft 4 and OpenAPI 3.0 are left out: Verquest#valid_schema? already
-    # returns false for them before this change
-    %i[draft6 draft7 draft2019_09 draft2020_12 openapi31].each do |dialect|
+    EXPECTED_ERRORS.each_key do |dialect|
       define_method(:"test_#{dialect}_validation_schema_is_valid_against_meta_schema") do
         request = build_request(dialect)
 
