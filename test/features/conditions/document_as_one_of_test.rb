@@ -52,7 +52,14 @@ module Verquest
       several_rules: lambda do
         present :note
         equals :kind, "company"
-      end
+      end,
+      any_on_branch_properties: lambda do
+        any do
+          present :vat_id
+          absent :reason
+        end
+      end,
+      none_on_branch_property: -> { none { present :reason } }
     }.freeze
 
     # Values for every property in the rule requests, nil meaning absent
@@ -161,6 +168,28 @@ module Verquest
       validation = request.to_validation_schema(version: "2025-09")
 
       assert_equal accepted(:draft2020_12, validation, payloads), accepted(:draft2020_12, schema, payloads)
+    end
+
+    def test_variants_leave_out_given_rules_their_properties_already_decide
+      given_blocks = {
+        absent: -> { absent :percentage },
+        none: -> { none { present :percentage } },
+        any: lambda do
+          any do
+            present :percentages
+            absent :percentage
+          end
+        end
+      }
+
+      variants = given_blocks.transform_values { |given_block| build_percentage_request(given_block).to_schema(version: "2025-09")["oneOf"] }
+
+      expected = [
+        {"type" => "object", "required" => %w[percentages], "properties" => {"percentages" => {"type" => "number"}}, "additionalProperties" => false},
+        {"type" => "object", "required" => %w[percentage], "properties" => {"percentage" => {"type" => "number"}}, "additionalProperties" => false}
+      ]
+
+      assert_equal given_blocks.transform_values { expected }, variants
     end
 
     def test_open_scopes_forbid_the_other_branch_properties
@@ -285,6 +314,18 @@ module Verquest
           condition :company, document_as: :one_of do
             given { equals :kind, "company" }
             then_apply { field :vat_id, type: :string, required: true }
+          end
+        end
+      end
+    end
+
+    def build_percentage_request(given_block)
+      Class.new(Verquest::Base) do
+        version "2025-09" do
+          condition :pricing, document_as: :one_of do
+            given(&given_block)
+            then_apply { field :percentages, type: :number, required: true }
+            else_apply { field :percentage, type: :number, required: true }
           end
         end
       end

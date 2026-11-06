@@ -108,9 +108,10 @@ module Verquest
       #
       # Each variant holds the scope's properties without the ones only the
       # other branch declares, plus its branch's rules. The `then` variant also
-      # holds the `given` rules, and the `else` variant their negation, unless
-      # the variant already rules `given` out. So exactly one variant matches
-      # every payload the `if` / `then` / `else` schema accepts.
+      # holds the `given` rules, unless its required and forbidden properties
+      # already satisfy them, and the `else` variant their negation, unless
+      # they already rule `given` out. So exactly one variant matches every
+      # payload the `if` / `then` / `else` schema accepts.
       #
       # @param scope_schema [Hash] The scope schema with every property listed
       # @return [Hash] The scope description and the `oneOf` variants
@@ -155,8 +156,12 @@ module Verquest
         base = {"type" => scope_schema["type"]}.merge(branch(part).documentation, scope_schema.except("description"))
         base["properties"] = variant_properties(scope_schema, excluded)
 
-        Conjunction.call([base, branch(part).to_schema, (part == :then) ? given.to_schema(in_given: true) : {}]).tap do |variant|
-          variant["not"] = given.to_schema(in_given: true) if part == :else && given_possible?(variant)
+        variant = Conjunction.call([base, branch(part).to_schema])
+
+        if part == :then
+          given.holds_in?(variant) ? variant : Conjunction.conjoin(variant, given.to_schema(in_given: true))
+        else
+          given.fails_in?(variant) ? variant : variant.merge("not" => given.to_schema(in_given: true))
         end
       end
 
@@ -173,16 +178,6 @@ module Verquest
         return properties if scope_schema["additionalProperties"] == false
 
         properties.merge(excluded.to_h { |property_name| [property_name, false] })
-      end
-
-      # Checks whether a payload matching the variant could still match `given`
-      #
-      # @param variant [Hash] The variant schema
-      # @return [Boolean] false when the variant forbids a name `given` requires
-      def given_possible?(variant)
-        given.to_schema(in_given: true).fetch("required", []).none? do |property_name|
-          variant["properties"][property_name] == false || (!variant["properties"].key?(property_name) && variant["additionalProperties"] == false)
-        end
       end
 
       # @return [String] The condition name for error messages

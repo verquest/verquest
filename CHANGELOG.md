@@ -9,6 +9,9 @@
 - `version ..., inherit: "<version>"` copied the previous version instead of the named one.
 - `config.custom_field_types=` no longer modifies the Hash it is given.
 
+### Changed
+- `document_as: :one_of` leaves the `given` rules out of a variant when the variant's required and forbidden properties already decide them, including `absent`, `any` and `none`. Before, only `present` (in the `then` variant) and a required property the `else` variant forbids were left out, so `given { absent :percentage }` added `"percentage": false` and a `not` to the variants. The documented schema accepts the same payloads as before.
+
 ## [0.7.0] - 2026-11-05
 
 ### Added

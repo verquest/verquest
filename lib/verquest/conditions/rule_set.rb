@@ -53,6 +53,22 @@ module Verquest
       def to_schema(in_given: false)
         FragmentMerge.call(rules.map { |rule| rule.to_schema(in_given:) })
       end
+
+      # Checks whether every payload of the variant matches all the rules
+      #
+      # @param variant [Hash] The documented oneOf variant
+      # @return [Boolean] true when every rule holds in the variant
+      def holds_in?(variant)
+        rules.all? { |rule| rule.holds_in?(variant) }
+      end
+
+      # Checks whether no payload of the variant matches all the rules
+      #
+      # @param variant [Hash] The documented oneOf variant
+      # @return [Boolean] true when a rule fails in the variant
+      def fails_in?(variant)
+        rules.any? { |rule| rule.fails_in?(variant) }
+      end
     end
   end
 end

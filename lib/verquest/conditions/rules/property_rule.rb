@@ -35,6 +35,24 @@ module Verquest
           in_given ? {"required" => [name]}.merge(fragment) : fragment
         end
 
+        # Checks whether every payload of the variant matches this rule
+        #
+        # The property's value isn't compared, so this is never known.
+        #
+        # @param _variant [Hash] The documented oneOf variant
+        # @return [Boolean] Always false
+        def holds_in?(_variant)
+          false
+        end
+
+        # Checks whether no payload of the variant matches this rule (as used in `given`)
+        #
+        # @param variant [Hash] The documented oneOf variant
+        # @return [Boolean] true when the variant forbids the property, which `given` requires
+        def fails_in?(variant)
+          VariantShape.forbidden?(variant, name)
+        end
+
         private
 
         # @!attribute [r] name
