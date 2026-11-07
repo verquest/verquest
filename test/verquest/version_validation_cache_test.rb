@@ -9,7 +9,7 @@ module Verquest
 
     def test_compiles_the_schema_once_per_configuration
       request = Class.new(Verquest::Base) do
-        version("2025-06") { field :name, type: :string, required: true }
+        version("2025-06") { field :name, type: :string, required: true, default: "a" }
       end
       version = request.send(:resolve, "2025-06")
       schemer = JSONSchemer.schema(version.validation_schema)
@@ -21,6 +21,31 @@ module Verquest
 
       3.times { version.validate_params(params: {}) }
       with_configuration(insert_property_defaults: !defaults) { 2.times { version.validate_params(params: {}) } }
+    end
+
+    def test_compiles_a_schema_without_defaults_once_with_insertion_off
+      request = Class.new(Verquest::Base) do
+        version("2025-06") { field :name, type: :string, required: true }
+      end
+      version = request.send(:resolve, "2025-06")
+      schemer = JSONSchemer.schema(version.validation_schema)
+      uri = Verquest.configuration.json_schema_uri
+      JSONSchemer.expects(:schema).with(version.validation_schema, meta_schema: uri, insert_property_defaults: false).once.returns(schemer)
+
+      with_configuration(insert_property_defaults: true) { version.validate_params(params: {}) }
+      with_configuration(insert_property_defaults: false) { version.validate_params(params: {}) }
+    end
+
+    def test_passes_a_non_boolean_setting_through_when_the_schema_has_defaults
+      request = Class.new(Verquest::Base) do
+        version("2025-06") { field :name, type: :string, default: "a" }
+      end
+      version = request.send(:resolve, "2025-06")
+      schemer = JSONSchemer.schema(version.validation_schema)
+      uri = Verquest.configuration.json_schema_uri
+      JSONSchemer.expects(:schema).with(version.validation_schema, meta_schema: uri, insert_property_defaults: :symbol).once.returns(schemer)
+
+      with_configuration(insert_property_defaults: :symbol) { version.validate_params(params: {}) }
     end
 
     def test_returns_errors_with_the_cached_schema

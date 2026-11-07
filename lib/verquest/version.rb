@@ -151,6 +151,7 @@ module Verquest
       end
 
       prepare_parameters if parameters?
+      @property_defaults = property_defaults?(validation_schema)
       @transformer = Transformer.new(layout: transformer_layout)
       freeze
     end
@@ -322,13 +323,14 @@ module Verquest
     # Returns the compiled validation schema for the current configuration
     #
     # Compiling is much slower than validating, so each configuration is
-    # compiled once and reused. The lock keeps threads from compiling at the
-    # same time.
+    # compiled once and reused. Default insertion is turned off when the schema
+    # declares no default, since json_schemer would walk every result for
+    # nothing. The lock keeps threads from compiling at the same time.
     #
     # @return [JSONSchemer::Schema] The compiled validation schema
     def validation_schemer
       configuration = Verquest.configuration
-      key = [configuration.json_schema_uri, configuration.insert_property_defaults]
+      key = [configuration.json_schema_uri, @property_defaults ? configuration.insert_property_defaults : false]
 
       @validation_schemers_lock.synchronize do
         @validation_schemers[key] ||= JSONSchemer.schema(validation_schema, meta_schema: key[0], insert_property_defaults: key[1])
@@ -407,6 +409,20 @@ module Verquest
     # @return [Hash] The validation schema from the oneOf property
     def prepare_combination_validation_schema
       @validation_schema = properties.values.first.to_validation_schema(version: name)
+    end
+
+    # Checks whether a schema declares a default anywhere
+    #
+    # A property named `default` also counts, which only keeps default insertion on.
+    #
+    # @param schema [Object] The schema or a part of it
+    # @return [Boolean] true if any Hash in it has a "default" key
+    def property_defaults?(schema)
+      case schema
+      when Hash then schema.key?("default") || schema.each_value.any? { |value| property_defaults?(value) }
+      when Array then schema.any? { |value| property_defaults?(value) }
+      else false
+      end
     end
 
     # Prepares the parameter mapping for this version
