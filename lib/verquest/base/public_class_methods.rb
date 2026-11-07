@@ -27,6 +27,7 @@ module Verquest
       params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
       params = params.slice(*version_class.all_properties.keys) if remove_extra_root_keys && !version_class.combination?
       params = version_class.coerce_params(params)
+      params = copy_params(params) if validate && version_class.inserts_property_defaults?
 
       if validate && (validation_result = version_class.validate_params(params: params)) && validation_result.any?
         case Verquest.configuration.validation_error_handling

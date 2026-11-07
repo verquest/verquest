@@ -3,6 +3,9 @@
 ### Changed
 - Validation skips json_schemer's default insertion when the schema declares no `default`, which makes `process` about 15% faster for such schemas.
 
+### Fixed
+- `process` no longer inserts defaults into the caller's nested hashes, and no longer raises `FrozenError` for frozen nested params when it inserts defaults.
+
 ## [0.8.0] - 2026-11-06
 
 ### Changed

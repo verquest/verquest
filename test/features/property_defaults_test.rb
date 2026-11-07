@@ -61,6 +61,25 @@ module Verquest
       end
     end
 
+    def test_leaves_the_callers_params_unchanged
+      params = {"settings" => {}, "items" => [{"name" => "a"}]}
+
+      with_configuration(insert_property_defaults: true) do
+        result = Request.process(params, version: "2025-06")
+
+        assert_equal({"settings" => {"theme" => "light"}, "items" => [{"name" => "a", "qty" => 1}]}, result)
+      end
+      assert_equal({"settings" => {}, "items" => [{"name" => "a"}]}, params)
+    end
+
+    def test_leaves_frozen_params_usable
+      params = {"settings" => {}.freeze, "items" => [{"name" => "a"}.freeze].freeze}.freeze
+
+      with_configuration(insert_property_defaults: true) do
+        assert_equal({"settings" => {"theme" => "light"}, "items" => [{"name" => "a", "qty" => 1}]}, Request.process(params, version: "2025-06"))
+      end
+    end
+
     def test_does_not_insert_defaults_when_turned_off
       with_configuration(insert_property_defaults: false) do
         assert_equal({"items" => [{"name" => "a"}]}, Request.process({"items" => [{"name" => "a"}]}, version: "2025-06"))

@@ -194,6 +194,8 @@ module Verquest
 
     # Validate request parameters against the version's validation schema
     #
+    # Inserts missing defaults into params when {#inserts_property_defaults?} is true.
+    #
     # @param params [Hash] The request parameters to validate
     # @return [Array<Hash>] An array of validation error details, or empty if valid
     def validate_params(params:)
@@ -205,6 +207,13 @@ module Verquest
           details: error["details"]
         }
       end
+    end
+
+    # Check if validating params inserts the defaults the schema declares
+    #
+    # @return [Boolean] true when the schema declares a default and the configuration inserts defaults
+    def inserts_property_defaults?
+      !!insert_property_defaults_setting
     end
 
     # Get the mapping for a specific property
@@ -329,12 +338,18 @@ module Verquest
     #
     # @return [JSONSchemer::Schema] The compiled validation schema
     def validation_schemer
-      configuration = Verquest.configuration
-      key = [configuration.json_schema_uri, @property_defaults ? configuration.insert_property_defaults : false]
+      key = [Verquest.configuration.json_schema_uri, insert_property_defaults_setting]
 
       @validation_schemers_lock.synchronize do
         @validation_schemers[key] ||= JSONSchemer.schema(validation_schema, meta_schema: key[0], insert_property_defaults: key[1])
       end
+    end
+
+    # Returns the insert_property_defaults value to compile with
+    #
+    # @return [Boolean, Symbol] The configured value when the schema declares a default, false otherwise
+    def insert_property_defaults_setting
+      @property_defaults ? Verquest.configuration.insert_property_defaults : false
     end
 
     # Generates the JSON schema for this version

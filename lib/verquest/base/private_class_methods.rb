@@ -87,6 +87,18 @@ module Verquest
       raise VersionNotFoundError, "Version '#{version}' is outside supported_versions (#{range}) of #{name || inspect}"
     end
 
+    # Copies the hashes and arrays in params, so inserting defaults leaves the caller's params alone
+    #
+    # @param value [Object] The params or a value inside them
+    # @return [Object] A copy of hashes and arrays, other values as they are
+    def copy_params(value)
+      case value
+      when Hash then value.transform_values { |item| copy_params(item) }
+      when Array then value.map { |item| copy_params(item) }
+      else value
+      end
+    end
+
     # Defines a new version with optional inheritance from another version
     #
     # @param name [String] The name/identifier of the version
