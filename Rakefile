@@ -32,9 +32,10 @@ task :yard do
   puts "\nYARD documentation: 100% documented"
 end
 
-desc "Benchmark the transformer (objects allocated and calls per second)"
+desc "Benchmark the transformer and process (objects allocated and calls per second)"
 task :bench do
   ruby "-Ilib", "bench/transformer.rb"
+  ruby "-Ilib", "bench/process.rb"
 end
 
 task default: %i[test rubocop yard]
