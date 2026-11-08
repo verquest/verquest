@@ -46,7 +46,10 @@ module Verquest
     #
     # @!attribute [r] location
     #   @return [Symbol] Where the params come from, `:body`, `:query` or `:path`
-    attr_reader :name, :properties, :schema, :validation_schema, :mapping, :transformer, :external_mapping, :location
+    #
+    # @!attribute [r] filters
+    #   @return [Hash{String => Proc}] Filter blocks by property name, in declaration order
+    attr_reader :name, :properties, :filters, :schema, :validation_schema, :mapping, :transformer, :external_mapping, :location
 
     # @!attribute [rw] schema_options
     #   @return [Hash] Additional JSON schema options for this version
@@ -65,6 +68,7 @@ module Verquest
       @location = location
       @schema_options = {}
       @properties = {}
+      @filters = {}
       @conditions = []
       # Filled after the version is frozen, so it is created here; freeze is shallow
       @validation_schemers = {}
@@ -73,19 +77,33 @@ module Verquest
 
     # Add a property to this version
     #
+    # A property added under the name of a filter replaces the filter too, so a plain property over an
+    # inherited filter stops filtering.
+    #
     # @param property [Verquest::Properties::Base] The property to add
     # @return [Verquest::Properties::Base] The added property
     def add(property)
       check_unnamed_one_of(property)
+      filters.delete(property.name)
       properties[property.name] = property
     end
 
-    # Remove a property from this version by name
+    # Store the block that filters by a property's value
+    #
+    # @param name [Symbol, String] The name of the property the filter reads
+    # @param block [Proc] Called with the target and the property's processed value, returns the filtered target
+    # @return [Proc] The stored block
+    def add_filter(name, block)
+      filters[name.to_s] = block
+    end
+
+    # Remove a property, and its filter, from this version by name
     #
     # @param property_name [Symbol, String] The name of the property to remove
     # @return [Verquest::Properties::Base] The removed property
     # @raise [PropertyNotFoundError] If the property doesn't exist
     def remove(property_name)
+      filters.delete(property_name.to_s)
       properties.delete(property_name.to_s) || raise(PropertyNotFoundError.new("Property '#{property_name}' is not defined on '#{name}'"))
     end
 
@@ -120,6 +138,7 @@ module Verquest
         next if exclude_properties.include?(property.name.to_sym)
 
         add(property)
+        add_filter(property.name, version.filters[property.name]) if version.filters.key?(property.name)
       end
 
       version.conditions.each { |condition| add_condition(condition) }
@@ -153,6 +172,7 @@ module Verquest
       prepare_parameters if parameters?
       @property_defaults = property_defaults?(validation_schema)
       @transformer = Transformer.new(layout: transformer_layout)
+      @filters.freeze
       freeze
     end
 

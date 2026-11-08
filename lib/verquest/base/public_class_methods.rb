@@ -15,27 +15,29 @@ module Verquest
     # @param version [String, nil] Specific version to use, defaults to configuration setting
     # @param validate [Boolean, nil] Whether to validate the params, defaults to configuration setting
     # @param remove_extra_root_keys [Boolean, nil] Whether to remove extra keys at the root level, defaults to configuration setting
+    # @param reject_other_version_keys [Boolean, nil] Whether to report root keys only another version declares as validation errors (only when validating), defaults to configuration setting
     # @return [Verquest::Result, Hash] When validation_error_handling is :result, returns a Success result with mapped params or Failure result with validation errors.
     #   When validation_error_handling is :raise, returns mapped params directly or raises InvalidParamsError with validation errors.
-    def process(params, version: nil, validate: nil, remove_extra_root_keys: nil)
+    def process(params, version: nil, validate: nil, remove_extra_root_keys: nil, reject_other_version_keys: nil)
       validate = Verquest.configuration.validate_params if validate.nil?
       remove_extra_root_keys = Verquest.configuration.remove_extra_root_keys if remove_extra_root_keys.nil?
+      reject_other_version_keys = Verquest.configuration.reject_other_version_keys if reject_other_version_keys.nil?
 
       version_class = resolve(version)
 
       params = params.dup
       params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
+
+      if validate && reject_other_version_keys && (other_version_errors = other_version_key_errors(params, version_class)).any?
+        return validation_failure(other_version_errors)
+      end
+
       params = params.slice(*version_class.all_properties.keys) if remove_extra_root_keys && !version_class.combination?
       params = version_class.coerce_params(params)
       params = copy_params(params) if validate && version_class.inserts_property_defaults?
 
       if validate && (validation_result = version_class.validate_params(params: params)) && validation_result.any?
-        case Verquest.configuration.validation_error_handling
-        when :raise
-          raise InvalidParamsError.new("Validation failed", errors: validation_result)
-        when :result
-          Result.failure(validation_result)
-        end
+        validation_failure(validation_result)
       else
         begin
           mapped_params = version_class.map_params(params)
@@ -54,6 +56,37 @@ module Verquest
             Result.failure([{message: e.message, type: "mapping_error"}])
           end
         end
+      end
+    end
+
+    # Returns the names of the filters the version declares
+    #
+    # @param version [String, nil] Specific version to use, defaults to configuration setting
+    # @return [Array<String>] Filter names in declaration order
+    def filter_names(version: nil)
+      resolve(version).filters.keys
+    end
+
+    # Filters a target with the version's filters
+    #
+    # Runs the filter blocks in declaration order. Each block gets the previous block's result and the
+    # value of its property in params; a filter whose value is nil or empty is skipped.
+    #
+    # @example
+    #   params = DealsQuery.process(request.query_parameters)
+    #   DealsQuery.apply_filters(Deal.all, params)
+    #
+    # @param target [Object] What to filter, such as an ActiveRecord relation
+    # @param params [Hash{String => Object}] Processed params with String keys, as {#process} returns them (the
+    #   result's `value` when validation_error_handling is :result); Symbol keys aren't read
+    # @param version [String, nil] Specific version to use, defaults to configuration setting
+    # @return [Object] The filtered target
+    def apply_filters(target, params, version: nil)
+      resolve(version).filters.reduce(target) do |filtered, (name, block)|
+        value = params[name]
+        next filtered if value.nil? || (value.respond_to?(:empty?) && value.empty?)
+
+        block.call(filtered, value)
       end
     end
 

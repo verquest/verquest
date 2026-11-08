@@ -20,7 +20,7 @@ Sponsored by [Stora](https://stora.co)
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Core Features](#core-features): [schema definition](#schema-definition-and-validation), [oneOf](#oneof), [conditional schemas](#conditional-schemas), [custom field types](#custom-field-types), [versioning](#versioning), [mapping](#mapping-request-structure), [query parameters](#query-parameters), [path parameters](#path-parameters), [OpenAPI components](#component-generation-for-openapi)
+- [Core Features](#core-features): [schema definition](#schema-definition-and-validation), [oneOf](#oneof), [conditional schemas](#conditional-schemas), [custom field types](#custom-field-types), [versioning](#versioning), [mapping](#mapping-request-structure), [filters](#filters), [query parameters](#query-parameters), [path parameters](#path-parameters), [OpenAPI components](#component-generation-for-openapi)
 - [Rails and rswag](docs/rails.md)
 - [Configuration](#configuration)
 
@@ -795,6 +795,37 @@ Will produce the following mapping:
 
 The mapping tests in [`test/verquest/base_test.rb`](test/verquest/base_test.rb) have more examples.
 
+### Filters
+
+`filter` declares a property of a request, body or query, with `field`, `array` (`as: :array`) or `enum` (`as: :enum`), and the block that filters by its processed value. `apply_filters` runs the version's filters, in declaration order, for each value that isn't nil or empty:
+
+```ruby
+class DealsIndexQuery < Verquest::Base
+  location :query
+
+  version "2025-06" do
+    field :page, type: :integer
+    filter :status, as: :array, type: :string, explode: false do |deals, value|
+      deals.where(status: value)
+    end
+  end
+
+  version "2025-08" do # inherits status
+    filter :site_id, type: :string do |deals, value|
+      deals.where(site_id: value)
+    end
+  end
+end
+
+params = DealsIndexQuery.process(request.query_parameters, version: "2025-08")
+DealsIndexQuery.apply_filters(Deal.all, params, version: "2025-08")
+DealsIndexQuery.filter_names(version: "2025-08") # => ["status", "site_id"]
+```
+
+Filters are inherited, excluded (`exclude_properties`) and replaced (redeclared) with their properties; a plain property over an inherited filter stops filtering. `reference` copies a property without its filter. The block runs only from `apply_filters`, with `self` the request class. A filter must be at a version's root and can't use `map:`; otherwise defining the version raises `Verquest::DefinitionError`.
+
+With `reject_other_version_keys: true`, `process` reports a root key that only another version declares, such as `site_id` sent to `2025-06`, as a validation error (`type: "other_version"`) instead of dropping it, so a client never gets an unfiltered result by mistake. It works for body requests too, and runs only when params are validated. `config.reject_other_version_keys` sets the default (`false`).
+
 ### Query parameters
 
 A request class with `location :query` describes query parameters. `process` converts the query strings to the types the schema expects before it validates and maps them, and `to_parameters` documents them as OpenAPI parameters.
@@ -844,6 +875,8 @@ array :status, type: :string, explode: false, item_schema_options: {enum: %w[ope
 ```
 
 A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
+
+Filters on query parameters are declared with `filter`, see [Filters](#filters).
 
 ### Path parameters
 
@@ -899,6 +932,9 @@ Verquest.configure do |config|
   
   # Remove extra root keys from provided params
   config.remove_extra_root_keys = true # default
+
+  # Report root keys that only another version declares, see Filters
+  config.reject_other_version_keys = false # default
   
   # Set custom version resolver
   config.version_resolver = CustomVersionResolver # default is `Verquest::VersionResolver`

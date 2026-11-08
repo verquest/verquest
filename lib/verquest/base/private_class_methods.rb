@@ -8,6 +8,9 @@ module Verquest
   #
   # @api private
   module Base::PrivateClassMethods
+    # Property methods a filter can declare its property with
+    FILTER_PROPERTY_METHODS = %i[field array enum].freeze
+
     # Resolves the version to use, either from the provided version,
     # configuration's current_version, or raises an error if none is available
     #
@@ -118,6 +121,7 @@ module Verquest
 
       @default_options = {}
       @current_scope = version
+      @defining_version = version
 
       instance_exec(&block)
     ensure
@@ -348,6 +352,37 @@ module Verquest
       add_property(array, parameter_examples)
     end
 
+    # Defines a property and the block that filters by its processed value
+    #
+    # The property is declared with `field`, `array` or `enum` (`as:`), with the other options. The
+    # block is stored, not run: {PublicClassMethods#apply_filters} calls it later, and `self` inside it
+    # is the request class, so the class's private class methods are available. Filters are inherited,
+    # excluded and replaced with their properties.
+    #
+    # @example
+    #   filter :status, as: :array, type: :string, explode: false do |target, value|
+    #     target.where(status: value)
+    #   end
+    #
+    # @param name [Symbol] The name of the property
+    # @param as [Symbol] `:field` (default), `:array` or `:enum`
+    # @param options [Hash] Options for the property method
+    # @yieldparam target [Object] What is being filtered, as returned by the previous filter
+    # @yieldparam value [Object] The property's processed value, never nil or empty
+    # @yieldreturn [Object] The filtered target
+    # @return [void]
+    # @raise [Verquest::DefinitionError] Without a block, with another `as:`, with `map:`, or outside a version's root
+    def filter(name, as: :field, **options, &block)
+      label = "Filter '#{name}' in version '#{@defining_version&.name}'"
+      raise DefinitionError, "#{label} needs a block that filters the target" unless block
+      raise DefinitionError, "#{label} can't be declared as: #{as.inspect}, only as :field, :array or :enum" unless FILTER_PROPERTY_METHODS.include?(as)
+      raise DefinitionError, "#{label} can't use map:, apply_filters reads the value by its name" if options.key?(:map)
+      raise DefinitionError, "#{label} must be declared at the root of the version, outside object, collection, one_of and conditions" unless current_scope.is_a?(Version)
+
+      send(as, name, **options)
+      current_scope.add_filter(name, block)
+    end
+
     # Defines a oneOf property for polymorphic schemas
     #
     # Creates a JSON Schema oneOf structure where exactly one of the defined
@@ -376,6 +411,36 @@ module Verquest
       end
     ensure
       @current_scope = previous_scope if block_given?
+    end
+
+    # Errors for root keys that only another version declares
+    #
+    # @param params [Hash] The params being processed
+    # @param version [Verquest::Version] The resolved version
+    # @return [Array<Hash>] One error per key, in the format of validation errors
+    def other_version_key_errors(params, version)
+      other_names = versions.property_names - version.all_properties.keys
+
+      params.keys.filter_map do |key|
+        key = key.to_s
+        next unless other_names.include?(key)
+
+        {pointer: "/#{key}", type: "other_version", message: "`#{key}` isn't available in version #{version.name}", details: nil}
+      end
+    end
+
+    # Reports failed params according to the validation_error_handling setting
+    #
+    # @param errors [Array<Hash>] The errors
+    # @return [Verquest::Result] A failure, when validation_error_handling is :result
+    # @raise [Verquest::InvalidParamsError] When validation_error_handling is :raise
+    def validation_failure(errors)
+      case Verquest.configuration.validation_error_handling
+      when :raise
+        raise InvalidParamsError.new("Validation failed", errors:)
+      when :result
+        Result.failure(errors)
+      end
     end
 
     # Adds a property to the current scope

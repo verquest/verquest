@@ -109,5 +109,55 @@ module Verquest
       refute_predicate version, :has_nested_one_of?
       refute_predicate version, :has_multiple_nested_one_of?
     end
+
+    def test_add_filter_stores_the_block_by_name
+      version = Version.new(name: "2025-06")
+      block = proc { |target, _value| target }
+      version.add(Properties::Field.new(name: :status, type: :string))
+      version.add_filter(:status, block)
+
+      assert_equal({"status" => block}, version.filters)
+    end
+
+    def test_adding_a_property_drops_its_filter
+      version = Version.new(name: "2025-06")
+      version.add(Properties::Field.new(name: :status, type: :string))
+      version.add_filter(:status, proc { |target, _value| target })
+      version.add(Properties::Field.new(name: :status, type: :string))
+
+      assert_empty version.filters
+    end
+
+    def test_remove_drops_the_filter
+      version = Version.new(name: "2025-06")
+      version.add(Properties::Field.new(name: :status, type: :string))
+      version.add_filter(:status, proc { |target, _value| target })
+      version.remove(:status)
+
+      assert_empty version.filters
+    end
+
+    def test_copy_from_copies_the_filters_of_the_copied_properties
+      block = proc { |target, _value| target }
+      source = Version.new(name: "2025-06")
+      source.add(Properties::Field.new(name: :status, type: :string))
+      source.add(Properties::Field.new(name: :site_id, type: :string))
+      source.add_filter(:status, block)
+      source.add_filter(:site_id, block)
+
+      version = Version.new(name: "2025-08")
+      version.copy_from(source, exclude_properties: %i[site_id])
+
+      assert_equal({"status" => block}, version.filters)
+    end
+
+    def test_prepare_freezes_the_filters
+      version = Version.new(name: "2025-06")
+      version.add(Properties::Field.new(name: :status, type: :string))
+      version.add_filter(:status, proc { |target, _value| target })
+      version.prepare
+
+      assert_predicate version.filters, :frozen?
+    end
   end
 end

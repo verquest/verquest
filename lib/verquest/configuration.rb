@@ -65,9 +65,13 @@ module Verquest
     # @!attribute [rw] query_array_explode
     #   Default explode value of array properties in query requests (`location :query`)
     #   @return [Boolean] true for repeated keys like `status[]=a&status[]=b` (default), false for comma-separated values like `status=a,b`
+    #
+    # @!attribute [rw] reject_other_version_keys
+    #   Controls whether `process` reports root keys that only another version of the request declares, when it validates params
+    #   @return [Boolean] true to report them as validation errors, false to treat them as unknown keys (default)
     attr_accessor :validate_params, :json_schema_version, :validation_error_handling,
       :remove_extra_root_keys, :insert_property_defaults, :default_additional_properties,
-      :query_array_explode
+      :query_array_explode, :reject_other_version_keys
 
     # @!attribute [r] current_version
     #   A callable object that returns the current API version to use when not explicitly specified
@@ -95,6 +99,7 @@ module Verquest
       @custom_field_types = {}
       @default_additional_properties = false
       @query_array_explode = true
+      @reject_other_version_keys = false
     end
 
     # Sets the current version strategy using a callable object

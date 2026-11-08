@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+- `filter` declares a property with `field`, `array` or `enum` (`as:`) and the block that filters by its value; `apply_filters(target, params, version:)` runs a version's filters in declaration order, skipping nil and empty values, and `filter_names(version:)` lists them. Filters are inherited, excluded and replaced with their properties. A filter with `map:`, another `as:`, no block, or outside a version's root raises `Verquest::DefinitionError`.
+- `process(..., reject_other_version_keys: true)` (or `config.reject_other_version_keys`) reports root keys that only another version declares as validation errors of type `other_version`, when params are validated.
+
 ### Changed
 - Validation skips json_schemer's default insertion when the schema declares no `default`, which makes `process` about 15% faster for such schemas.
 

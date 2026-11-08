@@ -40,6 +40,7 @@ module Verquest
     def add(version)
       raise ArgumentError, "Expected a Verquest::Version instance" unless version.is_a?(Verquest::Version)
 
+      @property_names = nil
       versions[version.name] = version
     end
 
@@ -61,6 +62,15 @@ module Verquest
     # @return [Array<String>] The version names, sorted as strings
     def names
       versions.keys.sort
+    end
+
+    # Returns the root property names declared by any version
+    #
+    # Cached until the next version is added.
+    #
+    # @return [Array<String>] The property names
+    def property_names
+      @property_names ||= versions.values.flat_map { |version| version.all_properties.keys }.uniq.freeze
     end
 
     private

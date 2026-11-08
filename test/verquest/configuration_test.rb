@@ -17,6 +17,7 @@ module Verquest
         insert_property_defaults: true,
         default_additional_properties: false,
         query_array_explode: true,
+        reject_other_version_keys: false,
         custom_field_types: {},
         version_resolver: VersionResolver,
         current_version: nil
@@ -30,6 +31,7 @@ module Verquest
         insert_property_defaults: config.insert_property_defaults,
         default_additional_properties: config.default_additional_properties,
         query_array_explode: config.query_array_explode,
+        reject_other_version_keys: config.reject_other_version_keys,
         custom_field_types: config.custom_field_types,
         version_resolver: config.version_resolver,
         current_version: config.current_version
