@@ -20,7 +20,7 @@ Sponsored by [Stora](https://stora.co)
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Core Features](#core-features): [schema definition](#schema-definition-and-validation), [oneOf](#oneof), [conditional schemas](#conditional-schemas), [custom field types](#custom-field-types), [versioning](#versioning), [mapping](#mapping-request-structure), [filters](#filters), [query parameters](#query-parameters), [path parameters](#path-parameters), [OpenAPI components](#component-generation-for-openapi)
+- [Core Features](#core-features): [schema definition](#schema-definition-and-validation), [oneOf](#oneof), [conditional schemas](#conditional-schemas), [custom field types](#custom-field-types), [versioning](#versioning), [mapping](#mapping-request-structure), [query parameters](#query-parameters), [filters](#filters), [path parameters](#path-parameters), [OpenAPI components](#component-generation-for-openapi)
 - [Rails and rswag](docs/rails.md)
 - [Configuration](#configuration)
 
@@ -803,53 +803,6 @@ Will produce the following mapping:
 
 The mapping tests in [`test/verquest/base_test.rb`](test/verquest/base_test.rb) have more examples.
 
-### Filters
-
-`filter` declares a property and the block that filters by its value. The property is a `field` by default, an `array` with `as: :array`, or an `enum` with `as: :enum`, in a body or a query request. `apply_filters` passes the target through the version's filters in declaration order, and skips a filter when its value is nil or empty:
-
-```ruby
-class DealsIndexQuery < Verquest::Base
-  location :query
-
-  version "2025-06" do
-    field :page, type: :integer
-    filter :status, as: :array, type: :string, explode: false do |deals, value|
-      deals.where(status: value)
-    end
-  end
-
-  version "2025-08" do # inherits status
-    filter :site_id, type: :string do |deals, value|
-      deals.where(site_id: value)
-    end
-  end
-end
-
-params = DealsIndexQuery.process(request.query_parameters, version: "2025-08")
-DealsIndexQuery.apply_filters(Deal.all, params, version: "2025-08")
-DealsIndexQuery.filter_names(version: "2025-08") # => ["status", "site_id"]
-```
-
-- Filters follow the rules of properties. A later version inherits them, `exclude_properties` removes one, and redeclaring a filter replaces its block. Redeclaring it as a plain property, such as `field :status`, stops it filtering.
-- `reference` copies the property without its filter.
-- The block runs only from `apply_filters`, with `self` set to the request class.
-- `apply_filters` reads the params by their String names, as `process` returns them. With `validation_error_handling = :result`, pass the result's `value`.
-- A filter must be at the root of a version, and it can't use `map:`. Otherwise defining the version raises `Verquest::DefinitionError`.
-
-[`test/support/examples/deals_index_query.rb`](test/support/examples/deals_index_query.rb) runs the same query against an Array of Hashes.
-
-#### Reject keys from other versions
-
-`process` drops root keys that the version doesn't declare. A client that sends `site_id` to `2025-06` gets an unfiltered list and no error. With `reject_other_version_keys: true`, `process` reports a root key that only another version declares as a validation error:
-
-```ruby
-DealsIndexQuery.process({"site_id" => "site_1"}, version: "2025-06", reject_other_version_keys: true)
-# raises Verquest::InvalidParamsError with
-# [{pointer: "/site_id", type: "other_version", message: "`site_id` isn't available in version 2025-06", details: nil}]
-```
-
-`remove_extra_root_keys` still drops keys that no version declares, such as `utm_source`. The check works for body requests too, and runs only when `process` validates the params. `config.reject_other_version_keys` sets the default (`false`).
-
 ### Query parameters
 
 A request class with `location :query` describes query parameters. `process` converts the query strings to the types the schema expects before it validates and maps them, and `to_parameters` documents them as OpenAPI parameters.
@@ -862,10 +815,18 @@ class DealsIndexQuery < Verquest::Base
     field :page, type: :integer, minimum: 1, default: 1
     field :archived, type: :boolean
     enum :sort_direction, values: %w[ASC DESC], default: "DESC"
-    array :status, type: :string, explode: false, item_schema_options: {enum: %w[open won lost]}
+    filter :status, as: :array, type: :string, explode: false, item_schema_options: {enum: %w[open won lost]} do |deals, value|
+      deals.where(status: value)
+    end
 
     object :created do # sent as created[after]=...
       field :after, type: :string, format: "date-time", map: "/created_after"
+    end
+  end
+
+  version "2025-08" do # inherits the 2025-06 properties and filters
+    filter :site_id, type: :string do |deals, value|
+      deals.where(site_id: value)
     end
   end
 end
@@ -874,6 +835,8 @@ DealsIndexQuery.process(request.query_parameters, version: "2025-06")
 # ?page=2&archived=true&status=open,won&created[after]=2025-01-01T00:00:00Z
 # => {"page" => 2, "archived" => true, "sort_direction" => "DESC", "status" => ["open", "won"], "created_after" => "2025-01-01T00:00:00Z"}
 ```
+
+`filter :status, as: :array` declares the same property as `array :status`, plus a block that [Filters](#filters) describes.
 
 Conversion follows the validation schema:
 - `integer` and `number` from digits (`"2"`, `"-1.5"`), `boolean` from `"true"` and `"false"`, `null` from an empty string when the schema allows it (a string outside an enum's values tries the next type, so `""` is `nil` in a nullable string enum);
@@ -900,7 +863,35 @@ array :status, type: :string, explode: false, item_schema_options: {enum: %w[ope
 
 A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
 
-Filters on query parameters are declared with `filter`, see [Filters](#filters).
+### Filters
+
+`filter` declares a property and the block that filters by its value. The property is a `field` by default, an `array` with `as: :array`, or an `enum` with `as: :enum`, in a body or a query request. `apply_filters` passes the target through the version's filters in declaration order, and skips a filter when its value is nil or empty. `DealsIndexQuery` from [Query parameters](#query-parameters) filters by `status` from `2025-06`, and also by `site_id` from `2025-08`:
+
+```ruby
+params = DealsIndexQuery.process(request.query_parameters, version: "2025-08")
+DealsIndexQuery.apply_filters(Deal.all, params, version: "2025-08")
+DealsIndexQuery.filter_names(version: "2025-08") # => ["status", "site_id"]
+```
+
+- Filters follow the rules of properties. A later version inherits them, `exclude_properties` removes one, and redeclaring a filter replaces its block. Redeclaring it as a plain property, such as `field :status`, stops it filtering.
+- `reference` copies the property without its filter.
+- The block runs only from `apply_filters`, with `self` set to the request class.
+- `apply_filters` reads the params by their String names, as `process` returns them. With `validation_error_handling = :result`, pass the result's `value`.
+- A filter must be at the root of a version, and it can't use `map:`. Otherwise defining the version raises `Verquest::DefinitionError`.
+
+[`test/support/examples/deals_index_query.rb`](test/support/examples/deals_index_query.rb) runs the same query against an Array of Hashes.
+
+#### Reject keys from other versions
+
+`process` drops root keys that the version doesn't declare. A client that sends `site_id` to `2025-06` gets an unfiltered list and no error. With `reject_other_version_keys: true`, `process` reports a root key that only another version declares as a validation error:
+
+```ruby
+DealsIndexQuery.process({"site_id" => "site_1"}, version: "2025-06", reject_other_version_keys: true)
+# raises Verquest::InvalidParamsError with
+# [{pointer: "/site_id", type: "other_version", message: "`site_id` isn't available in version 2025-06", details: nil}]
+```
+
+`remove_extra_root_keys` still drops keys that no version declares, such as `utm_source`. The check works for body requests too, and runs only when `process` validates the params. `config.reject_other_version_keys` sets the default (`false`).
 
 ### Path parameters
 
