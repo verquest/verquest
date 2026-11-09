@@ -66,6 +66,28 @@ module Verquest
         assert_equal({"tags" => ["1,2"]}, coercer.call({"tags" => "1,2"}))
       end
 
+      def test_case_insensitive_enum
+        schema = object(
+          "direction" => {"type" => "string", "enum" => %w[ASC DESC]},
+          "status" => {"type" => "array", "items" => {"type" => "string", "enum" => %w[open won]}},
+          "strict" => {"type" => "string", "enum" => %w[ASC DESC]}
+        )
+        coercer = Coercer.new(schema:, explodes: {%w[status] => false}, case_insensitive: Set[%w[direction], %w[status]])
+
+        assert_equal({"direction" => "DESC", "status" => %w[open won], "strict" => "desc"},
+          coercer.call({"direction" => "desc", "status" => "Open,WON", "strict" => "desc"}))
+        assert_equal({"direction" => "ASC"}, coercer.call({"direction" => "ASC"}))
+        assert_equal({"direction" => "up"}, coercer.call({"direction" => "up"}))
+      end
+
+      def test_case_insensitive_nullable_enum
+        schema = object("kind" => {"type" => %w[string null], "enum" => ["unit", "site", nil]})
+        coercer = Coercer.new(schema:, explodes: {}, case_insensitive: Set[%w[kind]])
+
+        assert_equal({"kind" => "site"}, coercer.call({"kind" => "SITE"}))
+        assert_equal({"kind" => nil}, coercer.call({"kind" => ""}))
+      end
+
       def test_explode_defaults_to_configuration
         coercer = Coercer.new(schema: object("tags" => {"type" => "array"}), explodes: {})
 

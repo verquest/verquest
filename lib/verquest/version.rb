@@ -275,7 +275,8 @@ module Verquest
       return params unless parameters?
       return query_coercer.call(params) unless lenient
 
-      Query::LenientCoercer.new(schema: validation_schema, explodes: query_explodes, required: required_property_names, on_correction:).call(params)
+      Query::LenientCoercer.new(schema: validation_schema, explodes: query_explodes, required: required_property_names,
+        on_correction:, case_insensitive: query_case_insensitive).call(params)
     end
 
     # Returns the root properties the validation schema requires, always (`required`), when another
@@ -364,6 +365,9 @@ module Verquest
     # @return [Hash{Array<String> => Boolean}, nil] The explode value of each array property of a query or path version, by path
     attr_reader :query_explodes
 
+    # @return [Set<Array<String>>, nil] Paths of query or path properties matching their enum case-insensitively
+    attr_reader :query_case_insensitive
+
     # @return [Hash{Array<String> => Hash}, nil] The parameter options of each property path of a query or path version
     attr_reader :query_options
 
@@ -372,13 +376,14 @@ module Verquest
     # @return [void]
     # @raise [Verquest::DefinitionError] If the version uses a shape its location can't express
     def prepare_parameters
-      Query::DefinitionCheck.new(self).call
-
       @query_options = all_properties.each_value.with_object({}) do |property, options|
         options.merge!(property.query_options(prefix: [], version: name))
       end.freeze
+      Query::DefinitionCheck.new(self, query_options: @query_options).call
+
       @query_explodes = query_options.filter_map { |path, options| [path, options[:explode]] if options.key?(:explode) }.to_h.freeze
-      @query_coercer = Query::Coercer.new(schema: validation_schema, explodes: @query_explodes)
+      @query_case_insensitive = query_options.filter_map { |path, options| path if options[:case_insensitive] }.to_set.freeze
+      @query_coercer = Query::Coercer.new(schema: validation_schema, explodes: @query_explodes, case_insensitive: @query_case_insensitive)
     end
 
     # Returns the compiled validation schema for the current configuration

@@ -227,7 +227,10 @@ module Verquest
     # @param options [Hash] The options to set during the block execution
     # @yield Block to be executed with the temporary options
     # @return [void]
+    # @raise [Verquest::DefinitionError] If options include case_insensitive
     def with_options(**options, &block)
+      raise DefinitionError, "case_insensitive can't be set with with_options, set it on each property" if options.key?(:case_insensitive)
+
       camelize(options)
 
       original_options = default_options
@@ -247,8 +250,9 @@ module Verquest
     # @param nullable [Boolean] Whether the field can be null
     # @param schema_options [Hash] Additional schema options for the field
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
+    # @param case_insensitive [Boolean, nil] Whether a query value matches the enum case-insensitively (query and path requests only)
     # @return [void]
-    def field(name, type: nil, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options)
+    def field(name, type: nil, map: nil, required: nil, nullable: nil, parameter_examples: nil, case_insensitive: nil, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
@@ -257,7 +261,7 @@ module Verquest
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       field = Properties::Field.new(name:, type:, map:, required:, nullable:, **schema_options)
-      add_property(field, parameter_examples)
+      add_property(field, parameter_examples, case_insensitive)
     end
 
     # Defines a new enum property for the current version scope
@@ -269,8 +273,9 @@ module Verquest
     # @param nullable [Boolean] Whether the enum can be null
     # @param schema_options [Hash] Additional schema options for the enum
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
+    # @param case_insensitive [Boolean, nil] Whether a query value matches the enum case-insensitively (query and path requests only)
     # @return [void]
-    def enum(name, values:, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options)
+    def enum(name, values:, map: nil, required: nil, nullable: nil, parameter_examples: nil, case_insensitive: nil, **schema_options)
       camelize(schema_options)
 
       required = default_options.fetch(:required, false) if required.nil?
@@ -278,7 +283,7 @@ module Verquest
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       enum_property = Properties::Enum.new(name:, values:, map:, required:, nullable:, **schema_options)
-      add_property(enum_property, parameter_examples)
+      add_property(enum_property, parameter_examples, case_insensitive)
     end
 
     # Defines a new constant property for the current version scope
@@ -398,8 +403,9 @@ module Verquest
     # @param item_schema_options [Hash] Additional JSON schema options for the array items (merged with custom type options)
     # @param schema_options [Hash] Additional schema options for the array property
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
+    # @param case_insensitive [Boolean, nil] Whether a query item matches the items' enum case-insensitively (query and path requests only)
     # @return [void]
-    def array(name, type:, required: nil, nullable: nil, map: nil, explode: nil, parameter_examples: nil, item_schema_options: {}, **schema_options)
+    def array(name, type:, required: nil, nullable: nil, map: nil, explode: nil, parameter_examples: nil, case_insensitive: nil, item_schema_options: {}, **schema_options)
       camelize(schema_options)
 
       type = default_options.fetch(:type, type)
@@ -408,7 +414,7 @@ module Verquest
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       array = Properties::Array.new(name:, type:, required:, nullable:, map:, explode:, item_schema_options:, **schema_options)
-      add_property(array, parameter_examples)
+      add_property(array, parameter_examples, case_insensitive)
     end
 
     # Defines a property and the block that filters by its processed value
@@ -530,9 +536,16 @@ module Verquest
     #
     # @param property [Verquest::Properties::Base] The property to add
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter
+    # @param case_insensitive [Boolean, nil] Whether a query value matches the enum case-insensitively
     # @return [void]
-    def add_property(property, parameter_examples)
+    # @raise [Verquest::DefinitionError] If case_insensitive is set in a body request
+    def add_property(property, parameter_examples, case_insensitive = nil)
+      if case_insensitive && location == :body
+        raise DefinitionError, "Property '#{property.name}' in version '#{@defining_version&.name}' is case_insensitive, which only query and path parameters support"
+      end
+
       property.parameter_examples = parameter_examples
+      property.case_insensitive = case_insensitive
       current_scope.add(property)
     end
 

@@ -18,8 +18,9 @@ module Verquest
       # @param explodes [Hash{Array<String> => Boolean}] The explode value of each array property, by path
       # @param required [Array<String>] Root properties that are never removed (see {Verquest::Version#required_property_names})
       # @param on_correction [#call, nil] Called with each {Verquest::Correction}
-      def initialize(schema:, explodes:, required:, on_correction:)
-        super(schema:, explodes:)
+      # @param case_insensitive [Set<Array<String>>] Paths of properties matching their enum case-insensitively
+      def initialize(schema:, explodes:, required:, on_correction:, case_insensitive: Set.new)
+        super(schema:, explodes:, case_insensitive:)
         @required = required
         @on_correction = on_correction
       end

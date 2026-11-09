@@ -23,7 +23,9 @@ module Verquest
       #   @return [String, nil] The mapping path for this property
       # @!attribute [rw] parameter_examples
       #   @return [Hash, nil] Named OpenAPI Example Objects for this property's query parameter, kept out of the JSON schemas
-      attr_accessor :name, :required, :map, :parameter_examples
+      # @!attribute [rw] case_insensitive
+      #   @return [Boolean, nil] Whether a query value matches the enum case-insensitively
+      attr_accessor :name, :required, :map, :parameter_examples, :case_insensitive
 
       # Adds a child property to this property
       # @abstract
@@ -76,14 +78,16 @@ module Verquest
 
       # Returns the query parameter options under this property, by path
       #
-      # Options are `explode:` for arrays and `examples:` for properties with
-      # parameter examples. Paths without options are left out.
+      # Options are `explode:` for arrays, `examples:` for properties with
+      # parameter examples, and `case_insensitive:` for properties matching
+      # their enum case-insensitively. Paths without options are left out.
       #
       # @param prefix [Array<String>] Path of the parent property
       # @param version [String] The version to resolve references with
       # @return [Hash{Array<String> => Hash}] The options of each property path
       def query_options(prefix:, version:)
-        parameter_examples ? {prefix + [name] => {examples: parameter_examples}} : {}
+        options = {examples: parameter_examples, case_insensitive: (true if case_insensitive)}.compact
+        options.empty? ? {} : {prefix + [name] => options}
       end
 
       # Returns a copy of this property under another name and map:

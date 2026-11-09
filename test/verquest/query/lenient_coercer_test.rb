@@ -61,6 +61,16 @@ module Verquest
         assert_equal ["/a~1b~0c"], corrections.map(&:path)
         assert_equal ["a/b~c"], corrections.map(&:name)
       end
+
+      def test_case_insensitive_match_is_not_a_correction
+        corrections = []
+        schema = {"type" => "object", "properties" => {"direction" => {"type" => "string", "enum" => %w[ASC DESC]}}}
+        coercer = LenientCoercer.new(schema:, explodes: {}, required: [], on_correction: ->(correction) { corrections << correction },
+          case_insensitive: Set[%w[direction]])
+
+        assert_equal({"direction" => "DESC"}, coercer.call({"direction" => "desc"}))
+        assert_empty corrections
+      end
     end
   end
 end

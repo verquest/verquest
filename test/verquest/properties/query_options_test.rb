@@ -27,10 +27,24 @@ module Verquest
         assert_equal({%w[page] => {examples: EXAMPLES}}, field.query_options(prefix: [], version: "2025-06"))
       end
 
+      def test_scalar_case_insensitive
+        field = Field.new(name: :sort_direction, type: :string, enum: %w[ASC DESC])
+        field.case_insensitive = true
+
+        assert_equal({%w[sort_direction] => {case_insensitive: true}}, field.query_options(prefix: [], version: "2025-06"))
+      end
+
       def test_array
         array = Array.new(name: :tags, type: :string, explode: false)
 
         assert_equal({%w[filter tags] => {explode: false}}, array.query_options(prefix: %w[filter], version: "2025-06"))
+      end
+
+      def test_array_case_insensitive
+        array = Array.new(name: :status, type: :string, explode: false, item_schema_options: {enum: %w[open won]})
+        array.case_insensitive = true
+
+        assert_equal({%w[status] => {explode: false, case_insensitive: true}}, array.query_options(prefix: [], version: "2025-06"))
       end
 
       def test_object

@@ -38,9 +38,11 @@ module Verquest
 
       # @param schema [Hash] The version's validation schema
       # @param explodes [Hash{Array<String> => Boolean}] The explode value of each array property, by path
-      def initialize(schema:, explodes:)
+      # @param case_insensitive [Set<Array<String>>] Paths of properties matching their enum case-insensitively
+      def initialize(schema:, explodes:, case_insensitive: Set.new)
         @schema = schema
         @explodes = explodes
+        @case_insensitive = case_insensitive
       end
 
       # Converts the params
@@ -53,7 +55,7 @@ module Verquest
 
       private
 
-      attr_reader :schema, :explodes
+      attr_reader :schema, :explodes, :case_insensitive
 
       # @return [Hash] A copy of the hash with each known property converted
       def coerce_properties(hash, object_schema, path)
@@ -141,14 +143,17 @@ module Verquest
         BOOLEANS.fetch(value, NO_MATCH)
       end
 
-      # A string outside the schema's enum tries the next type, so "" can still map to nil
+      # A string outside the schema's enum tries the next type, so "" can still map to nil.
+      # On a case-insensitive path, a string matching an enum value case-insensitively is that value.
       #
-      # @return [String, Object] The string or NO_MATCH
-      def coerce_string(value, value_schema, _path)
+      # @return [String, Object] The string, the declared value or NO_MATCH
+      def coerce_string(value, value_schema, path)
         return NO_MATCH unless value.is_a?(::String)
-        return NO_MATCH if value_schema.key?("enum") && !value_schema["enum"].include?(value)
+        return value unless value_schema.key?("enum")
+        return value if value_schema["enum"].include?(value)
+        return NO_MATCH unless case_insensitive?(path)
 
-        value
+        value_schema["enum"].find { |declared| declared.is_a?(::String) && declared.casecmp?(value) } || NO_MATCH
       end
 
       # Splits a string by the array's explode value and converts each item;
@@ -174,6 +179,13 @@ module Verquest
       # @return [Boolean] Whether the array at the path is sent as repeated keys
       def explode?(path)
         explodes.fetch(path) { Verquest.configuration.query_array_explode }
+      end
+
+      # The path of an array item ends with its index, so an item is case-insensitive when its array is
+      #
+      # @return [Boolean] Whether the value at the path matches its enum case-insensitively
+      def case_insensitive?(path)
+        case_insensitive.include?(path) || case_insensitive.include?(path[...-1])
       end
     end
   end

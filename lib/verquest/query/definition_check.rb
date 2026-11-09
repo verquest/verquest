@@ -7,11 +7,14 @@ module Verquest
     # Query parameters are scalars, arrays of scalars, or one level of objects
     # sent as `deepObject` (`filter[status]=open`). Path parameters are required
     # scalars. Anything else, and oneOf properties, raise when the version is
-    # prepared.
+    # prepared, as does `case_insensitive` on a property without string enum
+    # values, or with values equal case-insensitively.
     class DefinitionCheck
       # @param version [Verquest::Version] The query or path version to check
-      def initialize(version)
+      # @param query_options [Hash{Array<String> => Hash}] The version's query options, by path
+      def initialize(version, query_options: {})
         @version = version
+        @query_options = query_options
       end
 
       # @return [void]
@@ -26,11 +29,13 @@ module Verquest
         version.validation_schema.fetch("properties", {}).each do |name, property_schema|
           (version.location == :path) ? check_path(property_schema, name) : check(property_schema, [name], nested: false)
         end
+
+        query_options.each { |path, options| check_case_insensitive(path) if options[:case_insensitive] }
       end
 
       private
 
-      attr_reader :version
+      attr_reader :version, :query_options
 
       # Rejects path parameters that aren't required scalars
       #
@@ -75,6 +80,36 @@ module Verquest
         item_types = variants(items_schema).flat_map { |variant| Array(variant["type"]) }
 
         reject(path, "an array of objects or arrays") if item_types.intersect?(%w[object array])
+      end
+
+      # Rejects case_insensitive on a property without string enum values (for an array, its items'),
+      # or with two values equal case-insensitively
+      #
+      # @return [void]
+      # @raise [Verquest::DefinitionError] If the property can't match case-insensitively
+      def check_case_insensitive(path)
+        label = "Property '#{path.join("/")}' in version '#{version.name}' is case_insensitive"
+        strings = enum_strings(property_schemas(path))
+        raise DefinitionError, "#{label}, which needs string enum values" if strings.empty?
+
+        first, second = strings.group_by { |value| value.downcase(:fold) }.values.find { |same| same.size > 1 }
+        raise DefinitionError, "#{label}, but its enum values #{first.inspect} and #{second.inspect} differ only by case" if first
+      end
+
+      # @return [Array<Hash>] The schemas at the path, through anyOf and oneOf variants, with an array's items in place of the array
+      def property_schemas(path)
+        schemas = path.reduce([version.validation_schema]) do |current, name|
+          current.flat_map { |schema| variants(schema) }.filter_map { |schema| schema.dig("properties", name) }
+        end
+
+        schemas.flat_map { |schema| variants(schema) }.map do |schema|
+          (Array(schema["type"]).include?("array") && schema.key?("items")) ? schema["items"] : schema
+        end
+      end
+
+      # @return [Array<String>] The distinct string enum values of the schemas and their variants
+      def enum_strings(schemas)
+        schemas.flat_map { |schema| variants(schema) }.flat_map { |schema| Array(schema["enum"]) }.grep(::String).uniq
       end
 
       # @return [Array<Hash>] The schema and its anyOf and oneOf variants

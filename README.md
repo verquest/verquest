@@ -861,6 +861,15 @@ array :status, type: :string, explode: false, item_schema_options: {enum: %w[ope
 # => {name: "status", ..., examples: {single: {value: ["open"]}, multiple: {value: ["open", "won"]}}, schema: {...}}
 ```
 
+`case_insensitive: true` on a `field` or `enum`, or an `array` of enum items, reads a value matching a declared string value case-insensitively as that value, in every version and without a [lenient](#lenient-requests) correction. The schema lists only the declared values, so mention it in `description:` if clients should know:
+
+```ruby
+field :sort_direction, type: :string, enum: %w[ASC DESC], case_insensitive: true, description: "`ASC` or `DESC`, case-insensitive"
+# ?sort_direction=desc => {"sort_direction" => "DESC"}
+```
+
+It raises `Verquest::DefinitionError` in a body request, with `with_options`, on a property without string enum values, or when two values differ only by case.
+
 A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
 
 #### Lenient requests
@@ -876,7 +885,7 @@ end
 | Rule | Value sent | Correction |
 |------|------------|------------|
 | `blank` | `page=` | Removed, where strict validation would reject it (not for required properties, arrays, properties that accept null, or strings without constraints, also as an anyOf or oneOf variant) |
-| `enum_case` | `sort_direction=desc` | `"DESC"`, when exactly one enum value matches case-insensitively |
+| `enum_case` | `sort_direction=desc` | `"DESC"`, when exactly one enum value matches case-insensitively (properties with `case_insensitive: true` match without a correction) |
 | `maximum` | `limit=200` | Capped at the `maximum`, `100` |
 | `datetime_offset` | `2025-01-12 15:30:00`, `...+0100` | `T` between the date and the time, and `Z` added or a colon added to the offset (`+01:00`) |
 | `invalid` | `page=0` | Removed when it still fails validation, except a filter or a required property, which is still rejected |

@@ -53,6 +53,26 @@ module Verquest
         "nested array of objects" => [
           proc { object(:filter) { collection(:items) { field :id, type: :string } } },
           "Property 'filter/items' in version '2025-06' is an array of objects or arrays, which query parameters can't express"
+        ],
+        "case_insensitive without an enum" => [
+          proc { field :search, type: :string, case_insensitive: true },
+          "Property 'search' in version '2025-06' is case_insensitive, which needs string enum values"
+        ],
+        "case_insensitive integer enum" => [
+          proc { enum :size, values: [1, 2], case_insensitive: true },
+          "Property 'size' in version '2025-06' is case_insensitive, which needs string enum values"
+        ],
+        "case_insensitive values differing by case" => [
+          proc { field :sort_direction, type: :string, enum: %w[ASC asc DESC], case_insensitive: true },
+          "Property 'sort_direction' in version '2025-06' is case_insensitive, but its enum values \"ASC\" and \"asc\" differ only by case"
+        ],
+        "case_insensitive values differing by case folding" => [
+          proc { field :street, type: :string, enum: %w[ß SS], case_insensitive: true },
+          "Property 'street' in version '2025-06' is case_insensitive, but its enum values \"ß\" and \"SS\" differ only by case"
+        ],
+        "case_insensitive array without an item enum" => [
+          proc { array :tags, type: :string, case_insensitive: true },
+          "Property 'tags' in version '2025-06' is case_insensitive, which needs string enum values"
         ]
       }.freeze
 
@@ -71,9 +91,11 @@ module Verquest
           field :page, type: :integer
           field :effective_from, type: :string, one_of: [{"type" => "string"}, {"const" => "now"}]
           array :status, type: :string
+          enum :mode, values: ["a", "b", nil], nullable: true, case_insensitive: true
           object(:filter, nullable: true) do
             field :after, type: :string
             array :site_id, type: :string
+            field :kind, type: :string, enum: %w[unit site], case_insensitive: true
           end
           reference :dog, from: DogComponent
         end
@@ -132,8 +154,10 @@ module Verquest
           field :number, type: :integer, required: true, nullable: true
           enum :kind, values: %w[a b], required: true
         end
+        path = path_class { field :kind, type: :string, enum: %w[unit site], case_insensitive: true, required: true }
 
         assert_equal :path, klass.location
+        assert_equal({"kind" => "site"}, path.process({"kind" => "SITE"}, version: "2025-06"))
       end
 
       def test_body_classes_are_not_checked

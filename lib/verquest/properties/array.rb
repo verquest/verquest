@@ -83,13 +83,13 @@ module Verquest
         mapping[(key_prefix + [name]).join("/")] = mapping_value_key(value_prefix:)
       end
 
-      # Returns this array's explode value and parameter examples
+      # Returns this array's explode value, parameter examples and case_insensitive
       #
       # @param prefix [Array<String>] Path of the parent property
       # @param version [String] The version to resolve references with
       # @return [Hash{Array<String> => Hash}] The options of this array, by path
       def query_options(prefix:, version:)
-        {prefix + [name] => {explode:, examples: parameter_examples}.compact}
+        {prefix + [name] => {explode:, examples: parameter_examples, case_insensitive: (true if case_insensitive)}.compact}
       end
 
       private
