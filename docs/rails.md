@@ -62,9 +62,9 @@ module VerquestParams
 
     # Every path class applies, so /deals/:deal_id/notes/:id can check both IDs
     @path_params = by_location.fetch(:path, []).to_h { |declaration| process_path_param(declaration) }
-    # Unknown query keys (cache busters, tracking) are dropped. Keys from another version, such as a newer
-    # filter, are rejected, so the client doesn't get an unfiltered list.
-    @query_params = by_location[:query]&.first&.dig(:class)&.process(request.query_parameters, remove_extra_root_keys: true, reject_other_version_keys: true)
+    # Unknown query keys (cache busters, tracking) are dropped instead of rejected. Add
+    # `reject_other_version_keys: true` to reject keys from another version, such as a newer filter.
+    @query_params = by_location[:query]&.first&.dig(:class)&.process(request.query_parameters, remove_extra_root_keys: true)
     @body_params = by_location[:body]&.first&.dig(:class)&.process(request.request_parameters)
   end
 
@@ -132,7 +132,7 @@ end
 
 `GET /deals/con_123` then returns 422 with `{"pointer" => "/id", ...}`, and `POST /deals/con_123/win` with `{"pointer" => "/deal_id", ...}`.
 
-`DealsIndexQuery` declares its filters with `filter` (see [Filters](../README.md#filters)). `apply_filters` takes the version from `config.current_version`, like `process`. With the `2025-08` version from the README, `GET /2025-06/deals?site_id=site_1` returns 422 with `{"pointer" => "/site_id", "type" => "other_version", ...}`, because `site_id` is a `2025-08` filter.
+`DealsIndexQuery` declares its filters with `filter` (see [Filters](../README.md#filters)). `apply_filters` takes the version from `config.current_version`, like `process`. `GET /2025-06/deals?site_id=site_1` lists every deal, because `site_id` is a `2025-08` filter and `process` drops it. With `reject_other_version_keys: true`, the same request returns 422 with `{"pointer" => "/site_id", "type" => "other_version", ...}`.
 
 ## rswag
 
