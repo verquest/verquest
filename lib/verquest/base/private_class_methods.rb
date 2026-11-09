@@ -20,12 +20,7 @@ module Verquest
     # @raise [Verquest::VersionNotFoundError] If no version matches, or supported_versions leaves the version out
     # @raise [Verquest::DefinitionError] If supported_versions max sorts before every declared version
     def resolve(version)
-      if version.nil? && Verquest.configuration.current_version
-        version = instance_exec(&Verquest.configuration.current_version)
-      elsif version.nil?
-        raise ArgumentError, "Version must be provided or set by Verquest.configuration.current_version"
-      end
-
+      version = requested_version(version)
       check_supported_version!(version)
       versions.resolve(version)
     end
@@ -40,6 +35,70 @@ module Verquest
     end
 
     private
+
+    # Returns the version a request asks for: the given one or the configuration's current_version
+    #
+    # @param version [String, nil] The specific version
+    # @return [String] The requested version
+    # @raise [ArgumentError] If no version is provided and no current_version is configured
+    def requested_version(version)
+      return version unless version.nil?
+      raise ArgumentError, "Version must be provided or set by Verquest.configuration.current_version" unless Verquest.configuration.current_version
+
+      instance_exec(&Verquest.configuration.current_version)
+    end
+
+    # Returns whether a request corrects values instead of rejecting them
+    #
+    # @param version [String] The requested version, before resolving
+    # @param lenient [Boolean, nil] An explicit choice, or nil to compare the version with lenient_through
+    # @return [Boolean]
+    def lenient_request?(version, lenient)
+      return lenient unless lenient.nil?
+
+      through = Verquest.configuration.lenient_through
+      !through.nil? && SupportedVersions.at_or_before?(version, through)
+    end
+
+    # Validates params; a lenient request removes the declared root properties that fail, other than
+    # filters and required ones, and validates again
+    #
+    # @param params [Hash] The coerced params
+    # @param version [Verquest::Version] The resolved version
+    # @param lenient [Boolean] Whether the request is lenient
+    # @return [Array(Hash, Array<Hash>, Array<String>)] The params, their validation errors and the removed property names
+    def validated_params(params, version, lenient:)
+      errors = version.validate_params(params:)
+      return [params, errors, []] unless lenient && errors.any?
+
+      invalid = invalid_property_names(errors, params, version)
+      return [params, errors, []] if invalid.empty?
+
+      params = params.except(*invalid)
+      [params, version.validate_params(params:), invalid]
+    end
+
+    # Replaces the coercion's corrections of removed properties with an :invalid one each
+    #
+    # @param corrections [Array<Verquest::Correction>] The coercion's corrections
+    # @param invalid [Array<String>] The removed property names
+    # @param sent [Hash] The params as sent, for the corrections' `from`
+    # @return [Array<Verquest::Correction>] The corrections
+    def with_invalid_corrections(corrections, invalid, sent)
+      corrections.reject { |correction| invalid.include?(correction.name) } +
+        invalid.map { |name| Correction.for(name, rule: :invalid, from: sent[name], to: nil) }
+    end
+
+    # Removing a required property would only replace its error with "missing required properties"
+    #
+    # @return [Array<String>] The declared root properties with a validation error, other than filters and required ones
+    def invalid_property_names(errors, params, version)
+      removable = version.all_properties.keys - version.filters.keys - version.required_property_names
+
+      errors.filter_map { |error| Correction.root_name(error[:pointer]) }.uniq.select do |name|
+        params.key?(name) && removable.include?(name)
+      end
+    end
 
     # @return [Verquest::Version, Verquest::Properties::Object] The current scope being defined
     attr_reader :current_scope
@@ -440,6 +499,30 @@ module Verquest
         raise InvalidParamsError.new("Validation failed", errors:)
       when :result
         Result.failure(errors)
+      end
+    end
+
+    # Maps valid params according to the validation_error_handling setting
+    #
+    # @param params [Hash] The validated params
+    # @param version [Verquest::Version] The resolved version
+    # @return [Verquest::Result, Hash] A Result when validation_error_handling is :result, the mapped params otherwise
+    # @raise [Verquest::MappingError] When mapping fails and validation_error_handling is :raise
+    def mapped_result(params, version)
+      mapped_params = version.map_params(params)
+
+      case Verquest.configuration.validation_error_handling
+      when :raise
+        mapped_params
+      when :result
+        Result.success(mapped_params)
+      end
+    rescue MappingError => e
+      case Verquest.configuration.validation_error_handling
+      when :raise
+        raise
+      when :result
+        Result.failure([{message: e.message, type: "mapping_error"}])
       end
     end
 

@@ -16,14 +16,19 @@ module Verquest
     # @param validate [Boolean, nil] Whether to validate the params, defaults to configuration setting
     # @param remove_extra_root_keys [Boolean, nil] Whether to remove extra keys at the root level, defaults to configuration setting
     # @param reject_other_version_keys [Boolean, nil] Whether to report root keys only another version declares as validation errors (only when validating), defaults to configuration setting
+    # @param lenient [Boolean, nil] Whether a query or path request corrects values instead of rejecting them, defaults to
+    #   comparing the requested version with the configuration's lenient_through
+    # @yieldparam correction [Verquest::Correction] Each correction a lenient request made
     # @return [Verquest::Result, Hash] When validation_error_handling is :result, returns a Success result with mapped params or Failure result with validation errors.
     #   When validation_error_handling is :raise, returns mapped params directly or raises InvalidParamsError with validation errors.
-    def process(params, version: nil, validate: nil, remove_extra_root_keys: nil, reject_other_version_keys: nil)
+    def process(params, version: nil, validate: nil, remove_extra_root_keys: nil, reject_other_version_keys: nil, lenient: nil, &on_correction)
       validate = Verquest.configuration.validate_params if validate.nil?
       remove_extra_root_keys = Verquest.configuration.remove_extra_root_keys if remove_extra_root_keys.nil?
       reject_other_version_keys = Verquest.configuration.reject_other_version_keys if reject_other_version_keys.nil?
 
+      version = requested_version(version)
       version_class = resolve(version)
+      lenient = lenient_request?(version, lenient) && version_class.parameters?
 
       params = params.dup
       params = params.to_unsafe_h if params.respond_to?(:to_unsafe_h)
@@ -33,30 +38,16 @@ module Verquest
       end
 
       params = params.slice(*version_class.all_properties.keys) if remove_extra_root_keys && !version_class.combination?
-      params = version_class.coerce_params(params)
+      sent = params
+      corrections = []
+      params = version_class.coerce_params(params, lenient:) { |correction| corrections << correction }
       params = copy_params(params) if validate && version_class.inserts_property_defaults?
 
-      if validate && (validation_result = version_class.validate_params(params: params)) && validation_result.any?
-        validation_failure(validation_result)
-      else
-        begin
-          mapped_params = version_class.map_params(params)
+      params, errors, invalid = validate ? validated_params(params, version_class, lenient:) : [params, [], []]
+      with_invalid_corrections(corrections, invalid, sent).each(&on_correction) if on_correction
+      return validation_failure(errors) if errors.any?
 
-          case Verquest.configuration.validation_error_handling
-          when :raise
-            mapped_params
-          when :result
-            Result.success(mapped_params)
-          end
-        rescue MappingError => e
-          case Verquest.configuration.validation_error_handling
-          when :raise
-            raise
-          when :result
-            Result.failure([{message: e.message, type: "mapping_error"}])
-          end
-        end
-      end
+      mapped_result(params, version_class)
     end
 
     # Returns the names of the filters the version declares

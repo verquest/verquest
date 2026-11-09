@@ -268,9 +268,26 @@ module Verquest
     # Converts query or path strings to the types the validation schema expects
     #
     # @param params [Hash] The parsed request parameters
+    # @param lenient [Boolean] Whether to correct values a lenient request tolerates (see {Query::LenientCoercer})
+    # @yieldparam correction [Verquest::Correction] Each correction, when lenient
     # @return [Hash] Converted params for a query or path version, the same params otherwise
-    def coerce_params(params)
-      parameters? ? query_coercer.call(params) : params
+    def coerce_params(params, lenient: false, &on_correction)
+      return params unless parameters?
+      return query_coercer.call(params) unless lenient
+
+      Query::LenientCoercer.new(schema: validation_schema, explodes: query_explodes, required: required_property_names, on_correction:).call(params)
+    end
+
+    # Returns the root properties the validation schema requires, always (`required`), when another
+    # property is present (`dependentRequired`) or in a condition's branch (`then`/`else`, also in `allOf`,
+    # and any alternative of `anyOf` or `oneOf`)
+    #
+    # The list is conservative: a name stays in it even when its trigger is absent or its condition
+    # doesn't apply, so a lenient request rejects `{"per" => "0"}` instead of removing `per`.
+    #
+    # @return [Array<String>] The property names
+    def required_property_names
+      required_names(validation_schema)
     end
 
     # Returns OpenAPI parameter objects for this query or path version, in OpenAPI 3.0 forms under :openapi30
@@ -329,8 +346,23 @@ module Verquest
 
     private
 
+    # Collects names from `then`/`else` branches and `allOf`, `anyOf` and `oneOf` entries, conservatively
+    # (a name any alternative requires counts); `if` and `not` don't require anything
+    #
+    # @param schema [Hash] An object schema, a condition's branch or an entry of one of them
+    # @return [Array<String>] The names the schema, its branches and its entries require
+    def required_names(schema)
+      names = schema.fetch("required", []) | schema.fetch("dependentRequired", {}).values.flatten
+      branches = schema.values_at("then", "else").compact + schema.values_at("allOf", "anyOf", "oneOf").compact.flatten
+
+      branches.reduce(names) { |all, branch| all | required_names(branch) }
+    end
+
     # @return [Verquest::Query::Coercer, nil] The coercer of a query or path version
     attr_reader :query_coercer
+
+    # @return [Hash{Array<String> => Boolean}, nil] The explode value of each array property of a query or path version, by path
+    attr_reader :query_explodes
 
     # @return [Hash{Array<String> => Hash}, nil] The parameter options of each property path of a query or path version
     attr_reader :query_options
@@ -345,8 +377,8 @@ module Verquest
       @query_options = all_properties.each_value.with_object({}) do |property, options|
         options.merge!(property.query_options(prefix: [], version: name))
       end.freeze
-      explodes = query_options.filter_map { |path, options| [path, options[:explode]] if options.key?(:explode) }.to_h
-      @query_coercer = Query::Coercer.new(schema: validation_schema, explodes:)
+      @query_explodes = query_options.filter_map { |path, options| [path, options[:explode]] if options.key?(:explode) }.to_h.freeze
+      @query_coercer = Query::Coercer.new(schema: validation_schema, explodes: @query_explodes)
     end
 
     # Returns the compiled validation schema for the current configuration

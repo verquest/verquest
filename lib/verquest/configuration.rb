@@ -69,9 +69,13 @@ module Verquest
     # @!attribute [rw] reject_other_version_keys
     #   Controls whether `process` reports root keys that only another version of the request declares, when it validates params
     #   @return [Boolean] true to report them as validation errors, false to treat them as unknown keys (default)
+    #
+    # @!attribute [rw] lenient_through
+    #   The last version whose query and path requests are corrected instead of rejected (see {Verquest::Correction})
+    #   @return [String, nil] A version name; nil (default) makes every request strict
     attr_accessor :validate_params, :json_schema_version, :validation_error_handling,
       :remove_extra_root_keys, :insert_property_defaults, :default_additional_properties,
-      :query_array_explode, :reject_other_version_keys
+      :query_array_explode, :reject_other_version_keys, :lenient_through
 
     # @!attribute [r] current_version
     #   A callable object that returns the current API version to use when not explicitly specified
@@ -100,6 +104,7 @@ module Verquest
       @default_additional_properties = false
       @query_array_explode = true
       @reject_other_version_keys = false
+      @lenient_through = nil
     end
 
     # Sets the current version strategy using a callable object

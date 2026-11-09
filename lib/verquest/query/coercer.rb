@@ -78,12 +78,17 @@ module Verquest
           return coerced unless coerced.equal?(NO_MATCH)
         end
 
-        value_schema.values_at("anyOf", "oneOf").compact.flatten.each do |variant|
+        variants(value_schema).each do |variant|
           coerced = coerce(value, variant, path)
           return coerced unless coerced.equal?(NO_MATCH)
         end
 
         NO_MATCH
+      end
+
+      # @return [Array<Hash>] The schema's anyOf and oneOf variants
+      def variants(value_schema)
+        value_schema.values_at("anyOf", "oneOf").compact.flatten
       end
 
       # @return [Array<String>] The schema's types, inferred from enum and const values without a type
@@ -102,11 +107,11 @@ module Verquest
       # @return [Object] The value converted to the type or NO_MATCH
       def coerce_type(type, value, value_schema, path)
         case type
-        when "integer" then coerce_integer(value)
-        when "number" then coerce_number(value)
+        when "integer" then coerce_integer(value, value_schema, path)
+        when "number" then coerce_number(value, value_schema, path)
         when "boolean" then coerce_boolean(value)
         when "null" then (value.nil? || value == "") ? nil : NO_MATCH
-        when "string" then coerce_string(value, value_schema)
+        when "string" then coerce_string(value, value_schema, path)
         when "array" then coerce_array(value, value_schema, path)
         when "object" then value.is_a?(::Hash) ? coerce_properties(value, value_schema, path) : NO_MATCH
         else NO_MATCH
@@ -114,7 +119,7 @@ module Verquest
       end
 
       # @return [Integer, Object] The integer or NO_MATCH
-      def coerce_integer(value)
+      def coerce_integer(value, _value_schema, _path)
         return value if value.is_a?(::Integer)
         return NO_MATCH unless value.is_a?(::String) && INTEGER_PATTERN.match?(value)
 
@@ -122,7 +127,7 @@ module Verquest
       end
 
       # @return [Numeric, Object] The number or NO_MATCH
-      def coerce_number(value)
+      def coerce_number(value, _value_schema, _path)
         return value if value.is_a?(::Numeric)
         return NO_MATCH unless value.is_a?(::String) && NUMBER_PATTERN.match?(value)
 
@@ -139,7 +144,7 @@ module Verquest
       # A string outside the schema's enum tries the next type, so "" can still map to nil
       #
       # @return [String, Object] The string or NO_MATCH
-      def coerce_string(value, value_schema)
+      def coerce_string(value, value_schema, _path)
         return NO_MATCH unless value.is_a?(::String)
         return NO_MATCH if value_schema.key?("enum") && !value_schema["enum"].include?(value)
 
@@ -152,8 +157,8 @@ module Verquest
         items = split(value, path)
         return items if items.equal?(NO_MATCH) || !array_schema.key?("items")
 
-        items.map do |item|
-          coerced = coerce(item, array_schema["items"], path)
+        items.each_with_index.map do |item, index|
+          coerced = coerce(item, array_schema["items"], path + [index.to_s])
           coerced.equal?(NO_MATCH) ? item : coerced
         end
       end
