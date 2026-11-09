@@ -2,6 +2,7 @@
 
 ### Added
 - `config.lenient_through = "2025-06"` makes query and path requests for that version or an earlier one lenient; `process(..., lenient: true/false)` overrides it per call. A lenient request corrects values instead of rejecting them: blank root values are removed where strict validation would reject them (not for arrays, properties that accept null, or strings without constraints, also as an anyOf or oneOf variant), enum values match case-insensitively when one value matches, numbers above `maximum` are capped, date-times (with at most 9 fraction digits) without an offset get `Z` and `+HHMM` offsets a colon, and root properties that still fail validation are removed, except filters. A value gets at most one correction. `process` yields a `Verquest::Correction` (`path`, `rule`, `from` as sent, `to`, and `name`) for each, also before raising for a validation failure.
+- `property_names(version:)` lists the root property names a version declares, inherited ones included, in declaration order.
 
 ## [0.9.0] - 2026-11-09
 

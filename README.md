@@ -897,6 +897,7 @@ end
 params = DealsIndexQuery.process(request.query_parameters, version: "2025-08")
 DealsIndexQuery.apply_filters(Deal.all, params, version: "2025-08")
 DealsIndexQuery.filter_names(version: "2025-08") # => ["status", "site_id"]
+DealsIndexQuery.property_names(version: "2025-08") # => ["page", "archived", "sort_direction", "status", "created", "site_id"]
 ```
 
 - Filters follow the rules of properties. A later version inherits them, `exclude_properties` removes one, and redeclaring a filter replaces its block. Redeclaring it as a plain property, such as `field :status`, stops it filtering.

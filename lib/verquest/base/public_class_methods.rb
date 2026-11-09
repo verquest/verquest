@@ -50,6 +50,17 @@ module Verquest
       mapped_result(params, version_class)
     end
 
+    # Returns the names of the root properties the version declares, as clients send them
+    #
+    # @example
+    #   DealsIndexQuery.property_names(version: "2025-06") # => ["page", "archived", "sort_direction", "status", "created"]
+    #
+    # @param version [String, nil] Specific version to use, defaults to configuration setting
+    # @return [Array<String>] Root property names in declaration order, inherited ones included
+    def property_names(version: nil)
+      resolve(version).all_properties.keys
+    end
+
     # Returns the names of the filters the version declares
     #
     # @param version [String, nil] Specific version to use, defaults to configuration setting
