@@ -863,6 +863,32 @@ array :status, type: :string, explode: false, item_schema_options: {enum: %w[ope
 
 A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
 
+#### Lenient requests
+
+Tightening validation can break clients of a released version. `config.lenient_through` makes query and path requests for that version, or an earlier one, correct values instead of rejecting them. Later versions and body requests stay strict, and `process(..., lenient: true/false)` overrides the setting per call.
+
+```ruby
+Verquest.configure do |config|
+  config.lenient_through = "2025-06"
+end
+```
+
+| Rule | Value sent | Correction |
+|------|------------|------------|
+| `blank` | `page=` | Removed, where strict validation would reject it (not for required properties, arrays, properties that accept null, or strings without constraints, also as an anyOf or oneOf variant) |
+| `enum_case` | `sort_direction=desc` | `"DESC"`, when exactly one enum value matches case-insensitively |
+| `maximum` | `limit=200` | Capped at the `maximum`, `100` |
+| `datetime_offset` | `2025-01-12 15:30:00`, `...+0100` | `T` between the date and the time, and `Z` added or a colon added to the offset (`+01:00`) |
+| `invalid` | `page=0` | Removed when it still fails validation, except a filter or a required property, which is still rejected |
+
+A value gets at most one correction: a value that is still invalid after a correction is removed, except a filter or a property required by `required`, `dependentRequired` or a condition, which fails validation with its own error, as in strict requests. This is conservative: a property any `dependentRequired` or condition can require is kept even when the trigger is absent or the condition doesn't apply. `process` yields a `Verquest::Correction` for each, also before it raises for a validation failure: `path` is the JSON pointer of the corrected value (`/status/0`, `/created/gte`, or the removed root property), `name` its root property, `rule`, `from` as sent and `to`:
+
+```ruby
+params = ListQuery.process(request.query_parameters) do |correction|
+  logger.info(correction.to_h.except(:from)) # `from` is what the client sent
+end
+```
+
 ### Filters
 
 `filter` declares a property and the block that filters by its value. The property is a `field` by default, an `array` with `as: :array`, or an `enum` with `as: :enum`, in a body or a query request. `apply_filters` passes the target through the version's filters in declaration order, and skips a filter when its value is nil or empty. `DealsIndexQuery` from [Query parameters](#query-parameters) filters by `status` from `2025-06`, and also by `site_id` from `2025-08`:
@@ -959,6 +985,9 @@ Verquest.configure do |config|
 
   # Default explode value of query arrays (true: status[]=a&status[]=b, false: status=a,b)
   config.query_array_explode = true # default
+
+  # Last version whose query and path requests are corrected instead of rejected, see Lenient requests
+  config.lenient_through = nil # default
 
   # Reusable field types, see Custom Field Types
   config.custom_field_types = {} # default

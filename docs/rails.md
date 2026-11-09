@@ -25,6 +25,8 @@ end
 # config/initializers/verquest.rb
 Verquest.configure do |config|
   config.current_version = -> { Current.api_version }
+  # Released versions keep tolerating what they accepted before validation
+  config.lenient_through = "2025-06"
 end
 ```
 
@@ -64,7 +66,10 @@ module VerquestParams
     @path_params = by_location.fetch(:path, []).to_h { |declaration| process_path_param(declaration) }
     # Unknown query keys (cache busters, tracking) are dropped instead of rejected. Add
     # `reject_other_version_keys: true` to reject keys from another version, such as a newer filter.
-    @query_params = by_location[:query]&.first&.dig(:class)&.process(request.query_parameters, remove_extra_root_keys: true)
+    # A lenient request (config.lenient_through) yields each value it corrected instead of rejecting.
+    @query_params = by_location[:query]&.first&.dig(:class)&.process(request.query_parameters, remove_extra_root_keys: true) do |correction|
+      Rails.logger.info("Corrected query param: #{correction.to_h.except(:from)}")
+    end
     @body_params = by_location[:body]&.first&.dig(:class)&.process(request.request_parameters)
   end
 
