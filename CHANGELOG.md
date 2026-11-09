@@ -1,8 +1,13 @@
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-09
+
 ### Added
-- `config.lenient_through = "2025-06"` makes query and path requests for that version or an earlier one lenient; `process(..., lenient: true/false)` overrides it per call. A lenient request corrects values instead of rejecting them: blank root values are removed where strict validation would reject them (not for arrays, properties that accept null, or strings without constraints, also as an anyOf or oneOf variant), enum values match case-insensitively when one value matches, numbers above `maximum` are capped, date-times (with at most 9 fraction digits) without an offset get `Z` and `+HHMM` offsets a colon, and root properties that still fail validation are removed, except filters. A value gets at most one correction. `process` yields a `Verquest::Correction` (`path`, `rule`, `from` as sent, `to`, and `name`) for each, also before raising for a validation failure.
+- `config.lenient_through = "2025-06"` makes query and path requests for that version or an earlier one lenient; `process(..., lenient: true/false)` overrides it per call. A lenient request corrects values instead of rejecting them: blank root values are removed where strict validation would reject them (not for required properties, arrays, properties that accept null, or strings without constraints, also as an anyOf or oneOf variant), enum values match case-insensitively when one value matches, numbers above `maximum` are capped, date-times (with at most 9 fraction digits) without an offset get `Z` and `+HHMM` offsets a colon, with `T` between the date and the time, and root properties that still fail validation are removed, except filters and properties required by `required`, `dependentRequired` or a condition. A value gets at most one correction. `process` yields a `Verquest::Correction` (`path` as the JSON pointer of the corrected value, `rule`, `from` as sent, `to`, and `name` of the root property) for each, also before raising for a validation failure.
 - `property_names(version:)` lists the root property names a version declares, inherited ones included, in declaration order.
+
+### Changed
+- The private `Query::Coercer` type hooks `coerce_integer`, `coerce_number` and `coerce_string` take `(value, value_schema, path)`. A subclass overriding them must accept the new arguments.
 
 ## [0.9.0] - 2026-11-09
 
