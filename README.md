@@ -29,7 +29,7 @@ Sponsored by [Stora](https://stora.co)
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "verquest", "~> 0.7"
+gem "verquest", "~> 0.9"
 ```
 
 And then execute:
@@ -134,7 +134,8 @@ error.errors
 Set `config.current_version` to drop the `version:` argument, or `config.validation_error_handling = :result` to get a `Verquest::Result` instead of an exception (see [Configuration](#configuration)). For query and path parameters in controllers, see [Rails and rswag](docs/rails.md).
 
 ### JSON schema for OpenAPI
-You can generate JSON Schema for your versioned requests, which can be used for API documentation:
+
+`to_schema` returns the JSON Schema of a version for your API documentation. References stay `$ref`s:
 
 ```ruby
 UserCreateRequest.to_schema(version: "2025-06")
@@ -161,7 +162,8 @@ Output:
           "name" => {"type" => "string", "description" => "Name of the permission"}, 
           "read" => {"type" => "boolean", "description" => "Permission to read"}, 
           "write" => {"type" => "boolean", "description" => "Permission to write"}
-        }
+        },
+        "additionalProperties" => false
       },
       "description" => "Permissions associated with the user"
     },
@@ -182,9 +184,11 @@ Output:
             "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"},
             "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
           },
+          "additionalProperties" => false,
           "description" => "Some social networks"
         }
-      }
+      },
+      "additionalProperties" => false
     },
     "company" => {"const" => "Awesome Inc."}
   },
@@ -194,7 +198,7 @@ Output:
 
 ### JSON schema for validation
 
-You can check the validation JSON schema for a specific version of your request:
+`to_validation_schema` returns the schema that `process` validates against, with references inlined:
 
 ```ruby
 UserCreateRequest.to_validation_schema(version: "2025-06")
@@ -210,7 +214,7 @@ Output:
     "first_name" => {"type" => "string", "description" => "The first name of the user", "maxLength" => 50},
     "last_name" => {"type" => "string", "description" => "The last name of the user", "maxLength" => 50},
     "email" => {"type" => "string", "format" => "email", "description" => "The email address of the user"},
-    "birth_date" => {"type" => "string", "format" => "date", "description" => "The birth date of the user"},
+    "birth_date" => {"type" => ["string", "null"], "format" => "date", "description" => "The birth date of the user"},
     "address" => { # from the AddressCreateRequest
       "type" => "object",
       "description" => "Address Create Request",
@@ -231,7 +235,8 @@ Output:
           "name" => {"type" => "string", "description" => "Name of the permission"},
           "read" => {"type" => "boolean", "description" => "Permission to read"},
           "write" => {"type" => "boolean", "description" => "Permission to write"}
-        }
+        },
+        "additionalProperties" => false
       },
       "description" => "Permissions associated with the user"
     },
@@ -241,26 +246,30 @@ Output:
       "default" => "member",
       "description" => "Role of the user"
     },
-    "profile_details" => {"type" => "object",
+    "profile_details" => {
+      "type" => "object",
       "properties" => {
         "bio" => {"type" => "string", "description" => "Short biography of the user"},
         "hobbies" => {"type" => "array", "items" => {"type" => "string"}, "description" => "Tags associated with the user"},
         "social_links" => {
-          "type" => "object", 
+          "type" => "object",
           "properties" => {
-            "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"}, 
+            "github" => {"type" => "string", "format" => "uri", "description" => "GitHub profile URL"},
             "mastodon" => {"type" => "string", "format" => "uri", "description" => "Mastodon profile URL"}
-          }, 
-          "description" => "Some social networks"}
+          },
+          "additionalProperties" => false,
+          "description" => "Some social networks"
+        }
       },
-      "company" => {"const" => "Awesome Inc."}
-    }
+      "additionalProperties" => false
+    },
+    "company" => {"const" => "Awesome Inc."}
   },
   "additionalProperties" => false
 }
 ```
 
-You can also validate it to ensure it meets the JSON Schema standards. Under `:openapi30` this checks the document from `to_schema` against the OpenAPI 3.0 meta-schema, since validation schemas keep JSON Schema forms OpenAPI 3.0 forbids:
+`valid_schema?` and `validate_schema` check the validation schema against the meta-schema of `config.json_schema_version`. Under `:openapi30`, they check the `to_schema` document instead, because validation schemas keep JSON Schema forms that OpenAPI 3.0 forbids:
 
 ```ruby
 UserCreateRequest.valid_schema?(version: "2025-06") # => true/false
@@ -615,7 +624,6 @@ end
 {
   "type" => "object",
   "description" => "User Create Request",
-  "required" => ["email"],
   "properties" => {
     "email" => {
       "type" => "string", 
@@ -678,9 +686,8 @@ class UserCreateRequest < Verquest::Base
 end
 ```
 
-Internal `Verquest::VersionResolver` is then used to resolve the right version for the one specified in the call. It implements a "downgrading" strategy - when an exact version match isn't found, it returns the closest earlier version.
+`Verquest::VersionResolver` picks the version block for the requested version. When no block matches exactly, it picks the closest earlier one:
 
-Example:
 ```ruby
 UserCreateRequest.process(params, version: "2025-05") # => use the defined version "2025-04"
 UserCreateRequest.process(params, version: "2025-06") # => use the defined version "2025-06"
@@ -689,9 +696,9 @@ UserCreateRequest.process(params, version: "2025-08") # => use the defined versi
 UserCreateRequest.process(params, version: "2025-10") # => use the closest earlier version "2025-08"
 ```
 
-This is used across all referenced requests, so if you have a `UserRequest` that references an `AddressCreateRequest`, it will also resolve the correct version of the `AddressCreateRequest` based on the initial requested version (as the `AddressCreateRequest` can have different versions defined).
+References resolve the same way. When `UserCreateRequest` references `AddressCreateRequest`, the requested version also picks the `AddressCreateRequest` block, so the two classes can declare different versions.
 
-The goal here is to avoid redefining the same request structure in multiple versions when there are no changes, and to facilitate the easy evolution of API requests over time. When a new API version is created and there are no changes to the requests, you don't need to update anything.
+A new API version that doesn't change a request needs no new `version` block in it.
 
 #### Supported versions
 
@@ -721,13 +728,11 @@ OverlockRequest.process(params, version: "2026-06") # => raises Verquest::Versio
 
 ### Mapping request structure
 
-Verquest's mapping system allows transforming external API request structures into your internal application data structures.
-
-Here’s a short example: we store the address in the same table as the user internally, but the API request structure is different.
+`map:` turns the public request structure into the structure your app uses. In this example, the app stores the address in the users table, so the address fields move to the root:
 
 ```ruby
 class UserCreateRequest < Verquest::Base
-  version "2025-06", exclude_properties: %i[street city] do
+  version "2025-06" do
     field :full_name, type: :string, map: "name"
     field :email, type: :string, format: "email", required: true
     field :phone, type: :string
@@ -741,40 +746,43 @@ class UserCreateRequest < Verquest::Base
 end
 ```
 
-When called with `UserCreateRequest.process(params)`, the `address` object will be mapped to the internal structure with keys `address_street`, `address_city`, and `address_zip`.
+`UserCreateRequest.process` turns these params:
 
-Example request params
 ```ruby
 {
-  "full_name": "John Doe",
-  "email": "john@doe.com",
-  "phone": "1234567890",
-  "address": {
-    "street": "123 Main St",
-    "city": "Springfield",
-    "postal_code": "12345"
+  "full_name" => "John Doe",
+  "email" => "john@doe.com",
+  "phone" => "1234567890",
+  "address" => {
+    "street" => "123 Main St",
+    "city" => "Springfield",
+    "postal_code" => "12345"
   }
 }
 ```
 
-Will be transformed to:
+into:
+
 ```ruby
 {
-  "name": "John Doe",
-  "email": "john@doe.com",
-  "phone": "1234567890",
-  "address_street": "123 Main St",
-  "address_city": "Springfield",
-  "address_zip": "12345"
+  "name" => "John Doe",
+  "email" => "john@doe.com",
+  "phone" => "1234567890",
+  "address_street" => "123 Main St",
+  "address_city" => "Springfield",
+  "address_zip" => "12345"
 }
 ```
 
-What you can use:
-- `/` to reference the root of the request structure
-- `nested/structure` use slash notation to reference nested structures
-- if the `map` is not set, the field name will be used as the key in the internal structure
+`map:` takes one of these forms:
 
-To get the mapping to map the request structure back to the external API structure, you can use the `external_mapping` method:
+- `"name"`: a key at the same level;
+- `"/name"`: a key at the root;
+- `"nested/structure"`: a key inside nested objects.
+
+Without `map:`, the property name is the key.
+
+`external_mapping` returns the mapping back, from internal keys to external paths:
 
 ```ruby
 UserCreateRequest.external_mapping(version: "2025-06")
@@ -797,7 +805,7 @@ The mapping tests in [`test/verquest/base_test.rb`](test/verquest/base_test.rb) 
 
 ### Filters
 
-`filter` declares a property of a request, body or query, with `field`, `array` (`as: :array`) or `enum` (`as: :enum`), and the block that filters by its processed value. `apply_filters` runs the version's filters, in declaration order, for each value that isn't nil or empty:
+`filter` declares a property and the block that filters by its value. The property is a `field` by default, an `array` with `as: :array`, or an `enum` with `as: :enum`, in a body or a query request. `apply_filters` passes the target through the version's filters in declaration order, and skips a filter when its value is nil or empty:
 
 ```ruby
 class DealsIndexQuery < Verquest::Base
@@ -822,9 +830,25 @@ DealsIndexQuery.apply_filters(Deal.all, params, version: "2025-08")
 DealsIndexQuery.filter_names(version: "2025-08") # => ["status", "site_id"]
 ```
 
-Filters are inherited, excluded (`exclude_properties`) and replaced (redeclared) with their properties; a plain property over an inherited filter stops filtering. `reference` copies a property without its filter. The block runs only from `apply_filters`, with `self` the request class. A filter must be at a version's root and can't use `map:`; otherwise defining the version raises `Verquest::DefinitionError`.
+- Filters follow the rules of properties. A later version inherits them, `exclude_properties` removes one, and redeclaring a filter replaces its block. Redeclaring it as a plain property, such as `field :status`, stops it filtering.
+- `reference` copies the property without its filter.
+- The block runs only from `apply_filters`, with `self` set to the request class.
+- `apply_filters` reads the params by their String names, as `process` returns them. With `validation_error_handling = :result`, pass the result's `value`.
+- A filter must be at the root of a version, and it can't use `map:`. Otherwise defining the version raises `Verquest::DefinitionError`.
 
-With `reject_other_version_keys: true`, `process` reports a root key that only another version declares, such as `site_id` sent to `2025-06`, as a validation error (`type: "other_version"`) instead of dropping it, so a client never gets an unfiltered result by mistake. It works for body requests too, and runs only when params are validated. `config.reject_other_version_keys` sets the default (`false`).
+[`test/support/examples/deals_index_query.rb`](test/support/examples/deals_index_query.rb) runs the same query against an Array of Hashes.
+
+#### Reject keys from other versions
+
+`process` drops root keys that the version doesn't declare. A client that sends `site_id` to `2025-06` gets an unfiltered list and no error. With `reject_other_version_keys: true`, `process` reports a root key that only another version declares as a validation error:
+
+```ruby
+DealsIndexQuery.process({"site_id" => "site_1"}, version: "2025-06", reject_other_version_keys: true)
+# raises Verquest::InvalidParamsError with
+# [{pointer: "/site_id", type: "other_version", message: "`site_id` isn't available in version 2025-06", details: nil}]
+```
+
+`remove_extra_root_keys` still drops keys that no version declares, such as `utm_source`. The check works for body requests too, and runs only when `process` validates the params. `config.reject_other_version_keys` sets the default (`false`).
 
 ### Query parameters
 
