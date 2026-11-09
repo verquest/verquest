@@ -20,7 +20,7 @@ module Verquest
     def test_process_and_apply_filters
       params = DealsIndexQuery.process({"page" => "2", "status" => "open,lost", "site_id" => "site_1"}, version: "2025-08")
 
-      assert_equal({"page" => 2, "status" => %w[open lost], "site_id" => "site_1"}, params)
+      assert_equal({"page" => 2, "sort_direction" => "DESC", "status" => %w[open lost], "site_id" => "site_1"}, params)
       assert_equal %w[First Third], names(DealsIndexQuery.apply_filters(DEALS, params, version: "2025-08"))
     end
 
