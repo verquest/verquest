@@ -17,7 +17,7 @@ module Verquest
       DOCUMENTATION_KEYS = %w[description deprecated].freeze
 
       # @param schema [Hash] The version's validation schema
-      # @param options [Hash{Array<String> => Hash}] The `explode:` and `examples:` of each property path
+      # @param options [Hash{Array<String> => Hash}] The `explode:` and `examples:` of each property path; other options, such as `case_insensitive:`, are ignored
       # @param location [Symbol] `:query` or `:path`, written as `in:`
       def initialize(schema:, options:, location: :query)
         @schema = schema
