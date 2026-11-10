@@ -71,6 +71,13 @@ module Verquest
         assert_equal({"direction" => "DESC"}, coercer.call({"direction" => "desc"}))
         assert_empty corrections
       end
+
+      def test_case_insensitive_match_is_kept_for_a_date_time_format
+        schema = {"type" => "object", "properties" => {"direction" => {"type" => "string", "enum" => %w[ASC DESC], "format" => "date-time"}}}
+        coercer = LenientCoercer.new(schema:, explodes: {}, required: [], on_correction: nil, case_insensitive: Set[%w[direction]])
+
+        assert_equal({"direction" => "DESC"}, coercer.call({"direction" => "desc"}))
+      end
     end
   end
 end

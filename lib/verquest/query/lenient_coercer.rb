@@ -97,7 +97,7 @@ module Verquest
         coerced = super
         return coerced unless value.is_a?(::String)
         return enum_case(value, value_schema, path) if coerced.equal?(NO_MATCH) && value_schema.key?("enum")
-        return with_offset(value, path) if value_schema["format"] == "date-time"
+        return with_offset(coerced, path) if value_schema["format"] == "date-time"
 
         coerced
       end
