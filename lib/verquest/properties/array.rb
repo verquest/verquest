@@ -89,7 +89,7 @@ module Verquest
       # @param version [String] The version to resolve references with
       # @return [Hash{Array<String> => Hash}] The options of this array, by path
       def query_options(prefix:, version:)
-        {prefix + [name] => {explode:, examples: parameter_examples, case_insensitive: (true if case_insensitive)}.compact}
+        {prefix + [name] => {explode:}.compact.merge(super.fetch(prefix + [name], {}))}
       end
 
       private
