@@ -34,6 +34,12 @@ module Verquest
       end
     end
 
+    UNSUPPORTED = {
+      "const" => [proc { const :kind, value: "unit", case_insensitive: true }, "kind"],
+      "object" => [proc { object(:filter, case_insensitive: true) { field :kind, type: :string } }, "filter"],
+      "collection" => [proc { collection(:items, case_insensitive: true) { field :id, type: :string } }, "items"]
+    }.freeze
+
     def test_reference_keeps_the_option
       params = {"sort_direction" => "desc", "fallback_direction" => "Asc"}
 
@@ -103,6 +109,14 @@ module Verquest
       end
 
       assert_equal "Property 'kind' in version '2025-06' is case_insensitive, which only query and path parameters support", error.message
+    end
+
+    def test_body_class_raises_for_properties_without_an_enum
+      UNSUPPORTED.each do |label, (definition, name)|
+        error = assert_raises(DefinitionError, label) { Class.new(Verquest::Base) { version("2025-06", &definition) } }
+
+        assert_equal "Property '#{name}' in version '2025-06' is case_insensitive, which only query and path parameters support", error.message, label
+      end
     end
 
     def test_with_options_raises

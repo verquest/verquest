@@ -73,6 +73,18 @@ module Verquest
         "case_insensitive array without an item enum" => [
           proc { array :tags, type: :string, case_insensitive: true },
           "Property 'tags' in version '2025-06' is case_insensitive, which needs string enum values"
+        ],
+        "case_insensitive const" => [
+          proc { const :kind, value: "unit", case_insensitive: true },
+          "Property 'kind' in version '2025-06' is case_insensitive, which needs string enum values"
+        ],
+        "case_insensitive object" => [
+          proc { object(:filter, case_insensitive: true) { field :kind, type: :string } },
+          "Property 'filter' in version '2025-06' is case_insensitive, which needs string enum values"
+        ],
+        "case_insensitive collection" => [
+          proc { collection(:items, case_insensitive: true) { field :id, type: :string } },
+          "Property 'items' in version '2025-06' is an array of objects or arrays, which query parameters can't express"
         ]
       }.freeze
 

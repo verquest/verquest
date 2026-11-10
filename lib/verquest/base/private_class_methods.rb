@@ -295,14 +295,15 @@ module Verquest
     # @param nullable [Boolean] Whether the constant can be null
     # @param schema_options [Hash] Additional schema options for the constant
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
+    # @param case_insensitive [Boolean, nil] Not supported (a constant has no enum); `true` raises Verquest::DefinitionError
     # @return [void]
-    def const(name, value:, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options)
+    def const(name, value:, map: nil, required: nil, nullable: nil, parameter_examples: nil, case_insensitive: nil, **schema_options)
       camelize(schema_options)
       required = default_options.fetch(:required, false) if required.nil?
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
 
       const = Properties::Const.new(name:, value:, map:, required:, nullable:, **schema_options)
-      add_property(const, parameter_examples)
+      add_property(const, parameter_examples, case_insensitive)
     end
 
     # Defines a new object for the current version scope
@@ -313,9 +314,10 @@ module Verquest
     # @param nullable [Boolean] Whether the object can be null
     # @param schema_options [Hash] Additional schema options for the object
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter (query requests only)
+    # @param case_insensitive [Boolean, nil] Not supported (an object has no enum); `true` raises Verquest::DefinitionError
     # @yield Block executed in the context of the new object definition
     # @return [void]
-    def object(name, map: nil, required: nil, nullable: nil, parameter_examples: nil, **schema_options, &block)
+    def object(name, map: nil, required: nil, nullable: nil, parameter_examples: nil, case_insensitive: nil, **schema_options, &block)
       unless block_given?
         raise ArgumentError, "a block must be given to define the object"
       end
@@ -326,7 +328,7 @@ module Verquest
       schema_options = default_options.except(:type, :required, :nullable).merge(schema_options)
 
       object = Properties::Object.new(name:, map:, required:, nullable:, **schema_options)
-      add_property(object, parameter_examples)
+      add_property(object, parameter_examples, case_insensitive)
 
       if block_given?
         previous_scope = current_scope
@@ -346,10 +348,11 @@ module Verquest
     # @param nullable [Boolean] Whether the collection can be null
     # @param map [String, nil] An optional mapping to another collection
     # @param schema_options [Hash] Additional schema options for the collection
+    # @param case_insensitive [Boolean, nil] Not supported (a collection has no enum); `true` raises Verquest::DefinitionError
     # @yield Block executed in the context of the new collection definition
     # @return [void]
     # @raise [ArgumentError] without item: or a block, or when item does not respond to to_ref
-    def collection(name, item: nil, required: nil, nullable: nil, map: nil, **schema_options, &block)
+    def collection(name, item: nil, required: nil, nullable: nil, map: nil, case_insensitive: nil, **schema_options, &block)
       if item.nil? && !block_given?
         raise ArgumentError, "item must be provided or a block must be given to define the collection"
       elsif !item.nil? && !item.respond_to?(:to_ref)
@@ -362,7 +365,7 @@ module Verquest
       schema_options = default_options.except(:required, :nullable).merge(schema_options)
 
       collection = Properties::Collection.new(name:, item:, required:, nullable:, map:, **schema_options)
-      current_scope.add(collection)
+      add_property(collection, nil, case_insensitive)
 
       if block_given?
         previous_scope = current_scope
