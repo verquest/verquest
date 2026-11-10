@@ -1,7 +1,7 @@
 ## [Unreleased]
 
 ### Added
-- `case_insensitive: true` on `field`, `enum` and `array` (and `filter`) in query and path requests reads a value matching a declared string enum value case-insensitively as that value, in every version, without a lenient correction. The schema is unchanged. It raises `Verquest::DefinitionError` in a body request, with `with_options`, without string enum values, or with values that differ only by case.
+- `case_insensitive: true` on `field`, `enum` and `array` (and `filter`) in query and path requests reads a value matching a declared string enum value case-insensitively as that value, in every version, without a lenient correction. The schema is unchanged. It raises `Verquest::DefinitionError` in a body request, with `with_options`, with a value other than `true`, `false` or `nil`, without string enum values (also on `const`, `object` and `collection`), or with values that differ only by case.
 
 ## [0.10.0] - 2026-11-09
 

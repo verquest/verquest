@@ -868,7 +868,7 @@ field :sort_direction, type: :string, enum: %w[ASC DESC], case_insensitive: true
 # ?sort_direction=desc => {"sort_direction" => "DESC"}
 ```
 
-It raises `Verquest::DefinitionError` in a body request, with `with_options`, on a property without string enum values, or when two values differ only by case.
+It raises `Verquest::DefinitionError` in a body request, with `with_options`, with a value other than `true`, `false` or `nil`, on a property without string enum values (such as a `const` or an `object`), or when two values differ only by case.
 
 A property reference to another query class reuses its definition, e.g. a shared `expand` parameter: `reference :expand, from: ExpandQuery, property: :expand`.
 
