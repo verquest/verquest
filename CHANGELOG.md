@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+### Changed
+- Verquest needs Ruby 3.3 or later. Ruby 3.2 reached its end of life on 2026-04-01.
+
 ## [0.11.0] - 2026-11-10
 
 ### Added

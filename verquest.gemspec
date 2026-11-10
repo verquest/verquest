@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Verquest describes API request bodies, query strings and path parameters with a Ruby DSL, one definition per API version. It validates params against JSON Schema, maps them from your public API structure to your internal one, and generates JSON Schema components and OpenAPI parameters for documentation tools like rswag."
   spec.homepage = "https://github.com/verquest/verquest"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.2"
+  spec.required_ruby_version = ">= 3.3"
 
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
