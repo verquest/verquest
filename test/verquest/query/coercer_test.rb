@@ -88,6 +88,12 @@ module Verquest
         assert_equal({"kind" => nil}, coercer.call({"kind" => ""}))
       end
 
+      def test_case_insensitive_enum_folds_unicode
+        coercer = Coercer.new(schema: object("street" => {"type" => "string", "enum" => %w[straße]}), explodes: {}, case_insensitive: Set[%w[street]])
+
+        assert_equal({"street" => "straße"}, coercer.call({"street" => "STRASSE"}))
+      end
+
       def test_explode_defaults_to_configuration
         coercer = Coercer.new(schema: object("tags" => {"type" => "array"}), explodes: {})
 
