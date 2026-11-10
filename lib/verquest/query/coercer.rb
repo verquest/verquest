@@ -153,7 +153,12 @@ module Verquest
         return value if value_schema["enum"].include?(value)
         return NO_MATCH unless case_insensitive?(path)
 
-        value_schema["enum"].find { |declared| declared.is_a?(::String) && declared.casecmp?(value) } || NO_MATCH
+        enum_matches(value, value_schema).first || NO_MATCH
+      end
+
+      # @return [Array<String>] The schema's string enum values matching the value case-insensitively
+      def enum_matches(value, value_schema)
+        value_schema["enum"].select { |declared| declared.is_a?(::String) && declared.casecmp?(value) }
       end
 
       # Splits a string by the array's explode value and converts each item;

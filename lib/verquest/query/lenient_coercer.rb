@@ -104,7 +104,7 @@ module Verquest
 
       # @return [String, Object] The only declared value matching case-insensitively or NO_MATCH
       def enum_case(value, value_schema, path)
-        matches = value_schema["enum"].select { |declared| declared.is_a?(::String) && declared.casecmp?(value) }
+        matches = enum_matches(value, value_schema)
         return NO_MATCH unless matches.one?
 
         correct(path, :enum_case, value, matches.first)
