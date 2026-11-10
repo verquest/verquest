@@ -541,11 +541,13 @@ module Verquest
     # @param parameter_examples [Hash, nil] Named OpenAPI Example Objects for the query parameter
     # @param case_insensitive [Boolean, nil] Whether a query value matches the enum case-insensitively
     # @return [void]
-    # @raise [Verquest::DefinitionError] If case_insensitive is set in a body request
+    # @raise [Verquest::DefinitionError] If case_insensitive isn't true, false or nil, or is set in a body request
     def add_property(property, parameter_examples, case_insensitive = nil)
-      if case_insensitive && location == :body
-        raise DefinitionError, "Property '#{property.name}' in version '#{@defining_version&.name}' is case_insensitive, which only query and path parameters support"
+      label = "Property '#{property.name}' in version '#{@defining_version&.name}'"
+      unless [true, false, nil].include?(case_insensitive)
+        raise DefinitionError, "#{label} has case_insensitive: #{case_insensitive.inspect}, which must be true, false or nil"
       end
+      raise DefinitionError, "#{label} is case_insensitive, which only query and path parameters support" if case_insensitive && location == :body
 
       property.parameter_examples = parameter_examples
       property.case_insensitive = case_insensitive

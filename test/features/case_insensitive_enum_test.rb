@@ -129,5 +129,16 @@ module Verquest
 
       assert_equal "case_insensitive can't be set with with_options, set it on each property", error.message
     end
+
+    def test_a_value_other_than_a_boolean_raises
+      error = assert_raises(DefinitionError) do
+        Class.new(Verquest::Base) do
+          location :query
+          version("2025-06") { field :kind, type: :string, enum: %w[unit site], case_insensitive: "no" }
+        end
+      end
+
+      assert_equal "Property 'kind' in version '2025-06' has case_insensitive: \"no\", which must be true, false or nil", error.message
+    end
   end
 end
