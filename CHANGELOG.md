@@ -5,6 +5,7 @@
 
 ### Changed
 - A named `one_of` inside `with_options` takes that block's annotation defaults (`description`, `title`, `deprecated`, `readOnly`, `writeOnly`, `externalDocs`), which changes the generated schemas. Other defaults, like `example`, `additional_properties` or `discriminator`, still don't apply to it. Its variants and their properties no longer take the annotations it takes, so they don't repeat the `one_of`'s description; they still take `examples`, `example` and `$comment`.
+- Under `json_schema_version = :openapi30`, documents write `examples` as `example` (its first item, unless the schema has an `example`) and `$comment` as the `x-comment` extension, as OpenAPI 3.0 has neither. A schema with both a keyword and the extension it becomes, like `$comment` and `x-comment`, raises `Verquest::DefinitionError`.
 - Verquest needs Ruby 3.3 or later. Ruby 3.2 reached its end of life on 2026-04-01.
 
 ### Fixed

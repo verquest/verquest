@@ -358,7 +358,7 @@ OpenAPI 3.0 has no `null` type, so with `json_schema_version = :openapi30` docum
 - merged into a nullable constant (with `null` in its `enum`) or a `one_of` without a discriminator;
 - next to an `allOf` around a nullable reference (`{"allOf" => [{"$ref" => "..."}], "nullable" => true}`) or a nullable `one_of` with a discriminator, which keeps null outside the discriminated `oneOf`, as versponse does.
 
-OpenAPI 3.0 also has no `dependentRequired` (from `required: [:other]`), so documents write it as the `x-dependentRequired` extension. Validation still enforces it.
+OpenAPI 3.0 also has no `dependentRequired` (from `required: [:other]`), so documents write it as the `x-dependentRequired` extension. Validation still enforces it. Nor does it have `examples` or `$comment`: documents write the first example as `example`, unless the schema has one, and `$comment` as the `x-comment` extension. A schema with both `$comment` and `x-comment`, or `dependentRequired` and `x-dependentRequired`, raises `Verquest::DefinitionError`.
 
 Mixed types become an `anyOf` of single types, each nullable when the property is. Strict OpenAPI 3.0.3 tools honour `nullable` only next to `type`, so they may still treat a nullable reference or `one_of` as not nullable. Validation schemas keep the forms above, which validators honour.
 

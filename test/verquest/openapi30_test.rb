@@ -88,6 +88,40 @@ class Verquest::Openapi30Test < Minitest::Test
     assert_equal cases, cases.to_h { |schema, _| [schema, document(schema)] }
   end
 
+  # OpenAPI 3.0 has a single example and no $comment
+  def test_examples_and_comment_are_converted
+    cases = {
+      {"examples" => %w[a b], "$comment" => "c"} => {"example" => "a", "x-comment" => "c"},
+      {"examples" => %w[a b], "example" => "z"} => {"example" => "z"},
+      {"properties" => {"examples" => {"examples" => [1]}}} => {"properties" => {"examples" => {"example" => 1}}}
+    }
+
+    assert_equal cases, cases.to_h { |schema, _| [schema, document(schema)] }
+  end
+
+  def test_keyword_next_to_its_extension_raises
+    schemas = [
+      {"$comment" => "a", "x-comment" => "b"},
+      {"dependentRequired" => {}, "x-dependentRequired" => {}},
+      {"anyOf" => [{"enum" => ["v"], "$comment" => "a", "x-comment" => "b"}, {"type" => "null"}]}
+    ]
+    messages = schemas.map do |schema|
+      assert_raises(Verquest::DefinitionError) { document({"properties" => {"p" => schema}}) }.message
+    end
+
+    expected = [
+      "A schema has both $comment and x-comment, which OpenAPI 3.0 documents write $comment as",
+      "A schema has both dependentRequired and x-dependentRequired, which OpenAPI 3.0 documents write dependentRequired as",
+      "A schema has both $comment and x-comment, which OpenAPI 3.0 documents write $comment as"
+    ]
+
+    assert_equal expected, messages
+  end
+
+  def test_internal_helpers_are_private
+    assert_empty Verquest::Openapi30.singleton_methods - [:document]
+  end
+
   # OpenAPI 3.0 has no dependentRequired and allows only x- extensions next to its keywords
   def test_dependent_required_becomes_an_extension
     schema = {

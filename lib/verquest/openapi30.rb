@@ -10,7 +10,9 @@ module Verquest
   # - an `anyOf` with a single null alternative becomes `nullable: true`, with an `allOf` around a `$ref`
   #   (OpenAPI 3.0 ignores keywords next to `$ref`) or a discriminated `oneOf` (which would reject null),
   #   and `null` added to an `enum`
-  # - `dependentRequired` becomes the `x-dependentRequired` extension
+  # - `dependentRequired` becomes the `x-dependentRequired` extension, and `$comment` the `x-comment` extension
+  #   (a schema with both a keyword and its extension raises Verquest::DefinitionError)
+  # - `examples` becomes `example`, its first item, unless the schema has an `example`
   #
   # Only schema positions are visited, so a property named "type" is never read as the keyword.
   #
@@ -34,7 +36,7 @@ module Verquest
     ].freeze
 
     # Keywords OpenAPI 3.0 lacks, written as extensions
-    RENAMED = {"dependentRequired" => "x-dependentRequired"}.freeze
+    RENAMED = {"dependentRequired" => "x-dependentRequired", "$comment" => "x-comment"}.freeze
 
     module_function
 
@@ -44,7 +46,34 @@ module Verquest
       return schema unless schema.is_a?(::Hash)
 
       # The null alternative goes first, so a merged alternative's type array meets nullable in type_union
-      type_union(nullable_any_of(schema).to_h { |keyword, value| [RENAMED.fetch(keyword, keyword), child(keyword, value)] })
+      schema = single_example(nullable_any_of(schema))
+      check_renamed(schema)
+      type_union(schema.to_h { |keyword, value| [RENAMED.fetch(keyword, keyword), child(keyword, value)] })
+    end
+
+    # Raises when a schema has a keyword and the extension it's written as, so one would overwrite the other
+    #
+    # @param schema [Hash] A schema
+    # @return [void]
+    # @raise [Verquest::DefinitionError] If the schema has both
+    def check_renamed(schema)
+      RENAMED.each do |keyword, extension|
+        next unless schema.key?(keyword) && schema.key?(extension)
+
+        raise DefinitionError, "A schema has both #{keyword} and #{extension}, which OpenAPI 3.0 documents write #{keyword} as"
+      end
+    end
+
+    # OpenAPI 3.0 has a single `example` and no `examples`
+    #
+    # @param schema [Hash] A schema
+    # @return [Hash] The schema without examples, with the first one as its example unless it has one
+    def single_example(schema)
+      examples = schema["examples"]
+      return schema unless examples.is_a?(::Array)
+      return schema.except("examples") if schema.key?("example") || examples.empty?
+
+      schema.except("examples").merge("example" => examples.first)
     end
 
     # @param keyword [String] The schema keyword
@@ -123,6 +152,6 @@ module Verquest
       schema.key?("enum") ? schema.merge("enum" => schema["enum"] | [nil]) : schema
     end
 
-    private_class_method :child, :type_union, :any_of, :nullable_any_of, :nullable_alternative, :nullable_enum
+    private_class_method :check_renamed, :single_example, :child, :type_union, :any_of, :nullable_any_of, :nullable_alternative, :nullable_enum
   end
 end

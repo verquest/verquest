@@ -443,5 +443,20 @@ module Verquest
 
       assert_equal 1, request.to_schema(version: "2025-06")["properties"]["pet"]["x-my_ext"]
     end
+
+    def test_openapi30_schema_with_examples_and_comment_is_valid
+      with_configuration(json_schema_version: :openapi30) do
+        request = Class.new(Verquest::Base) do
+          version "2025-06" do
+            one_of name: :pet, discriminator: :type, examples: [{"type" => "dog", "name" => "Rex"}], "$comment": "Pets" do
+              reference :dog, from: DogComponent
+              reference :cat, from: CatComponent
+            end
+          end
+        end
+
+        assert request.valid_schema?(version: "2025-06")
+      end
+    end
   end
 end
