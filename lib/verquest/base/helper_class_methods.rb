@@ -14,12 +14,13 @@ module Verquest
     #
     # Transforms all keys in the given hash from snake_case (e.g., "max_length")
     # to camelCase (e.g., "maxLength") format, which is commonly used in JSON Schema.
+    # Keys of x- extensions and $ keywords are kept as they are, as their names are exact.
     # The transformation happens in place, modifying the original hash.
     #
     # @param hash [Hash] The hash containing snake_case keys
     # @return [Hash] The same hash with keys transformed to camelCase
     def camelize(hash)
-      hash.transform_keys! { |key| snake_to_camel(key.to_s).to_sym }
+      hash.transform_keys! { |key| key.to_s.start_with?("x-", "$") ? key.to_sym : snake_to_camel(key.to_s).to_sym }
     end
 
     # Converts a snake_case string to camelCase

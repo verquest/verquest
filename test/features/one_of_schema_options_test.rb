@@ -430,5 +430,18 @@ module Verquest
       assert_empty variant_schemas.flat_map { |schema| schema.keys & %w[description] }
       assert_equal ["abc"] * 4, variant_schemas.map { |schema| schema["example"] }
     end
+
+    def test_extension_names_are_kept
+      request = Class.new(Verquest::Base) do
+        version "2025-06" do
+          one_of name: :pet, discriminator: :type, "x-my_ext": 1 do
+            reference :dog, from: DogComponent
+            reference :cat, from: CatComponent
+          end
+        end
+      end
+
+      assert_equal 1, request.to_schema(version: "2025-06")["properties"]["pet"]["x-my_ext"]
+    end
   end
 end

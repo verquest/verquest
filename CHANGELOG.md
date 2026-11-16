@@ -10,6 +10,7 @@
 ### Fixed
 - An inserted default is a deep copy, so changing its nested Hashes, Arrays or Strings in the processed params no longer changes the default for later requests.
 - A root `one_of` schema takes its version's `description` and the annotations and `x-` extensions of its `schema_options`, which it used to drop. Other schema options on its version, except `additional_properties`, raise `Verquest::DefinitionError`.
+- Schema option keys of `x-` extensions and `$` keywords keep their names, so `"x-my_ext":` is no longer written as `x-myExt`.
 
 ## [0.11.0] - 2026-11-10
 
