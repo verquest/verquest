@@ -7,6 +7,8 @@ module Verquest
   class VersionValidationCacheTest < Minitest::Test
     include ConfigurationTestHelper
 
+    def resolver(insert_property_defaults) = insert_property_defaults ? instance_of(Proc) : nil
+
     def test_compiles_the_schema_once_per_configuration
       request = Class.new(Verquest::Base) do
         version("2025-06") { field :name, type: :string, required: true, default: "a" }
@@ -16,7 +18,7 @@ module Verquest
       uri = Verquest.configuration.json_schema_uri
       defaults = Verquest.configuration.insert_property_defaults
       [defaults, !defaults].each do |insert_property_defaults|
-        JSONSchemer.expects(:schema).with(version.validation_schema, meta_schema: uri, insert_property_defaults:).once.returns(schemer)
+        JSONSchemer.expects(:schema).with(version.validation_schema, has_entries(meta_schema: uri, insert_property_defaults:, property_default_resolver: resolver(insert_property_defaults))).once.returns(schemer)
       end
 
       3.times { version.validate_params(params: {}) }
@@ -30,7 +32,7 @@ module Verquest
       version = request.send(:resolve, "2025-06")
       schemer = JSONSchemer.schema(version.validation_schema)
       uri = Verquest.configuration.json_schema_uri
-      JSONSchemer.expects(:schema).with(version.validation_schema, meta_schema: uri, insert_property_defaults: false).once.returns(schemer)
+      JSONSchemer.expects(:schema).with(version.validation_schema, has_entries(meta_schema: uri, insert_property_defaults: false, property_default_resolver: nil)).once.returns(schemer)
 
       with_configuration(insert_property_defaults: true) { version.validate_params(params: {}) }
       with_configuration(insert_property_defaults: false) { version.validate_params(params: {}) }
@@ -43,7 +45,7 @@ module Verquest
       version = request.send(:resolve, "2025-06")
       schemer = JSONSchemer.schema(version.validation_schema)
       uri = Verquest.configuration.json_schema_uri
-      JSONSchemer.expects(:schema).with(version.validation_schema, meta_schema: uri, insert_property_defaults: :symbol).once.returns(schemer)
+      JSONSchemer.expects(:schema).with(version.validation_schema, has_entries(meta_schema: uri, insert_property_defaults: :symbol, property_default_resolver: instance_of(Proc))).once.returns(schemer)
 
       with_configuration(insert_property_defaults: :symbol) { version.validate_params(params: {}) }
     end

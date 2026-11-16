@@ -80,6 +80,39 @@ module Verquest
       end
     end
 
+    class NestedDefaultRequest < Verquest::Base
+      version "2025-06" do
+        object :settings, default: {"tags" => ["light"]} do
+          array :tags, type: :string
+        end
+      end
+    end
+
+    def test_changing_an_inserted_default_leaves_later_requests_alone
+      version = NestedDefaultRequest.send(:resolve, "2025-06")
+      inserted = [true, :symbol].map do |insert_property_defaults|
+        with_configuration(insert_property_defaults:) do
+          2.times.map { {}.tap { |params| version.validate_params(params:) } }.each { |params| params.values.first["tags"] << "dark" }
+        end
+      end
+
+      assert_equal [[{"settings" => {"tags" => %w[light dark]}}] * 2, [{settings: {"tags" => %w[light dark]}}] * 2], inserted
+    end
+
+    class StringDefaultRequest < Verquest::Base
+      version "2025-06" do
+        array :tags, type: :string, default: [+"light"]
+      end
+    end
+
+    def test_changing_an_inserted_default_string_leaves_later_requests_alone
+      with_configuration(insert_property_defaults: true) do
+        StringDefaultRequest.process({}, version: "2025-06")["tags"].first << " dark"
+
+        assert_equal({"tags" => ["light"]}, StringDefaultRequest.process({}, version: "2025-06"))
+      end
+    end
+
     def test_does_not_insert_defaults_when_turned_off
       with_configuration(insert_property_defaults: false) do
         assert_equal({"items" => [{"name" => "a"}]}, Request.process({"items" => [{"name" => "a"}]}, version: "2025-06"))

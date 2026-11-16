@@ -8,6 +8,7 @@
 - Verquest needs Ruby 3.3 or later. Ruby 3.2 reached its end of life on 2026-04-01.
 
 ### Fixed
+- An inserted default is a deep copy, so changing its nested Hashes, Arrays or Strings in the processed params no longer changes the default for later requests.
 - A root `one_of` schema takes its version's `description` and the annotations and `x-` extensions of its `schema_options`, which it used to drop. Other schema options on its version, except `additional_properties`, raise `Verquest::DefinitionError`.
 
 ## [0.11.0] - 2026-11-10

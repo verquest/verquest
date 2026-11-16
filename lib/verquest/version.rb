@@ -398,7 +398,39 @@ module Verquest
       key = [Verquest.configuration.json_schema_uri, insert_property_defaults_setting]
 
       @validation_schemers_lock.synchronize do
-        @validation_schemers[key] ||= JSONSchemer.schema(validation_schema, meta_schema: key[0], insert_property_defaults: key[1])
+        @validation_schemers[key] ||= JSONSchemer.schema(
+          validation_schema, meta_schema: key[0], insert_property_defaults: key[1], property_default_resolver: property_default_resolver(key[1])
+        )
+      end
+    end
+
+    # Returns a resolver that inserts a deep copy of the default
+    #
+    # json_schemer inserts a shallow copy, so the params would share nested Hashes and Arrays
+    # with the schema, and changing them would change the default for later requests.
+    #
+    # @param setting [Boolean, Symbol] The insert_property_defaults value to compile with
+    # @return [Proc, nil] The resolver, or nil when defaults aren't inserted
+    def property_default_resolver(setting)
+      return unless setting
+
+      symbol = setting == :symbol
+      resolver = symbol ? JSONSchemer::Schema::SYMBOL_PROPERTY_DEFAULT_RESOLVER : JSONSchemer::Schema::DEFAULT_PROPERTY_DEFAULT_RESOLVER
+      proc do |instance, property, results|
+        resolver.call(instance, property, results).tap do |inserted|
+          key = symbol ? property.to_sym : property
+          instance[key] = copy_default(instance[key]) if inserted
+        end
+      end
+    end
+
+    # @param value [Object] An inserted default
+    # @return [Object] A copy of the value with copies of its Hashes, Arrays and Strings
+    def copy_default(value)
+      case value
+      when Hash then value.transform_values { |item| copy_default(item) }
+      when Array then value.map { |item| copy_default(item) }
+      else value.dup
       end
     end
 

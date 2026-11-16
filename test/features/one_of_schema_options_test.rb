@@ -366,6 +366,26 @@ module Verquest
       refute request.to_schema(version: "2025-06").key?("description")
     end
 
+    class HashDefaultRequest < Verquest::Base
+      version "2025-06" do
+        one_of name: :pet, default: {"kind" => "dog", "tags" => ["good"]} do
+          object(:dog) do
+            const :kind, value: "dog", required: true
+            array :tags, type: :string
+          end
+          object(:cat) { const :kind, value: "cat", required: true }
+        end
+      end
+    end
+
+    def test_changing_an_inserted_default_leaves_later_requests_alone
+      with_configuration(insert_property_defaults: true) do
+        HashDefaultRequest.process({}, version: "2025-06")["pet"]["tags"] << "changed"
+
+        assert_equal({"pet" => {"kind" => "dog", "tags" => ["good"]}}, HashDefaultRequest.process({}, version: "2025-06"))
+      end
+    end
+
     INVALID_DEFAULTS = {
       {default: nil} => "one_of 'pet' has a default, nil, that doesn't match its schema",
       {default: "fish"} => "one_of 'pet' has a default, \"fish\", that doesn't match its schema"
