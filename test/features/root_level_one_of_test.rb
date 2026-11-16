@@ -20,7 +20,8 @@ class Verquest::RootLevelOneOfTest < Minitest::Test
           "dog" => "#/components/schemas/DogComponent",
           "cat" => "#/components/schemas/CatComponent"
         }
-      }
+      },
+      "description" => "oneOf example"
     }
 
     assert_equal expected_schema, schema

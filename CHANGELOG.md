@@ -1,7 +1,14 @@
 ## [Unreleased]
 
+### Added
+- A named `one_of` takes schema options: annotations (`description`, `title`, `examples`, `example`, `deprecated`, `readOnly`, `writeOnly`, `externalDocs`, `$comment`), `default` and `x-` extensions. They go on the property schema next to `oneOf`, or next to the outer `anyOf` of a nullable `one_of`. The validation schema takes only `default`, so a nullable `one_of` can default to null. A default that doesn't match the `one_of`, like null on one that isn't nullable, raises `Verquest::DefinitionError`, as does a default on a `one_of` with `required: [:other]`, which would make every request without the `one_of` need `other`. Other options raise `Verquest::DefinitionError`, as do schema options on an unnamed `one_of`.
+
 ### Changed
+- A named `one_of` inside `with_options` takes that block's annotation defaults (`description`, `title`, `deprecated`, `readOnly`, `writeOnly`, `externalDocs`), which changes the generated schemas. Other defaults, like `example`, `additional_properties` or `discriminator`, still don't apply to it. Its variants and their properties no longer take the annotations it takes, so they don't repeat the `one_of`'s description; they still take `examples`, `example` and `$comment`.
 - Verquest needs Ruby 3.3 or later. Ruby 3.2 reached its end of life on 2026-04-01.
+
+### Fixed
+- A root `one_of` schema takes its version's `description` and the annotations and `x-` extensions of its `schema_options`, which it used to drop. Other schema options on its version, except `additional_properties`, raise `Verquest::DefinitionError`.
 
 ## [0.11.0] - 2026-11-10
 

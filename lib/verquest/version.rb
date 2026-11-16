@@ -432,14 +432,30 @@ module Verquest
     # Generates the JSON schema for combination schemas (oneOf at root level)
     #
     # For combination schemas, the schema is delegated directly to the oneOf
-    # property since it represents the entire request structure.
+    # property since it represents the entire request structure. It takes the
+    # version's description and the annotations and x- extensions of its schema
+    # options. additionalProperties is left out, as the variants set their own.
     #
     # @return [Hash] The schema from the oneOf property
     # @raise [ArgumentError] If the version also has conditions
+    # @raise [Verquest::DefinitionError] If the version has other schema options
     def prepare_combination_schema
       raise ArgumentError, "Conditions can not be declared next to a root-level one_of" if conditions.any?
 
-      @schema = document_schema(properties.values.first.to_schema)
+      annotations = combination_annotations
+      annotations["description"] = description if description
+      @schema = document_schema(properties.values.first.to_schema.merge(annotations))
+    end
+
+    # @return [Hash] The annotations and x- extensions of the schema options
+    # @raise [Verquest::DefinitionError] If the version has other schema options
+    def combination_annotations
+      options = schema_options.except("additionalProperties")
+      rejected = options.keys.reject { |key| key != "default" && Properties::OneOf.schema_option?(key) }
+      return options if rejected.empty?
+
+      raise DefinitionError, "The root one_of of version '#{name}' can't take schema options (#{rejected.join(", ")}), " \
+        "it takes only annotations and x- extensions"
     end
 
     # @return [Hash] The schema the meta-schema checks: the document under OpenAPI 3.0, the validation schema otherwise

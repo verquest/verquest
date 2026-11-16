@@ -560,9 +560,10 @@ OrderRequest.process({"order_id" => "o1", "payment" => {"method" => "card", "car
  "discriminator" => {"propertyName" => "method", "mapping" => {"card" => "#/components/schemas/CardPaymentComponent", "bank" => "#/components/schemas/BankPaymentComponent"}}}
 ```
 
-- Without `name:`, the whole request is one of the variants (`one_of discriminator: :type do ... end` as the only property of a version).
+- Without `name:`, the whole request is one of the variants (`one_of discriminator: :type do ... end` as the only property of a version). Its schema takes the version's `description` and the annotations and `x-` extensions of its `schema_options`; other schema options, except `additional_properties`, raise `Verquest::DefinitionError`.
 - Without `discriminator:`, the value must match exactly one variant's schema. Validation rejects it otherwise; with validation off, mapping raises `Verquest::MappingError`.
 - `one_of` works inside objects, collections and other variants, and with `nullable: true` and `map:`.
+- A named `one_of` takes schema options: annotations (`description:`, `title:`, `examples:`, `example:`, `deprecated:`, `read_only:`, `write_only:`, `external_docs:`, `"$comment":`), `default:` and `x-` extensions (`"x-internal": true`). They go on the property schema next to `oneOf`, or next to the outer `anyOf` of a nullable `one_of`; the validation schema takes only `default:`, which must match the `one_of` (null only when it is `nullable: true`) and can't go with `required: [:other]`. From `with_options`, it takes only `description`, `title`, `deprecated`, `read_only`, `write_only` and `external_docs`, and its variants take none of those, only the block's `examples`, `example` and `$comment`. Other options, like `additional_properties:`, `min_properties:` or `parameter_examples:`, raise `Verquest::DefinitionError`. So do schema options on an unnamed `one_of`; describe its version or the enclosing property instead.
 
 #### oneOf discriminators in validation
 

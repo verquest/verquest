@@ -34,6 +34,32 @@ module Verquest
     # With a discriminator, the validation schema keeps the discriminator (see DiscriminatedSchema),
     # so OpenAPI 3.0 and 3.1 validators validate only the variant the discriminator selects.
     class OneOf < Base
+      # Annotation keywords a named oneOf takes, which go only into the documentation schema
+      ANNOTATION_KEYWORDS = %w[description title examples example deprecated readOnly writeOnly externalDocs $comment].freeze
+
+      # Annotation keywords a named oneOf takes from the with_options defaults. Examples and
+      # $comment are left out, as they're written for the sibling properties and may not fit
+      # the oneOf, so they go to its variants instead.
+      DEFAULT_ANNOTATION_KEYWORDS = (ANNOTATION_KEYWORDS - %w[examples example $comment]).freeze
+
+      # DEFAULT_ANNOTATION_KEYWORDS as the with_options keys the DSL slices
+      DEFAULT_ANNOTATION_OPTIONS = DEFAULT_ANNOTATION_KEYWORDS.map(&:to_sym).freeze
+
+      # Keywords a named oneOf takes besides annotations, which also go into the validation schema
+      VALIDATION_KEYWORDS = %w[default].freeze
+
+      # Whether a named oneOf takes the schema option
+      #
+      # A named oneOf takes annotations, a default and x- extensions. Any other keyword
+      # would constrain the value next to the variants, or isn't a schema keyword.
+      #
+      # @param key [String, Symbol] The camelized schema option key
+      # @return [Boolean] true if the oneOf takes the option
+      def self.schema_option?(key)
+        key = key.to_s
+        ANNOTATION_KEYWORDS.include?(key) || VALIDATION_KEYWORDS.include?(key) || key.start_with?("x-")
+      end
+
       # @return [String, nil] The discriminator property name for schema selection
       attr_reader :discriminator
 
@@ -45,13 +71,21 @@ module Verquest
       # @param required [Boolean, Array<Symbol>] Whether this property is required, or array of dependency names
       # @param nullable [Boolean] Whether this property can be null
       # @param map [String, nil] The mapping path for this property
-      def initialize(name: nil, discriminator: nil, required: false, nullable: false, map: nil)
+      # @param schema_options [Hash] Additional JSON schema options for a named oneOf property, like a description
+      #   (see .schema_option?)
+      # @raise [Verquest::DefinitionError] If a schema option isn't an annotation, a default or an x- extension,
+      #   or the oneOf has a default and requires other properties
+      def initialize(name: nil, discriminator: nil, required: false, nullable: false, map: nil, **schema_options)
         @name = name&.to_s
         @required = required
         @nullable = nullable
         @map = map
         @discriminator = discriminator&.to_s
         @schemas = {}
+        @schema_options = schema_options.transform_keys(&:to_s)
+        @checked_default_schemas = {}
+        check_schema_options
+        check_default_dependencies
       end
 
       # Add a schema option to this oneOf
@@ -78,19 +112,24 @@ module Verquest
       # @return [Hash] The schema definition with oneOf array and optional discriminator
       def to_schema
         freeze_schemas
-        wrap_schema(nullable_schema(build_schema_with_refs))
+        wrap_schema(nullable_schema(build_schema_with_refs).merge(schema_options))
       end
 
       # Generate validation schema for this oneOf property
       #
       # Unlike to_schema which uses $ref, the validation schema includes
-      # the full inline schema definitions for each option.
+      # the full inline schema definitions for each option. Of the schema
+      # options, it keeps only the default, as annotations and extensions
+      # don't take part in validation.
       #
       # @param version [String, nil] The version to generate validation schema for
       # @return [Hash] The validation schema with inline schema definitions
+      # @raise [Verquest::DefinitionError] If the default doesn't match the schema
       def to_validation_schema(version: nil)
         freeze_schemas
-        wrap_schema(nullable_schema(build_validation_schema(version: version)))
+        schema = nullable_schema(build_validation_schema(version: version))
+        check_default(schema)
+        wrap_schema(schema.merge(schema_options.slice(*VALIDATION_KEYWORDS)))
       end
 
       # Create mapping for this oneOf property
@@ -163,7 +202,48 @@ module Verquest
 
       private
 
-      attr_reader :schemas
+      attr_reader :schemas, :schema_options
+
+      # Raises for schema options a oneOf doesn't take (see .schema_option?)
+      #
+      # @return [void]
+      # @raise [Verquest::DefinitionError] If a schema option isn't an annotation, a default or an x- extension
+      def check_schema_options
+        rejected = schema_options.keys.reject { |key| self.class.schema_option?(key) }
+        return if rejected.empty?
+
+        raise DefinitionError, "one_of '#{name}' can't take #{rejected.join(", ")}, " \
+          "it takes only #{(ANNOTATION_KEYWORDS + VALIDATION_KEYWORDS).join(", ")} and x- extensions"
+      end
+
+      # Raises when the oneOf has a default and requires other properties, as inserting
+      # the default would make every request without the oneOf need them
+      #
+      # @return [void]
+      # @raise [Verquest::DefinitionError] If the oneOf has a default and requires other properties
+      def check_default_dependencies
+        return unless schema_options.key?("default") && required.is_a?(::Array)
+
+        raise DefinitionError, "one_of '#{name}' has a default and requires #{required.join(", ")}, " \
+          "so every request without #{name} would need #{required.join(", ")}"
+      end
+
+      # Raises when the default doesn't match the oneOf, so inserting it wouldn't fail the request
+      #
+      # Each schema is checked once, as versions that inherit the oneOf share it.
+      #
+      # @param schema [Hash] The validation schema without the default
+      # @return [void]
+      # @raise [Verquest::DefinitionError] If the default doesn't match the schema
+      def check_default(schema)
+        return unless schema_options.key?("default")
+
+        default = schema_options["default"]
+        key = [schema, Verquest.configuration.json_schema_uri]
+        return if @checked_default_schemas[key] ||= JSONSchemer.schema(schema, meta_schema: key[1]).valid?(default)
+
+        raise DefinitionError, "one_of '#{name}' has a default, #{default.inspect}, that doesn't match its schema"
+      end
 
       # Freezes the schemas hash to prevent further modifications
       # This is called on first read access to ensure immutability after setup

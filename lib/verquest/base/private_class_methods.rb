@@ -462,23 +462,57 @@ module Verquest
     # @param required [Boolean, Array<Symbol>, nil] Whether this property is required
     # @param nullable [Boolean] Whether this property can be null
     # @param map [String, nil] An optional mapping to another property
+    # @param schema_options [Hash] Additional schema options for a named oneOf property: annotations, like a description,
+    #   a default and x- extensions. Only annotations without examples come from the with_options defaults
+    #   (see Verquest::Properties::OneOf::DEFAULT_ANNOTATION_KEYWORDS), and the variants of a named oneOf
+    #   don't take the with_options annotations
     # @yield Block defining the schema options using reference declarations
     # @return [void]
-    def one_of(name: nil, discriminator: nil, required: nil, nullable: nil, map: nil, &block)
+    # @raise [Verquest::DefinitionError] If schema options are given without a name, or aren't annotations,
+    #   a default or x- extensions (see Verquest::Properties::OneOf.schema_option?)
+    def one_of(name: nil, discriminator: nil, required: nil, nullable: nil, map: nil, **schema_options, &block)
+      previous_scope = current_scope
+      previous_options = default_options
+      camelize(schema_options)
       required = default_options.fetch(:required, false) if required.nil?
       nullable = default_options.fetch(:nullable, false) if nullable.nil?
+      schema_options = one_of_schema_options(name, schema_options)
 
-      one_of = Properties::OneOf.new(name:, discriminator:, required:, nullable:, map:)
+      one_of = Properties::OneOf.new(name:, discriminator:, required:, nullable:, map:, **schema_options)
       current_scope.add(one_of)
 
       if block_given?
-        previous_scope = current_scope
         @current_scope = one_of
+        # A named oneOf holds the with_options annotations it takes, so its variants don't repeat them
+        @default_options = default_options.except(*Properties::OneOf::DEFAULT_ANNOTATION_OPTIONS) if name
 
         instance_exec(&block)
       end
     ensure
-      @current_scope = previous_scope if block_given?
+      if block_given?
+        @current_scope = previous_scope
+        @default_options = previous_options
+      end
+    end
+
+    # Schema options of a oneOf, with the annotation defaults of with_options for a named one
+    #
+    # A named oneOf takes only annotations without examples from the with_options
+    # defaults, and Verquest::Properties::OneOf checks the options it's given.
+    # An unnamed oneOf stands for its scope and has no property schema to hold
+    # options, so it ignores the defaults and rejects its own options.
+    #
+    # @param name [Symbol, nil] The oneOf property name
+    # @param schema_options [Hash] The camelized schema options given to the oneOf
+    # @return [Hash] The schema options for the oneOf property
+    # @raise [Verquest::DefinitionError] If schema options are given without a name
+    def one_of_schema_options(name, schema_options)
+      return default_options.slice(*Properties::OneOf::DEFAULT_ANNOTATION_OPTIONS).merge(schema_options) if name
+      return schema_options if schema_options.empty?
+
+      alternative = current_scope.is_a?(Version) ? "describe the version" : "put the options on the enclosing property"
+      raise DefinitionError, "An unnamed one_of in version '#{@defining_version&.name}' can't take schema options " \
+        "(#{schema_options.keys.join(", ")}), give it a name: or #{alternative}"
     end
 
     # Errors for root keys that only another version declares

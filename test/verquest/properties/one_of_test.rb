@@ -18,6 +18,23 @@ class Verquest::Properties::OneOfTest < Minitest::Test
     "properties" => {"type" => {"const" => "cat"}, "name" => {"type" => "string"}, "meow" => {"type" => "boolean"}},
     "additionalProperties" => false
   }.freeze
+  def test_default_with_required_properties_raises_when_defined
+    error = assert_raises(Verquest::DefinitionError) do
+      Verquest::Properties::OneOf.new(name: :pet, required: [:other], default: {"type" => "dog"})
+    end
+
+    assert_equal "one_of 'pet' has a default and requires other, so every request without pet would need other", error.message
+  end
+
+  def test_default_is_checked_once_per_schema
+    one_of_property = Verquest::Properties::OneOf.new(name: :pet, discriminator: "type", default: {"type" => "dog", "name" => "Rex"})
+    one_of_property.add(Verquest::Properties::Reference.new(name: "dog", from: DogComponent))
+    one_of_property.add(Verquest::Properties::Reference.new(name: "cat", from: CatComponent))
+    JSONSchemer.expects(:schema).once.returns(stub(valid?: true))
+
+    2.times { one_of_property.to_validation_schema(version: "2025-06") }
+  end
+
   def test_to_schema_without_name
     one_of_property = Verquest::Properties::OneOf.new(
       name: nil,
