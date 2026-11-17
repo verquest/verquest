@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-17
+
 ### Added
 - A named `one_of` takes schema options: annotations (`description`, `title`, `examples`, `example`, `deprecated`, `readOnly`, `writeOnly`, `externalDocs`, `$comment`), `default` and `x-` extensions. They go on the property schema next to `oneOf`, or next to the outer `anyOf` of a nullable `one_of`. The validation schema takes only `default`, so a nullable `one_of` can default to null. A default that doesn't match the `one_of`, like null on one that isn't nullable, raises `Verquest::DefinitionError`, as does a default on a `one_of` with `required: [:other]`, which would make every request without the `one_of` need `other`. Other options raise `Verquest::DefinitionError`, as do schema options on an unnamed `one_of`.
 
